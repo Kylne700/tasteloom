@@ -15,15 +15,26 @@ const TITLES = {
   session_expired: 'Your session expired',
   over_budget: 'That is over your budget',
   too_many: 'That is too many items',
-  limit: 'Sandbox orders are paused for today',
+  limit: 'No more sandbox orders today',
   upstream: 'PayPal is not answering',
   network: 'We could not reach the server',
 };
-const RETRY = new Set(['upstream', 'network', 'internal', 'http']);
+const RETRY = new Set(['upstream', 'network', 'internal', 'http']); // paying again can work
+const FIXABLE = new Set(['over_budget', 'too_many', 'empty', 'bad_request', 'unknown_item', 'not_purchasable']); // removing an item can clear these
+const OFF = {
+  session_expired: 'Paying is off until you start over.',
+  limit: 'Paying is off while sandbox orders are paused.',
+  over_budget: 'Paying is off until the gift fits your budget.',
+};
+const banner = (kind, title, text, actions) =>
+  h('section', { class: 'panel bad', role: 'alert', 'data-kind': kind }, h('div', { class: 'panel-icon' }, icon('alert', 22)), h('div', { class: 'panel-body' }, h('h2', {}, title), h('p', {}, text), h('div', { class: 'panel-actions' }, actions)));
 
 export function mountCheckout(root, { cancelled }) {
   let busy = false;
   let ready = null; // the server's answer, held back when its total differs from what the page shows
+  let blockedBy = ''; // error code of a server answer that paying again cannot fix
+  const shownTotal = () => (ready ? ready.total_cents : totalCents());
+  const guard = () => blockedBy || (shownTotal() > budgetCents() ? 'over_budget' : ''); // why Pay is switched off, if it is
 
   const notices = h('div', { class: 'notices' });
   const lines = h('ul', { class: 'lines' });
@@ -42,6 +53,8 @@ export function mountCheckout(root, { cancelled }) {
     const i = state.selected.indexOf(card.id);
     if (i >= 0) state.selected.splice(i, 1);
     ready = null;
+    if (FIXABLE.has(blockedBy)) blockedBy = '';
+    if (!blockedBy) notices.replaceChildren(); // a price note or a fixable error no longer applies to this gift
     save();
     announce(`Removed ${card.title}.`);
     if (!state.selected.length) {
@@ -52,11 +65,13 @@ export function mountCheckout(root, { cancelled }) {
   }
 
   function renderSummary() {
-    const cards = selectedCards();
-    const total = totalCents();
+    const picked = selectedCards();
+    // while the server's answer is held back, show what the server priced (its lines and total) with the pictures of the matching cards
+    const items = ready ? ready.lines.map((l) => ({ ...(picked.find((c) => c.id === l.id) || {}), ...l })) : picked;
+    const total = shownTotal();
     const budget = budgetCents();
     lines.replaceChildren(
-      ...cards.map((c) =>
+      ...items.map((c) =>
         h(
           'li',
           { class: 'line' },
@@ -70,46 +85,51 @@ export function mountCheckout(root, { cancelled }) {
     totals.replaceChildren(
       h('div', { class: 'row total' }, h('dt', {}, 'Total'), h('dd', {}, money(total))),
       h('div', { class: 'row' }, h('dt', {}, 'Your budget'), h('dd', {}, money(budget))),
-      h('div', { class: 'row' }, h('dt', {}, 'Left over'), h('dd', {}, money(Math.max(0, budget - total)))),
+      total > budget ? h('div', { class: 'row over' }, h('dt', {}, 'Over budget by'), h('dd', {}, money(total - budget))) : h('div', { class: 'row' }, h('dt', {}, 'Left over'), h('dd', {}, money(budget - total))),
     );
+    const shown = notices.querySelector('[data-kind="budget"]');
+    if (total > budget && !blockedBy && !notices.children.length) {
+      notices.append(banner('budget', TITLES.over_budget, `This gift costs ${money(total - budget)} more than your ${money(budget)} budget. Remove an item below, or go back and pick cheaper ones.`, [h('a', { class: 'btn primary', href: '#/ideas' }, icon('back', 16), 'Back to ideas')]));
+    } else if (total <= budget && shown) shown.remove();
     setPayLabel();
   }
 
   function setPayLabel() {
-    const total = ready ? ready.total_cents : totalCents();
-    payBtn.disabled = busy;
-    payBtn.replaceChildren(busy ? spinner() : icon('lock', 18), h('span', {}, busy ? 'Opening PayPal' : ready ? `Continue to PayPal for ${money(total)}` : `Pay ${money(total)} with PayPal`));
+    const off = busy ? '' : guard();
+    payBtn.disabled = busy || !!off;
+    payBtn.replaceChildren(busy ? spinner() : icon('lock', 18), h('span', {}, busy ? 'Opening PayPal' : `Pay ${money(shownTotal())} with PayPal`));
     payBtn.setAttribute('aria-busy', String(busy));
+    if (!busy) payStatus.textContent = off ? OFF[off] || 'Paying is off until the gift is fixed.' : '';
   }
 
   // ---- paying -----------------------------------------------------------------------------------------------------------
   function showError(err) {
     const code = err.code || 'internal';
-    const expired = code === 'session_expired';
+    const retry = RETRY.has(code);
+    blockedBy = retry ? '' : code; // paying again cannot fix the rest, so Pay stays off until the buyer acts
     const actions = [];
-    if (RETRY.has(code)) actions.push(h('button', { type: 'button', class: 'btn primary', onclick: pay }, 'Try again'));
-    if (expired) {
+    if (code === 'session_expired') {
       actions.push(h('button', { type: 'button', class: 'btn primary', onclick: () => { startOver(); location.hash = '#/'; } }, 'Start over'));
       actions.push(h('button', { type: 'button', class: 'btn', onclick: () => { startOver(); state.pending = { mode: 'example' }; location.hash = '#/ideas'; } }, 'Try an example'));
     } else {
-      actions.push(h('a', { class: 'btn' + (RETRY.has(code) ? ' ghost' : ' primary'), href: '#/ideas' }, icon('back', 16), 'Back to ideas'));
+      // one main action per state: the Pay button itself when trying again can work, otherwise the way back
+      if (retry) actions.push(h('button', { type: 'button', class: 'btn', onclick: pay }, 'Try again'));
+      actions.push(h('a', { class: retry ? 'btn' : 'btn primary', href: '#/ideas' }, icon('back', 16), 'Back to ideas'));
     }
-    notices.replaceChildren(
-      h('section', { class: 'panel bad', role: 'alert' }, h('div', { class: 'panel-icon' }, icon('alert', 22)), h('div', { class: 'panel-body' }, h('h2', {}, TITLES[code] || 'We could not create the order'), h('p', {}, err.message), h('div', { class: 'panel-actions' }, actions))),
-    );
-    announce(`${TITLES[code] || 'We could not create the order'}. ${err.message}`);
+    notices.replaceChildren(banner(code, TITLES[code] || 'We could not create the order', err.message, actions));
+    setPayLabel();
   }
 
   function go(approveUrl) {
     if (typeof approveUrl !== 'string' || !approveUrl.startsWith(PAYPAL_HOST)) {
-      throw new ApiError('upstream', 'PayPal did not give us a sandbox page to open. Please try again.');
+      throw new ApiError('upstream', 'PayPal did not give us a sandbox page to open.');
     }
     payStatus.textContent = 'Opening PayPal’s sandbox page';
     location.assign(approveUrl);
   }
 
   async function pay() {
-    if (busy) return;
+    if (busy || guard()) return;
     notices.querySelectorAll('.panel.bad').forEach((n) => n.remove());
     if (ready) {
       busy = true;
@@ -119,7 +139,7 @@ export function mountCheckout(root, { cancelled }) {
       } catch (e) {
         busy = false;
         ready = null;
-        setPayLabel();
+        renderSummary();
         showError(e);
       }
       return;
@@ -132,22 +152,21 @@ export function mountCheckout(root, { cancelled }) {
     try {
       const res = await postJson('/api/checkout', { sessionId: state.run.sessionId, itemIds: picked.map((c) => c.id) });
       if (res.total_cents !== totalCents()) {
-        // The server priced it from its own saved cards and got another total: show that and let the buyer decide.
+        // The server priced it from its own saved cards and got another total: show its lines and total, and let the buyer decide.
         ready = res;
         busy = false;
         payStatus.textContent = '';
-        setPayLabel();
         notices.replaceChildren(
           h('p', { class: 'note warn', role: 'status' }, icon('info', 18), h('span', {}, `Our server priced this gift at ${money(res.total_cents)}, not ${money(totalCents())}. The server’s price is the one PayPal will charge. Continue only if that is fine.`)),
         );
-        announce(`The server price is ${money(res.total_cents)}. Press continue to go to PayPal.`);
+        renderSummary();
+        announce(`The server price is ${money(res.total_cents)}. Press pay to go to PayPal.`);
         return;
       }
       go(res.approveUrl);
     } catch (e) {
       busy = false;
       payStatus.textContent = '';
-      setPayLabel();
       showError(e instanceof ApiError ? e : new ApiError('internal', 'Something went wrong. Please try again.'));
     }
   }
@@ -174,7 +193,7 @@ export function mountCheckout(root, { cancelled }) {
     h(
       'div',
       { class: 'screen checkout' },
-      h('div', { class: 'screen-head' }, h('div', {}, h('h1', { tabindex: '-1' }, 'Checkout'), h('p', { class: 'lead' }, 'Review your gift, then pay as a guest in PayPal’s sandbox.')), h('div', { class: 'head-actions' }, h('a', { class: 'btn ghost small', href: '#/ideas' }, icon('back', 16), 'Back to ideas'))),
+      h('div', { class: 'screen-head' }, h('div', {}, h('h1', { tabindex: '-1' }, 'Checkout'), h('p', { class: 'lead' }, 'Review your gift, then pay as a guest in PayPal’s sandbox.')), h('div', { class: 'head-actions' }, h('a', { class: 'btn small', href: '#/ideas' }, icon('back', 16), 'Back to ideas'))),
       cancelled ? h('p', { class: 'note info', role: 'status' }, icon('info', 18), h('span', {}, 'You cancelled on PayPal’s page, so nothing was charged. Your gift is still here.')) : null,
       notices,
       h(

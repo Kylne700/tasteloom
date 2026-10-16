@@ -5,7 +5,7 @@ import { LimitError, Meter } from './lib/limits.ts';
 import { storeFor } from './lib/store.ts';
 import { dayKey, sha256Hex, sleep, errMsg } from './lib/util.ts';
 import { loadConfig, publicStatus, secretsOf } from './config.ts';
-import { cancelOrder, loadOrder, loadSession, OrderError, publicOrder, saveSession } from './commerce.ts';
+import { cancelOrder, loadOrder, loadSession, ORDER_MESSAGES, OrderError, publicOrder, saveSession } from './commerce.ts';
 import { validOrderId } from './adapters/paypal.ts';
 import { InputError, parseIdeasInput, runIdeas } from './agent/ideas.ts';
 import { agentCheckout, agentReturn } from './agent/orders.ts';
@@ -27,8 +27,13 @@ type AppEnv = { Bindings: Env; Variables: { svc: Svc } };
 const SUB_BUDGET = 40; // Workers Free: 50 subrequests per invocation
 
 export const LIMIT_MESSAGE = {
-  ip: 'You have used up your live lookups for today. Try the example, or come back tomorrow.',
-  global: 'The demo has reached its daily limit for live data. Try the example, or come back tomorrow.',
+  ip: 'You have reached today’s allowance for live lookups. The example still works, or come back tomorrow.',
+  global: 'The demo has reached its daily budget for live data. The example still works, or come back tomorrow.',
+} as const;
+/** Same limits, seen from the checkout screen (sandbox orders and the daily spend cap). */
+export const ORDER_LIMIT_MESSAGE = {
+  ip: 'You have used today’s allowance of sandbox orders. Come back tomorrow.',
+  global: 'The demo has reached its daily cap on sandbox orders. Come back tomorrow.',
 } as const;
 
 export function createApp(deps: Deps = {}) {
@@ -87,10 +92,10 @@ export function createApp(deps: Deps = {}) {
     const svc = c.get('svc');
     const body = await readJson(c);
     const sessionId = typeof body?.sessionId === 'string' ? body.sessionId : '';
-    if (!/^s[0-9a-f]{20}$/.test(sessionId)) return c.json({ error: { code: 'session_expired', message: 'Your session expired. Start again or try the example.' } }, 404);
+    if (!/^s[0-9a-f]{20}$/.test(sessionId)) return c.json({ error: { code: 'session_expired', message: ORDER_MESSAGES.session_expired } }, 404);
     try {
       const session = await loadSession(svc, sessionId);
-      if (!session) throw new OrderError('session_expired', 'Your session expired. Start again or try the example.');
+      if (!session) throw new OrderError('session_expired', ORDER_MESSAGES.session_expired);
       // Only item ids are read from the request. Any price, title or total a client sends is ignored.
       const base = svc.cfg.publicBase ?? new URL(c.req.url).origin;
       const { order, reused } = await agentCheckout(svc, session, body?.itemIds, { returnUrl: `${base}/api/return`, cancelUrl: `${base}/api/cancel` });
@@ -148,8 +153,8 @@ async function readJson(c: Context<AppEnv>): Promise<Record<string, unknown> | u
 export function describeError(e: unknown): { status: 400 | 404 | 429 | 502 | 500; code: string; message: string } {
   if (e instanceof InputError) return { status: 400, code: 'bad_input', message: e.message };
   if (e instanceof OrderError) return { status: e.code === 'session_expired' ? 404 : 400, code: e.code, message: e.message };
-  if (e instanceof LimitError) return { status: 429, code: 'limit', message: LIMIT_MESSAGE[e.scope] };
-  if (e instanceof HttpError || e instanceof BudgetError) return { status: 502, code: 'upstream', message: 'A service we depend on is not answering right now. Try the example, or try again in a minute.' };
+  if (e instanceof LimitError) return { status: 429, code: 'limit', message: (e.counter === 'orders' || e.counter === 'cents' ? ORDER_LIMIT_MESSAGE : LIMIT_MESSAGE)[e.scope] };
+  if (e instanceof HttpError || e instanceof BudgetError) return { status: 502, code: 'upstream', message: 'Please try again in a minute.' };
   return { status: 500, code: 'internal', message: 'Something went wrong on our side. Please try again.' };
 }
 

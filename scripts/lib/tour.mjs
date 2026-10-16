@@ -5,8 +5,9 @@
 import { BASE, audit, check, cls, fresh, mock, newPage, overflowSweep, release, say, shot, sleep, tabWalk } from './browser.mjs';
 
 const KEY = 'tasteloom.v1';
-const UPSTREAM_MSG = 'A service we depend on is not answering right now. Try the example, or try again in a minute.';
-const LIMIT_MSG = 'You have used up your live lookups for today. Try the example, or come back tomorrow.';
+const UPSTREAM_MSG = 'Please try again in a minute.'; // the texts the server sends (src/app.ts, src/commerce.ts)
+const LIMIT_MSG = 'You have reached today’s allowance for live lookups. The example still works, or come back tomorrow.';
+const LABEL = { COMPLETED: 'Completed', CAPTURE_FAILED: 'Not completed', NOT_APPROVED: 'Not approved yet', CREATED: 'Waiting for approval', CANCELLED: 'Cancelled' };
 const ORDER_ID = '7EX35260AB123456C'; // synthetic ids for the scripted receipts
 const CAPTURE_ID = '3C679366HH908993F';
 const err = (status, code, message) => ({ status, json: { error: { code, message } } });
@@ -17,6 +18,8 @@ const count = (page, sel) => page.$$eval(sel, (l) => l.length);
 const shown = (page, sel) => page.$eval(sel, (e) => e.getClientRects().length > 0 && !e.hidden).catch(() => false);
 const until = (page, fn, arg, ms = 20000) => page.waitForFunction(fn, { timeout: ms }, arg);
 const hashIs = (page, h) => until(page, (x) => location.hash === x, h, 10000);
+/** The buttons of a card or banner: their names and which of them are filled (primary). */
+const actionsOf = (page, sel) => page.$$eval(`${sel} > *`, (l) => ({ names: l.map((e) => e.textContent.trim()), filled: l.filter((e) => e.classList.contains('primary')).map((e) => e.textContent.trim()) }));
 
 async function findByText(page, re, scope = 'button, a, [role=switch]') {
   for (const el of await page.$$(scope)) {
@@ -73,7 +76,8 @@ function fixtures(sample) {
     live,
     firstIdea: nth('idea', 1),
     secondIdea: nth('idea', 2),
-    partial: [...live.filter((e) => e.t !== 'done'), { t: 'error', code: 'upstream', message: UPSTREAM_MSG }],
+    // stops right after the second idea: the later steps never ran, so the step list must not look finished
+    partial: [...live.slice(0, nth('idea', 2) + 1), { t: 'error', code: 'upstream', message: UPSTREAM_MSG }],
     empty: [{ ...live[0], budget_cents: 5000 }, { t: 'phase', id: 'taste', label: 'Reading their taste with Qloo', state: 'running' }, { t: 'done', tier: 'agent' }],
   };
 }
@@ -97,16 +101,24 @@ const order = (c, status, over = {}) => {
   const lines = purchasable(c.done).slice(0, 2).map((x) => ({ id: x.id, title: x.title, shop: x.shop, price_cents: x.price_cents }));
   return { id: ORDER_ID, status, lines, total_cents: lines.reduce((a, l) => a + l.price_cents, 0), currency: 'USD', captureId: status === 'COMPLETED' ? CAPTURE_ID : null, error: null, trace: ['Priced the order from the saved product cards', 'Created the order in the PayPal sandbox', status === 'COMPLETED' ? 'Captured the approved payment' : 'Waited for the approval'], sandbox: true, ...over };
 };
-const receipt = (c, key, status, over, wantH1) => ({
+const receipt = (c, key, status, over, wantH1, { gift = false, filled, banner = null } = {}) => ({
   key,
   tablet: status === 'COMPLETED',
   async run() {
-    await open(c, '#/', { st: c.done });
+    await open(c, '#/', { st: gift ? { ...c.done, selected: purchasable(c.done).slice(0, 2).map((x) => x.id) } : c.done });
     await mock(c.page, `GET /api/orders/${ORDER_ID}`, { json: order(c, status, over) });
     await c.page.evaluate((h) => { location.hash = h; }, `#/receipt/${ORDER_ID}`);
     await c.page.waitForFunction((t) => document.querySelector('h1')?.textContent === t, { timeout: 8000 }, wantH1).catch(() => {});
     check(`${c.name}/${key}: heading "${wantH1}" and the order id shown`, (await text(c.page, 'h1')) === wantH1 && (await text(c.page, '.facts')).includes(ORDER_ID), await text(c.page, 'h1'));
-    check(`${c.name}/${key}: status pill says ${status}, mode says sandbox`, (await text(c.page, '.status-pill')) === status && (await text(c.page, '.facts')).includes('PayPal sandbox, no real money'));
+    check(`${c.name}/${key}: status pill says "${LABEL[status]}" (the raw ${status} stays in the page data only), mode says sandbox`, (await text(c.page, '.status-pill')) === LABEL[status] && (await c.page.$eval('.status-pill', (e) => e.dataset.status)) === status && (await text(c.page, '.facts')).includes('PayPal sandbox, no real money'));
+    const card = (await text(c.page, '.receipt-card')) || '';
+    check(`${c.name}/${key}: no raw codes in the text and "Nothing was charged" is said at most once`, !/[A-Z]{3,}_[A-Z_]{3,}/.test(card) && (card.match(/Nothing was charged/g) || []).length <= (status === 'COMPLETED' ? 0 : 1), card.slice(0, 80));
+    const doneSteps = await count(c.page, '#steps li.done');
+    check(`${c.name}/${key}: the step bar ${status === 'COMPLETED' ? 'ticks all three steps' : 'keeps Checkout as the current step instead of ticking it'}`, status === 'COMPLETED' ? doneSteps === 3 : doneSteps === 2 && (await text(c.page, '#steps li.current')).startsWith('3'), `${doneSteps} done, current ${await text(c.page, '#steps li.current')}`);
+    const acts = await actionsOf(c.page, '.receipt-actions');
+    check(`${c.name}/${key}: exactly one filled button ("${filled}") among ${acts.names.join(', ')}`, acts.filled.join('|') === filled, acts.filled.join(','));
+    const note = await text(c.page, '.receipt-body .note');
+    check(`${c.name}/${key}: ${banner ? 'the failure reason is shown once, in plain words' : 'no extra banner repeats the subtitle'}`, banner ? note === banner : note === null, note || 'none');
     if (status === 'COMPLETED') {
       check(`${c.name}/${key}: payment id, total and both items on the receipt`, (await text(c.page, '.facts')).includes(CAPTURE_ID) && (await count(c.page, '.receipt .lines li.line')) === 2);
       await c.audit('receipt');
@@ -209,8 +221,13 @@ function states(fx) {
     const { page } = c;
     await release(page, c.stream.key, fx.partial.length - c.stream.n);
     await page.waitForSelector('section.panel.warn[role=alert]', { timeout: 8000 });
-    check(`${c.name}/ideas: stopping early keeps the ideas, says so, and offers to try again`, (await text(page, 'section.panel.warn h2')) === 'The agent stopped early' && (await count(page, '.ideas-list article.idea:not(.skeleton)')) >= 3 && !!(await findByText(page, /^Try again$/)), await text(page, 'section.panel.warn h2'));
+    const acts = await actionsOf(page, 'section.panel.warn .panel-actions');
+    const body = (await text(page, 'section.panel.warn .panel-body p')) || '';
+    check(`${c.name}/ideas: stopping early keeps the ideas, says so, and offers to try again`, (await text(page, 'section.panel.warn h2')) === 'The agent stopped early' && (await count(page, '.ideas-list article.idea:not(.skeleton)')) >= 2 && acts.names.join('|') === 'Try again|Try an example', `${await text(page, 'section.panel.warn h2')} / ${acts.names.join(', ')}`);
+    check(`${c.name}/ideas: stopping early has no filled button (the Review and pay bar stays the main action) and its text does not say "try again" twice`, acts.filled.length === 0 && !/try again/i.test(body) && body.length > 20, `${acts.filled.join(',')} / ${body}`);
     check(`${c.name}/ideas: no placeholder is left spinning after the error`, (await count(page, '.idea.skeleton')) === 0 && (await count(page, '.phases li.phase[data-state=running]')) === 0);
+    check(`${c.name}/ideas: the step list tells the truth (unfinished steps are not ticked) and the status says Stopped`, (await count(page, '.phases li.phase[data-state=done]')) < (await count(page, '.phases li.phase')) && (await count(page, '.phases li.phase[data-state=error]')) >= 1 && (await text(page, '.agent-status')) === 'Stopped', await text(page, '.agent-status'));
+    check(`${c.name}/ideas: the error card is in the first screens, not below an opened trace`, (await page.$eval('section.panel.warn', (e) => e.getBoundingClientRect().top + scrollY)) < 1100 && (await page.$eval('.agent', (e) => e.dataset.open)) === String(await page.evaluate(() => matchMedia('(min-width: 1000px)').matches)));
     await c.audit('ideas partial');
     await c.snap();
     // a reload while a run is in progress cannot resume it: back to the first screen with the favourites still there
@@ -275,22 +292,25 @@ function states(fx) {
     await c.snap();
   });
 
-  const ideasError = (key, label, spec, title, buttons) =>
+  const ideasError = (key, label, spec, title, buttons, filled) =>
     add(key, key === 'ideas-error-limit', async (c) => {
       const { page } = c;
       await open(c, '#/', { st: { favorites: fx.FAVS, budget: 120 }, mocks: { 'POST /api/ideas': spec } });
       await tapText(page, /^Find gift ideas$/);
       await page.waitForSelector('section.panel[role=alert]', { timeout: 8000 });
       await sleep(300);
-      const got = await page.$$eval('section.panel[role=alert] .panel-actions > *', (l) => l.map((e) => e.textContent.trim()));
-      check(`${c.name}/ideas: ${label}: title "${title}" with a plain message and the actions ${buttons.join(', ')}`, (await text(page, 'section.panel[role=alert] h2')) === title && buttons.every((b) => got.includes(b)) && (await count(page, '.idea.skeleton')) === 0, `${await text(page, 'section.panel[role=alert] h2')} / ${got.join(', ')}`);
+      const got = await actionsOf(page, 'section.panel[role=alert] .panel-actions');
+      const body = (await text(page, 'section.panel[role=alert] .panel-body p')) || '';
+      check(`${c.name}/ideas: ${label}: title "${title}" with a plain message and the actions ${buttons.join(', ')}`, (await text(page, 'section.panel[role=alert] h2')) === title && got.names.join('|') === buttons.join('|') && (await count(page, '.idea.skeleton')) === 0, `${await text(page, 'section.panel[role=alert] h2')} / ${got.names.join(', ')}`);
+      check(`${c.name}/ideas: ${label}: one filled button ("${filled}") and a message that does not repeat the title`, got.filled.join('|') === filled && body.length > 10 && !body.toLowerCase().includes(title.toLowerCase()), `${got.filled.join(',')} / ${body}`);
+      check(`${c.name}/ideas: ${label}: the status row says Stopped, in the same red as the card icon`, (await text(page, '.agent-status')) === 'Stopped' && (await page.evaluate(() => getComputedStyle(document.querySelector('.agent-status svg')).color === getComputedStyle(document.querySelector('section.panel.bad .panel-icon')).color)), await text(page, '.agent-status'));
       if (key === 'ideas-error-limit') await c.audit('ideas error');
       await c.snap();
     });
-  ideasError('ideas-error-network', 'server unreachable', { reject: true }, 'We could not reach the server', ['Try again', 'Try an example']);
-  ideasError('ideas-error-limit', 'daily limit reached', err(429, 'limit', LIMIT_MSG), 'Live lookups are used up for now', ['Try again', 'Try an example']);
-  ideasError('ideas-error-upstream', 'a service is down', err(502, 'upstream', UPSTREAM_MSG), 'A service we depend on is not answering', ['Try again', 'Try an example']);
-  ideasError('ideas-error-bad-input', 'input refused by the server', err(400, 'bad_input', 'Add 3 to 5 things they love.'), 'We could not find gifts for that', ['Change favourites or budget', 'Try an example']);
+  ideasError('ideas-error-network', 'server unreachable', { reject: true }, 'We could not reach the server', ['Try again', 'Try an example'], 'Try again');
+  ideasError('ideas-error-limit', 'daily limit reached', err(429, 'limit', LIMIT_MSG), 'Live lookups are used up for now', ['Try an example'], 'Try an example');
+  ideasError('ideas-error-upstream', 'a service is down', err(502, 'upstream', UPSTREAM_MSG), 'A service we depend on is not answering', ['Try again', 'Try an example'], 'Try again');
+  ideasError('ideas-error-bad-input', 'input refused by the server', err(400, 'bad_input', 'Nothing we found fits that budget. Try a higher budget or different favourites.'), 'Nothing to suggest yet', ['Change favourites', 'Try an example'], 'Change favourites');
 
   add('ideas-empty', false, async (c) => {
     const { page } = c;
@@ -298,7 +318,9 @@ function states(fx) {
     await tapText(page, /^Find gift ideas$/);
     await release(page, 'POST /api/ideas', fx.empty.length);
     await page.waitForFunction(() => /No ideas to show/.test(document.body.textContent), { timeout: 8000 });
-    check(`${c.name}/ideas: no results gives an explanation and two ways forward`, !!(await findByText(page, /^Try an example$/)) && !!(await findByText(page, /^Change favourites$/)));
+    const acts = await actionsOf(page, 'section.panel .panel-actions');
+    check(`${c.name}/ideas: no results gives an explanation and two ways forward, one of them filled`, acts.names.join('|') === 'Change favourites|Try an example' && acts.filled.join('|') === 'Change favourites', acts.names.join(', '));
+    check(`${c.name}/ideas: the status row says "Finished without ideas" instead of a green Done`, (await text(page, '.agent-status')) === 'Finished without ideas' && (await page.$eval('.agent-status', (e) => e.dataset.state)) === 'empty', await text(page, '.agent-status'));
     await c.snap();
   });
 
@@ -311,6 +333,7 @@ function states(fx) {
     await open(c, '#/checkout', { st: ckSt(c) });
     check(`${c.name}/checkout: heading, title, step 3, both items and the totals`, (await text(page, 'h1')) === 'Checkout' && (await page.title()) === 'Checkout · Tasteloom' && (await text(page, '#steps li.current')).startsWith('3') && (await count(page, '.summary li.line')) === 2 && /Total/.test(await text(page, 'dl.totals')), await text(page, 'dl.totals'));
     check(`${c.name}/checkout: the sandbox label and the working test card are on screen`, /Sandbox, no real money/.test(await text(page, '.sandbox-note')) && (await text(page, 'dl.testcard')).includes('4005 5192 0000 0004') && (await text(page, 'dl.testcard')).includes('12/30') && (await text(page, 'dl.testcard')).includes('123'));
+    check(`${c.name}/checkout: the only filled button on the screen is Pay (the way back is an outline button)`, (await page.$$eval('main .btn.primary, main button.primary', (l) => l.map((e) => e.textContent.trim()))).join('|').startsWith('Pay ') && (await page.$$eval('main .btn.primary', (l) => l.length)) === 1);
     check(`${c.name}/checkout: the pay button names the exact total`, new RegExp(`Pay \\$${(total(c) / 100).toFixed(2).replace('.', '\\.')} with PayPal`).test(await text(page, 'button.pay-btn')), await text(page, 'button.pay-btn'));
     if (c.clip) {
       await page.click('dl.testcard button.copy');
@@ -341,20 +364,53 @@ function states(fx) {
     await c.page.waitForSelector('button.pay-btn[aria-busy="true"]', { timeout: 5000 });
     check(`${c.name}/checkout: while the order is created the button is busy and disabled, and a status line says so`, (await c.page.$eval('button.pay-btn', (e) => e.disabled)) && /Creating your order/.test(await text(c.page, '.pay-status')) && /Opening PayPal/.test(await text(c.page, 'button.pay-btn')));
   });
-  pay('checkout-mismatch', (c) => ({ json: { orderId: ORDER_ID, approveUrl: `https://www.sandbox.paypal.com/checkoutnow?token=${ORDER_ID}`, total_cents: total(c) + 500, lines: [], reused: false, sandbox: true } }), async (c) => {
+  pay('checkout-mismatch', (c) => ({ json: { orderId: ORDER_ID, approveUrl: `https://www.sandbox.paypal.com/checkoutnow?token=${ORDER_ID}`, total_cents: total(c) + 500, lines: two(c).map((x, i) => ({ id: x.id, title: x.title, shop: x.shop, price_cents: x.price_cents + (i === 0 ? 500 : 0) })), reused: false, sandbox: true } }), async (c) => {
     await c.page.waitForSelector('.note.warn', { timeout: 5000 });
-    check(`${c.name}/checkout: a different server total is shown before leaving, with an explicit continue button`, /priced this gift at/.test(await text(c.page, '.note.warn')) && /^Continue to PayPal for \$/.test(await text(c.page, 'button.pay-btn')), await text(c.page, '.note.warn'));
+    const money = (n) => `$${(n / 100).toFixed(2)}`;
+    const note = (await text(c.page, '.note.warn')) || '';
+    check(`${c.name}/checkout: a different server total is explained before leaving, naming both amounts`, note.includes(money(total(c) + 500)) && note.includes(money(total(c))) && /server/i.test(note), note);
+    check(`${c.name}/checkout: the list, the Total row and the button all show the server's price, so nothing contradicts the note`, (await text(c.page, 'dl.totals .row.total')).includes(money(total(c) + 500)) && (await text(c.page, '.summary li.line:first-child .line-price')) === money(two(c)[0].price_cents + 500) && (await text(c.page, 'button.pay-btn')) === `Pay ${money(total(c) + 500)} with PayPal`, `${await text(c.page, 'dl.totals .row.total')} / ${await text(c.page, 'button.pay-btn')}`);
+    check(`${c.name}/checkout: the button label stays on one line`, await c.page.$eval('button.pay-btn', (e) => e.getBoundingClientRect().height < 80));
   });
-  const payError = (key, spec, title, actions) =>
+  // When paying again can work, the Pay button stays the one filled button and the banner has outline buttons only;
+  // when it cannot, Pay is switched off (with a line saying why) and the banner has exactly one filled button.
+  const payError = (key, spec, title, actions, filled) =>
     pay(key, spec, async (c) => {
       await c.page.waitForSelector('section.panel.bad[role=alert]', { timeout: 5000 });
-      const got = await c.page.$$eval('section.panel.bad .panel-actions > *', (l) => l.map((e) => e.textContent.trim()));
-      check(`${c.name}/checkout: ${key.replace('checkout-error-', '')}: title "${title}" and actions ${actions.join(', ')}`, (await text(c.page, 'section.panel.bad h2')) === title && actions.every((a) => got.includes(a)), `${await text(c.page, 'section.panel.bad h2')} / ${got.join(', ')}`);
+      const got = await actionsOf(c.page, 'section.panel.bad .panel-actions');
+      const body = (await text(c.page, 'section.panel.bad .panel-body p')) || '';
+      const payOff = await c.page.$eval('button.pay-btn', (e) => e.disabled);
+      check(`${c.name}/checkout: ${key.replace('checkout-error-', '')}: title "${title}" and actions ${actions.join(', ')}`, (await text(c.page, 'section.panel.bad h2')) === title && got.names.join('|') === actions.join('|'), `${await text(c.page, 'section.panel.bad h2')} / ${got.names.join(', ')}`);
+      check(`${c.name}/checkout: ${key.replace('checkout-error-', '')}: ${filled ? `one filled button ("${filled}") and Pay is switched off with a reason` : 'Pay stays the one filled button and stays on'}; the message does not repeat the title`, got.filled.join('|') === (filled || '') && payOff === !!filled && (!filled || (await text(c.page, '.pay-status')).startsWith('Paying is off')) && body.length > 10 && !body.toLowerCase().includes(title.toLowerCase()), `${got.filled.join(',')} / pay off ${payOff} / ${body}`);
     });
-  payError('checkout-error-upstream', err(502, 'upstream', 'PayPal is not answering right now. Nothing was charged. Please try again.'), 'PayPal is not answering', ['Try again', 'Back to ideas']);
-  payError('checkout-error-over-budget', err(422, 'over_budget', 'This gift costs more than your budget. Remove an item or pick cheaper ones.'), 'That is over your budget', ['Back to ideas']);
-  payError('checkout-error-session', err(404, 'session_expired', 'Your session has expired, so the saved prices are gone. Start again or try the example.'), 'Your session expired', ['Start over', 'Try an example']);
-  payError('checkout-error-network', { reject: true }, 'We could not reach the server', ['Try again', 'Back to ideas']);
+  payError('checkout-error-upstream', err(502, 'upstream', UPSTREAM_MSG), 'PayPal is not answering', ['Try again', 'Back to ideas'], '');
+  // Over budget: the page counts for itself first (Pay is off, the numbers say by how much); the server can still refuse, and removing items clears it.
+  add('checkout-error-over-budget', false, async (c) => {
+    const { page } = c;
+    const three = purchasable(c.done).slice(0, 3);
+    const sum = three.reduce((a, x) => a + x.price_cents, 0);
+    const dear = [...three].sort((a, b) => b.price_cents - a.price_cents);
+    await open(c, '#/checkout', { st: withRun(c.done, { budget_cents: sum - 500, selected: three.map((x) => x.id) }) });
+    const got = await actionsOf(page, 'section.panel.bad .panel-actions');
+    const over = (await text(page, 'dl.totals .row.over')) || '';
+    check(`${c.name}/checkout: over budget (counted on the page): the banner, the "Over budget by" row and the Pay button agree`, (await text(page, 'section.panel.bad h2')) === 'That is over your budget' && over.includes('$5.00') && (await text(page, 'section.panel.bad .panel-body p')).includes('$5.00') && got.names.join('|') === 'Back to ideas' && got.filled.join('|') === 'Back to ideas' && (await page.$eval('button.pay-btn', (e) => e.disabled)) && (await text(page, '.pay-status')) === 'Paying is off until the gift fits your budget.', `${over} / ${got.names.join(', ')}`);
+    await c.audit('checkout over budget');
+    await c.snap();
+    await page.click(`.summary li.line:nth-child(${three.findIndex((x) => x.id === dear[0].id) + 1}) button.icon-btn`);
+    await sleep(200);
+    check(`${c.name}/checkout: removing the dearest item clears the over-budget banner and switches Pay on`, dear[0].price_cents >= 500 && (await count(page, 'section.panel.bad')) === 0 && !(await page.$eval('button.pay-btn', (e) => e.disabled)) && (await text(page, '.pay-status')) === '', `removed ${dear[0].price_cents} cents`);
+    // the server can still refuse (its own count wins): Pay stays off until something is removed
+    await mock(page, 'POST /api/checkout', err(422, 'over_budget', 'The server counts more than your budget allows. Remove an item or pick cheaper ones.'));
+    await tapText(page, /with PayPal$/);
+    await page.waitForSelector('section.panel.bad[role=alert]', { timeout: 5000 });
+    const refused = await actionsOf(page, 'section.panel.bad .panel-actions');
+    check(`${c.name}/checkout: when the server refuses a total, Pay is off with a reason and "Back to ideas" is the one filled button`, (await page.$eval('button.pay-btn', (e) => e.disabled)) && refused.filled.join('|') === 'Back to ideas' && /^Paying is off/.test(await text(page, '.pay-status')));
+    await page.click('.summary li.line:first-child button.icon-btn');
+    await sleep(200);
+    check(`${c.name}/checkout: removing an item clears a refusal that removing can fix`, (await count(page, 'section.panel.bad')) === 0 && !(await page.$eval('button.pay-btn', (e) => e.disabled)), `${await count(page, '.summary li.line')} item left`);
+  });
+  payError('checkout-error-session', err(404, 'session_expired', 'The saved prices are gone, so this gift cannot be ordered. Start over, or try the example.'), 'Your session expired', ['Start over', 'Try an example'], 'Start over');
+  payError('checkout-error-network', { reject: true }, 'We could not reach the server', ['Try again', 'Back to ideas'], '');
 
   add('checkout-cancelled', false, async (c) => {
     await open(c, '#/checkout?cancelled=1', { st: ckSt(c) });
@@ -366,28 +422,31 @@ function states(fx) {
     await open(c, '#/', { st: c.done, mocks: { [`GET /api/orders/${ORDER_ID}`]: { hang: true } } });
     await c.page.evaluate((h) => { location.hash = h; }, `#/receipt/${ORDER_ID}`);
     await sleep(400);
-    check(`${c.name}/receipt: while loading it says so and shows a placeholder`, (await text(c.page, 'h1')) === 'Getting your receipt' && (await count(c.page, '.sk-card')) === 1);
+    check(`${c.name}/receipt: while loading it says so, shows a placeholder and does not tick the last step`, (await text(c.page, 'h1')) === 'Getting your receipt' && (await count(c.page, '.sk-card')) === 1 && (await count(c.page, '#steps li.done')) === 2 && (await text(c.page, '#steps li.current')).startsWith('3'));
     await c.snap();
   });
   // built lazily: they need c.done for the item lines
-  S.push({ key: 'receipt-completed', tablet: true, build: (c) => receipt(c, 'receipt-completed', 'COMPLETED', {}, 'Order confirmed') });
-  S.push({ key: 'receipt-capture-failed', tablet: false, build: (c) => receipt(c, 'receipt-capture-failed', 'CAPTURE_FAILED', { error: 'PayPal declined the payment (INSTRUMENT_DECLINED). Nothing was charged.' }, 'Payment not completed') });
-  S.push({ key: 'receipt-not-approved', tablet: false, build: (c) => receipt(c, 'receipt-not-approved', 'NOT_APPROVED', {}, 'Payment not approved yet') });
-  S.push({ key: 'receipt-created', tablet: false, build: (c) => receipt(c, 'receipt-created', 'CREATED', {}, 'Waiting for your approval on PayPal') });
-  S.push({ key: 'receipt-cancelled', tablet: false, build: (c) => receipt(c, 'receipt-cancelled', 'CANCELLED', {}, 'Payment cancelled') });
+  const DECLINED = 'The card was declined. Go back to checkout and use the sandbox test card.';
+  S.push({ key: 'receipt-completed', tablet: true, build: (c) => receipt(c, 'receipt-completed', 'COMPLETED', {}, 'Order confirmed', { filled: 'Start a new gift' }) });
+  S.push({ key: 'receipt-capture-failed', tablet: false, build: (c) => receipt(c, 'receipt-capture-failed', 'CAPTURE_FAILED', { error: DECLINED }, 'Payment not completed', { filled: 'Check and try again', banner: DECLINED }) });
+  S.push({ key: 'receipt-not-approved', tablet: false, build: (c) => receipt(c, 'receipt-not-approved', 'NOT_APPROVED', { error: 'The payment was not approved on PayPal yet.' }, 'Payment not approved yet', { gift: true, filled: 'Back to checkout' }) });
+  S.push({ key: 'receipt-created', tablet: false, build: (c) => receipt(c, 'receipt-created', 'CREATED', {}, 'Waiting for your approval on PayPal', { filled: 'I approved it, check again' }) });
+  S.push({ key: 'receipt-cancelled', tablet: false, build: (c) => receipt(c, 'receipt-cancelled', 'CANCELLED', {}, 'Payment cancelled', { filled: 'Start a new gift' }) });
 
   add('receipt-not-found', false, async (c) => {
     await open(c, '#/', { st: c.done, mocks: { [`GET /api/orders/${ORDER_ID}`]: err(404, 'not_found', 'Order not found.') } });
     await c.page.evaluate((h) => { location.hash = h; }, `#/receipt/${ORDER_ID}`);
     await c.page.waitForFunction(() => document.querySelector('h1')?.textContent !== 'Getting your receipt', { timeout: 8000 });
-    check(`${c.name}/receipt: an unknown order says so and offers a new start`, (await text(c.page, 'h1')) === 'We could not find that order' && !!(await findByText(c.page, /^Start a new gift$/)), await text(c.page, 'h1'));
+    const acts = await actionsOf(c.page, '.receipt-actions');
+    check(`${c.name}/receipt: an unknown order says so, offers a new start as the one filled button, and the last step is not ticked`, (await text(c.page, 'h1')) === 'We could not find that order' && acts.names.join('|') === 'Start a new gift' && acts.filled.join('|') === 'Start a new gift' && (await count(c.page, '#steps li.done')) === 2, await text(c.page, 'h1'));
     await c.snap();
   });
   add('receipt-error', false, async (c) => {
     await open(c, '#/', { st: c.done, mocks: { [`GET /api/orders/${ORDER_ID}`]: { reject: true } } });
     await c.page.evaluate((h) => { location.hash = h; }, `#/receipt/${ORDER_ID}`);
     await c.page.waitForFunction(() => document.querySelector('h1')?.textContent !== 'Getting your receipt', { timeout: 8000 });
-    check(`${c.name}/receipt: a network failure says so and offers to try again`, (await text(c.page, 'h1')) === 'We could not load your receipt' && !!(await findByText(c.page, /^Try again$/)), await text(c.page, 'h1'));
+    const acts = await actionsOf(c.page, '.receipt-actions');
+    check(`${c.name}/receipt: a network failure says so, with Try again as the one filled button and a plain reason under the heading`, (await text(c.page, 'h1')) === 'We could not load your receipt' && acts.names.join('|') === 'Try again|Start a new gift' && acts.filled.join('|') === 'Try again' && (await text(c.page, '.receipt-card .lead')) === 'Check your connection and try again.', `${acts.names.join(', ')} / ${await text(c.page, '.receipt-card .lead')}`);
     await c.snap();
   });
 

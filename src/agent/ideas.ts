@@ -311,7 +311,7 @@ class Run {
     if (this.seeds.size) return;
     if (this.limited) throw this.limited;
     if (this.failed) throw this.failed;
-    throw new InputError('We could not recognise any of those. Try more widely known names, for example a band, a film or a brand.');
+    throw new InputError('None of those names were recognised. Try more widely known ones, for example a band, a film or a brand.');
   }
 
   async ensureCandidates() {
@@ -475,7 +475,7 @@ export async function runIdeas(svc: Svc, input: IdeasInput, emit: Emit): Promise
   if (!run.cards.some((c) => c.purchasable)) { // experience links alone leave nothing to buy, so this is a failure, not a result
     if (run.limited) throw run.limited;
     if (run.failed) throw run.failed;
-    throw new InputError('We could not find gifts for that within the budget. Try a higher budget or different favourites.');
+    throw new InputError('Nothing we found fits that budget. Try a higher budget or different favourites.');
   }
   run.phase('products', PH.products, 'done', `${run.ideas.length} ideas`);
 

@@ -18,7 +18,7 @@ const STEPS = [
   { label: 'Checkout', href: '#/checkout' },
 ];
 
-function renderSteps(current, finished) {
+function renderSteps(current, finished = false) {
   const canGo = [true, !!state.run, !!state.run && state.selected.length > 0];
   stepsEl.replaceChildren(
     ...STEPS.map((s, i) => {
@@ -55,7 +55,6 @@ function route() {
   const { path, params } = parse();
   let title = 'Gifts that understand them';
   let step = 1;
-  let finished = false;
   let mount = mountTaste;
   let arg = {};
   const receipt = path.match(/^#\/receipt\/([A-Za-z0-9]+)$/);
@@ -74,12 +73,11 @@ function route() {
   } else if (receipt) {
     mount = mountReceipt;
     step = 3;
-    finished = true;
     title = 'Receipt';
     arg = { orderId: receipt[1] };
   }
   document.title = `${title} · Tasteloom`;
-  renderSteps(step, finished);
+  renderSteps(step);
   view.replaceChildren();
   window.scrollTo(0, 0);
   try {
@@ -97,6 +95,7 @@ function route() {
 
 load();
 window.addEventListener('tasteloom:badges', updateBadges);
+window.addEventListener('tasteloom:receipt', (e) => renderSteps(3, !!(e.detail && e.detail.completed))); // only a captured payment ticks the last step
 window.addEventListener('tasteloom:reroute', route); // the ideas screen asks for a fresh run (try again, try an example)
 window.addEventListener('hashchange', route);
 window.addEventListener('pageshow', (e) => {

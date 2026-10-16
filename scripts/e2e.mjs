@@ -152,6 +152,7 @@ async function live(browser) {
   check('live/receipt: order confirmed - order id equals the PayPal order, status COMPLETED, payment id shown', id === token2 && status === 'COMPLETED' && (await text(page, 'h1')) === 'Order confirmed' && facts.includes(id) && !!out.captureId && facts.includes(out.captureId), `${id} ${status}`);
   check('live/receipt: total and items on the receipt equal the picks; labelled sandbox, no real money', facts.includes(money(total)) && (await count(page, '.receipt .lines li.line')) === 2 && /Sandbox, no real money/.test((await text(page, '.hero')) || '') && /PayPal sandbox, no real money/.test(facts), money(total));
   check('live/receipt: the server record agrees (COMPLETED, sandbox, same total and items, one capture)', o2?.status === 'COMPLETED' && o2.sandbox === true && o2.total_cents === total && o2.lines.length === 2 && o2.lines.every((l) => sel.includes(l.id)));
+  check('live/receipt: the step bar ticks all three steps and "Start a new gift" is the one filled button', (await count(page, '#steps li.done')) === 3 && (await page.$$eval('.receipt-actions .btn.primary', (l) => l.map((e) => e.textContent.trim()))).join('|') === 'Start a new gift');
   await audit(page, 'live/receipt');
   await tabWalk(page, 'live/receipt');
   await page.evaluate(() => scrollTo(0, 0));
@@ -208,6 +209,7 @@ async function tour(browser) {
     { name: 'desktop', vp: DESKTOP, full: true, sweep: true, clip: true },
     { name: 'mobile', vp: MOBILE, full: true, sweep: false, clip: false },
     { name: 'tablet', vp: TABLET, full: false, sweep: false, clip: false },
+    { name: 'narrow', vp: { width: 320, height: 640, deviceScaleFactor: 1, isMobile: true, hasTouch: true }, full: false, sweep: false, clip: false }, // smallest phones: key screens, with the no-sideways-scroll check
   ];
   for (const r of rounds) if (!process.env.TOUR_ROUNDS || process.env.TOUR_ROUNDS.split(',').includes(r.name)) await tourRound(browser, r, sample, liveRun); // TOUR_ROUNDS, TOUR_STATES: debugging aids
   const after = (await api('/api/status')).json.usage || {};

@@ -1,7 +1,7 @@
 // Money rules: server-side pricing, budget cap, global daily cap, idempotent orders, capture only after approval.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { LIMIT_MESSAGE } from '../src/app.ts';
+import { ORDER_LIMIT_MESSAGE } from '../src/app.ts';
 import { buildOrderBody } from '../src/adapters/paypal.ts';
 import { newSession, OrderError, priceOrder, type OrderErrorCode } from '../src/commerce.ts';
 import type { Card } from '../src/types.ts';
@@ -133,7 +133,7 @@ test('checkout: the global daily cap stops further orders; the same selection is
   const over = await h.post('/api/checkout', { sessionId, itemIds: ['c2'] });
   assert.equal(over.status, 429);
   const e = ((await over.json()) as any).error;
-  assert.deepEqual([e.code, e.message], ['limit', LIMIT_MESSAGE.global]);
+  assert.deepEqual([e.code, e.message], ['limit', ORDER_LIMIT_MESSAGE.global]);
   assert.equal(orderPosts(h).length, 1);
 });
 
@@ -154,7 +154,7 @@ test('checkout: the per-IP order limit answers 429 with the per-IP message', asy
   assert.equal((await h.post('/api/checkout', { sessionId, itemIds: ['pa'] })).status, 200);
   const res = await h.post('/api/checkout', { sessionId, itemIds: ['pb'] });
   assert.equal(res.status, 429);
-  assert.equal(((await res.json()) as any).error.message, LIMIT_MESSAGE.ip);
+  assert.equal(((await res.json()) as any).error.message, ORDER_LIMIT_MESSAGE.ip);
 });
 
 test('checkout: the same selection in any order is one PayPal order', async () => {

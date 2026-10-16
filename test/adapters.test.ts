@@ -5,7 +5,7 @@ import { parseChannel3, searchProducts } from '../src/adapters/channel3.ts';
 import { chat, parseChat } from '../src/adapters/nebius.ts';
 import { humanPayPalError, parseOrder, validOrderId } from '../src/adapters/paypal.ts';
 import { GIFT_TYPES, INSIGHT_TYPES, insights, parseExplainability, parseInsights, parseSearch, searchEntity } from '../src/adapters/qloo.ts';
-import { cleanSnippet, experienceCards, extractUsdPrices, parseTavily, priceCheck } from '../src/adapters/tavily.ts';
+import { blurb, cleanSnippet, cleanTitle, experienceCards, extractUsdPrices, parseTavily, priceCheck } from '../src/adapters/tavily.ts';
 import { HttpError, callJson, BudgetError } from '../src/lib/http.ts';
 import { LimitError } from '../src/lib/limits.ts';
 import { clip, httpsUrl, redact, toCents } from '../src/lib/util.ts';
@@ -104,6 +104,20 @@ test('tavily: parseTavily keeps only https results with a title and bounds the t
 test('tavily: snippets lose markdown, links and images', () => {
   assert.equal(cleanSnippet('# Title ![img](https://i.example/a.png) Visit [our site](https://x.example) now: https://y.example/z **bold** `code` | cell'), 'Title Visit our site now: bold code cell'.replace(/ +/g, ' '));
   assert.ok(cleanSnippet('word '.repeat(100), 50).length <= 50);
+});
+
+test('tavily: experience titles lose site names and promo parts, blurbs keep whole sentences about the place', () => {
+  assert.equal(cleanTitle('Kew Gardens Tickets 2026 | Book Now', 'kewgardenslondon.com'), 'Kew Gardens Tickets 2026');
+  assert.equal(cleanTitle('Gift Tickets & Bundles | Kew Gardens Experience Gifts | The Kew Shop', 'shop.kew.org'), 'Gift Tickets & Bundles · Kew Gardens Experience Gifts');
+  assert.equal(cleanTitle('Kew Gardens, London | Gift Tours, Tickets & Excursions (2026) - Tinggly', 'tinggly.com'), 'Kew Gardens, London · Gift Tours, Tickets & Excursions (2026)');
+  assert.equal(cleanTitle('Tinggly', 'tinggly.com'), 'Tinggly', 'a title that is only the site name is kept, not emptied');
+  assert.equal(cleanTitle('Well-known pre-wrapped gift', 'shop.example'), 'Well-known pre-wrapped gift', 'hyphens inside words are not separators');
+  const need = ['kew', 'gardens'];
+  const [page] = parseTavily({ results: [{ title: 't', url: 'https://x.example/', content: '# Gift tickets\n\nTreat someone to a day out at Kew. From shows to exhibitions to flexible ticket…' }] });
+  assert.equal(page!.content.startsWith('Gift tickets. Treat'), true, 'a heading becomes its own sentence');
+  assert.equal(blurb(page!.content, need), 'Treat someone to a day out at Kew.');
+  assert.equal(blurb('Small-group London walking tour. A 3 hour cooking class for 2-6 people.', need), '', 'no sentence names the place: no blurb');
+  assert.ok(blurb('Kew Gardens ' + 'x'.repeat(300), need, 80).length <= 80);
 });
 
 test('tavily: USD amounts become unique integer cents', () => {
@@ -272,7 +286,7 @@ test('paypal: order ids are checked before they go into a URL, and errors are ph
   for (const bad of ['', 'short', '../../x', 'ABC DEF GHI', 'A'.repeat(31), 12345678, null]) assert.ok(!validOrderId(bad), String(bad));
   assert.match(humanPayPalError(new Error('paypal HTTP 422: ORDER_NOT_APPROVED')), /not approved/);
   assert.match(humanPayPalError(new Error('INSTRUMENT_DECLINED')), /declined/);
-  assert.match(humanPayPalError(new Error('boom {"debug_id":"x"}')), /Nothing was charged/);
+  assert.match(humanPayPalError(new Error('boom {"debug_id":"x"}')), /did not give a reason/);
   assert.doesNotMatch(humanPayPalError(new Error('boom {"debug_id":"x"}')), /debug_id/);
 });
 

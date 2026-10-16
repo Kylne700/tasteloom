@@ -14,6 +14,9 @@ export interface WebResult {
   raw?: string;
 }
 
+/** "# Gift tickets\n\nTreat someone" must not collapse into "Gift tickets Treat someone": a heading becomes a short sentence. */
+const headingsAsSentences = (s: string) => s.replace(/^#+[ \t]*(.+?)[ \t]*$/gm, '$1. ');
+
 export function parseTavily(json: unknown): WebResult[] {
   const results = asObject(json)?.results;
   if (!Array.isArray(results)) return [];
@@ -25,7 +28,7 @@ export function parseTavily(json: unknown): WebResult[] {
     out.push({
       title: clip(o.title, 140),
       url,
-      content: clip(typeof o.content === 'string' ? o.content : '', 300),
+      content: clip(typeof o.content === 'string' ? headingsAsSentences(o.content) : '', 300),
       raw: typeof o.raw_content === 'string' ? o.raw_content.slice(0, 6000) : undefined,
     });
   }
@@ -55,16 +58,47 @@ export async function searchWeb(svc: Svc, q: { query: string; domains?: string[]
 
 const NOT_GIFT_HOSTS = /(^|\.)(youtube|youtu|facebook|instagram|pinterest|reddit|tiktok|x|twitter|linkedin|wikipedia|quora)\.(com|be|org)$/i;
 
+const plain = (s: string) =>
+  s
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/https?:\/\/\S+/g, ' ')
+    .replace(/[#*_`>|]+/g, ' ');
+
 /** Search snippets arrive as markdown-ish text; the card shows plain words. */
 export function cleanSnippet(s: string, max = 180): string {
-  return clip(
-    s
-      .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
-      .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
-      .replace(/https?:\/\/\S+/g, ' ')
-      .replace(/[#*_`>|]+/g, ' '),
-    max,
-  );
+  return clip(plain(s), max);
+}
+
+/**
+ * Blurb for an experience card: whole sentences that name the place, up to `max` characters. Empty when no sentence does,
+ * because no blurb is better than a line about another page (aggregator sites list many unrelated tours).
+ */
+export function blurb(content: string, need: string[], max = 180): string {
+  const sentences = plain(content)
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.replace(/\s+/g, ' ').trim())
+    .filter((s) => s.length > 2 && nameTokens(s).some((t) => need.includes(t)));
+  const out: string[] = [];
+  for (const s of sentences) {
+    if ([...out, s].join(' ').length > max) break;
+    out.push(s);
+  }
+  return out.length ? out.join(' ') : sentences[0] ? clip(sentences[0], max) : '';
+}
+
+const PROMO = /^(book now|buy now|shop now|order now|official (web)?site|home( page)?|reviews?)$/i;
+/** Page titles end in "| Site name" or "- Book now"; the card shows the page's own words (at most two parts, joined by a dot). */
+export function cleanTitle(title: string, host: string): string {
+  const flat = host.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const labels = host.toLowerCase().split('.');
+  const parts = title.split(/\s+[|\-–—·]\s+/).map((p) => p.trim()).filter(Boolean);
+  const keep = parts.filter((p) => {
+    const t = nameTokens(p);
+    const compact = p.toLowerCase().replace(/[^a-z0-9]/g, '');
+    return !PROMO.test(p) && !(t.length > 0 && t.every((x) => labels.includes(x))) && !(compact.length >= 4 && flat.includes(compact));
+  });
+  return clip((keep.length ? keep : parts.slice(0, 1)).slice(0, 2).join(' · ') || title, 140);
 }
 
 /** Experience ideas (tickets, classes, tours) for a place or destination. Link cards only, never purchasable here. */
@@ -84,14 +118,14 @@ export async function experienceCards(svc: Svc, a: { name: string; ideaId: strin
     cards.push({
       id: 'x' + fnv(r.url).toString(16).padStart(8, '0'),
       ideaId: a.ideaId,
-      title: r.title,
+      title: cleanTitle(r.title, host),
       price_cents: 0,
       currency: 'USD',
       shop: host,
       url: r.url,
       purchasable: false,
       source: 'tavily',
-      snippet: cleanSnippet(r.content),
+      snippet: blurb(r.content, need) || undefined,
     });
     if (cards.length >= (a.max ?? 3)) break;
   }

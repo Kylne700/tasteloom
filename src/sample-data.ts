@@ -42,7 +42,7 @@ export const SAMPLE: { asOf: string; budget_cents: number; favorites: { text: st
    "t": "call",
    "tool": "qloo_search",
    "arg": "Hario V60",
-   "ms": 3,
+   "ms": 1,
    "ok": true,
    "out": "Hario · brand",
    "via": "mock"
@@ -51,7 +51,7 @@ export const SAMPLE: { asOf: string; budget_cents: number; favorites: { text: st
    "t": "call",
    "tool": "qloo_search",
    "arg": "Kafka on the Shore",
-   "ms": 2,
+   "ms": 1,
    "ok": true,
    "out": "Kafka on the Shore · book",
    "via": "mock"
@@ -60,7 +60,7 @@ export const SAMPLE: { asOf: string; budget_cents: number; favorites: { text: st
    "t": "call",
    "tool": "qloo_search",
    "arg": "Nujabes",
-   "ms": 2,
+   "ms": 1,
    "ok": true,
    "out": "Nujabes · artist",
    "via": "mock"
@@ -78,7 +78,7 @@ export const SAMPLE: { asOf: string; budget_cents: number; favorites: { text: st
    "t": "call",
    "tool": "qloo_search",
    "arg": "Kyoto",
-   "ms": 1,
+   "ms": 0,
    "ok": true,
    "out": "Kyoto · destination",
    "via": "mock"
@@ -196,7 +196,7 @@ export const SAMPLE: { asOf: string; budget_cents: number; favorites: { text: st
    "t": "call",
    "tool": "qloo_insights",
    "arg": "brand",
-   "ms": 3,
+   "ms": 2,
    "ok": true,
    "out": "6 matches",
    "via": "mock"
@@ -232,7 +232,7 @@ export const SAMPLE: { asOf: string; budget_cents: number; favorites: { text: st
    "t": "call",
    "tool": "nemotron",
    "arg": "step 3",
-   "ms": 1,
+   "ms": 0,
    "ok": true,
    "out": "5 tool calls",
    "via": "mock"
@@ -253,7 +253,7 @@ export const SAMPLE: { asOf: string; budget_cents: number; favorites: { text: st
    "t": "call",
    "tool": "find_products",
    "arg": "Muji",
-   "ms": 4,
+   "ms": 3,
    "ok": true,
    "out": "3 products, 2 shops, via Channel3",
    "via": "live"
@@ -333,7 +333,7 @@ export const SAMPLE: { asOf: string; budget_cents: number; favorites: { text: st
    "t": "call",
    "tool": "find_products",
    "arg": "Ryuichi Sakamoto vinyl",
-   "ms": 4,
+   "ms": 5,
    "ok": true,
    "out": "3 products, 2 shops, via Channel3",
    "via": "live"
@@ -404,7 +404,7 @@ export const SAMPLE: { asOf: string; budget_cents: number; favorites: { text: st
    "t": "call",
    "tool": "find_products",
    "arg": "Kew Gardens (experiences)",
-   "ms": 7,
+   "ms": 6,
    "ok": true,
    "out": "3 experience links via Tavily",
    "via": "live"
@@ -436,38 +436,37 @@ export const SAMPLE: { asOf: string; budget_cents: number; favorites: { text: st
     {
      "id": "x4fe794cb",
      "ideaId": "i4",
-     "title": "Kew Gardens Tickets 2026 | Book Now",
+     "title": "Kew Gardens Tickets 2026",
      "price_cents": 0,
      "currency": "USD",
      "shop": "kewgardenslondon.com",
      "url": "https://kewgardenslondon.com/",
      "purchasable": false,
      "source": "tavily",
-     "snippet": "Gift tickets are perfect for sharing the wonder of Kew Gardens with loved ones. These tickets are flexible, allowing the recipient to choose a convenient date to visit within the…"
+     "snippet": "Gift tickets are perfect for sharing the wonder of Kew Gardens with loved ones."
     },
     {
      "id": "x59311ae4",
      "ideaId": "i4",
-     "title": "Gift Tickets & Bundles | Kew Gardens Experience Gifts | The Kew Shop",
+     "title": "Gift Tickets & Bundles · Kew Gardens Experience Gifts",
      "price_cents": 0,
      "currency": "USD",
      "shop": "shop.kew.org",
      "url": "https://shop.kew.org/gift-ideas/gift-tickets-and-bundles?new=0",
      "purchasable": false,
      "source": "tavily",
-     "snippet": "Gift tickets Treat someone special to an unforgettable day out with Gift Tickets & Bundles from Kew. From immersive seasonal experiences and special exhibitions to flexible ticket…"
+     "snippet": "Treat someone special to an unforgettable day out with Gift Tickets & Bundles from Kew."
     },
     {
      "id": "x976f8e31",
      "ideaId": "i4",
-     "title": "Kew Gardens, London | Gift Tours, Tickets & Excursions (2026) - Tinggly",
+     "title": "Kew Gardens, London · Gift Tours, Tickets & Excursions (2026)",
      "price_cents": 0,
      "currency": "USD",
      "shop": "tinggly.com",
      "url": "https://tinggly.com/location/united-kingdom/at/london/kew-gardens",
      "purchasable": false,
-     "source": "tavily",
-     "snippet": "Small-Group London's Best Sights Walking Tour, Kids Join Free! Small-Group London's Best Sights Walking Tour, Kids Join Free! 3 Hour Chinese Dumpling Cooking Class for 2-6 people…"
+     "source": "tavily"
     }
    ]
   },
@@ -475,7 +474,7 @@ export const SAMPLE: { asOf: string; budget_cents: number; favorites: { text: st
    "t": "call",
    "tool": "find_products",
    "arg": "Lodge",
-   "ms": 8,
+   "ms": 7,
    "ok": true,
    "out": "3 products, 3 shops, via Channel3",
    "via": "live"
@@ -546,7 +545,7 @@ export const SAMPLE: { asOf: string; budget_cents: number; favorites: { text: st
    "t": "call",
    "tool": "nemotron",
    "arg": "step 4",
-   "ms": 0,
+   "ms": 1,
    "ok": true,
    "out": "finished",
    "via": "mock"
@@ -592,7 +591,7 @@ export const SAMPLE: { asOf: string; budget_cents: number; favorites: { text: st
    "t": "call",
    "tool": "tavily_search",
    "arg": "sugoimart.com price check",
-   "ms": 2,
+   "ms": 1,
    "ok": true,
    "out": "could not confirm on the shop page",
    "via": "live"
@@ -620,7 +619,7 @@ export const SAMPLE: { asOf: string; budget_cents: number; favorites: { text: st
    "t": "call",
    "tool": "tavily_search",
    "arg": "farmandfleet.com price check",
-   "ms": 3,
+   "ms": 2,
    "ok": true,
    "out": "could not confirm on the shop page",
    "via": "live"

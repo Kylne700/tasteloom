@@ -151,7 +151,7 @@ export async function captureOrder(svc: Svc, id: string): Promise<PayPalOrderVie
 export function humanPayPalError(e: unknown): string {
   const m = e instanceof Error ? e.message : '';
   if (/ORDER_NOT_APPROVED|not yet approved/i.test(m)) return 'The payment was not approved on PayPal yet.';
-  if (/INSTRUMENT_DECLINED|declin/i.test(m)) return 'The card was declined. Try the sandbox test card shown above.';
+  if (/INSTRUMENT_DECLINED|declin/i.test(m)) return 'The card was declined. Go back to checkout and use the sandbox test card.';
   if (/ORDER_ALREADY_CAPTURED/i.test(m)) return 'This order was already paid.';
-  return 'PayPal could not finish the payment. Nothing was charged.';
+  return 'PayPal did not give a reason.';
 }

@@ -120,6 +120,20 @@ export async function shot(page, name) {
   await sleep(250);
   const vp = page.viewport();
   const file = `${name}-${vp.width}.png`;
+  const side = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth }));
+  check(`${file}: no sideways scroll`, side.sw <= side.cw, `${side.sw} px wide in a ${side.cw} px window`);
+  // the whole wordmark (even text that spills out of its box) must clear the badges
+  const crowded = await page.evaluate(() => {
+    const b = document.querySelector('.brand');
+    const g = document.querySelector('.badges');
+    if (!b || !g) return false;
+    const r = document.createRange();
+    r.selectNodeContents(b);
+    const a = r.getBoundingClientRect();
+    const c = g.getBoundingClientRect();
+    return a.left < c.right && c.left < a.right && a.top < c.bottom && c.top < a.bottom;
+  });
+  check(`${file}: the brand and the badges do not overlap`, !crowded);
   fs.mkdirSync(SHOTS, { recursive: true });
   // As tall as the page, so the sticky bar and the agent panel show in their natural place instead of floating mid-page.
   const tall = await page.evaluate(() => document.documentElement.scrollHeight);

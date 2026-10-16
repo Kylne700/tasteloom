@@ -124,15 +124,15 @@ test('ideas: names Qloo cannot place end in a plain bad_input error and spend no
   const h = makeHarness({}, { mocks: { qloo: async () => json({ results: [] }) } });
   const last = (await run(h)).at(-1);
   assert.deepEqual([last.t, last.code], ['error', 'bad_input']);
-  assert.match(last.message, /could not recognise/);
+  assert.match(last.message, /None of those names were recognised/);
   assert.equal(h.net.count('api.trychannel3.com') + h.net.count('api.tavily.com'), 0);
 });
 
-test('ideas: Qloo down ends in an upstream error that points to the example', async () => {
+test('ideas: Qloo down ends in an upstream error with a plain retry message', async () => {
   const h = makeHarness({}, { mocks: { qloo: async () => json({ message: 'down' }, 503) } });
   const last = (await run(h)).at(-1);
   assert.deepEqual([last.t, last.code], ['error', 'upstream']);
-  assert.match(last.message, /example/);
+  assert.match(last.message, /try again in a minute/i);
 });
 
 test('ideas: bad requests get a 400 with a plain message, touch no upstream and cost no quota', async () => {

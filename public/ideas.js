@@ -23,7 +23,7 @@ const wide = window.matchMedia('(min-width: 1000px)');
 const ERROR_TITLES = {
   limit: 'Live lookups are used up for now',
   upstream: 'A service we depend on is not answering',
-  bad_input: 'We could not find gifts for that',
+  bad_input: 'Nothing to suggest yet',
   network: 'We could not reach the server',
 };
 
@@ -91,7 +91,7 @@ export function mountIdeas(root) {
     h(
       'div',
       { class: 'screen ideas' },
-      h('div', { class: 'screen-head' }, h('div', {}, h('h1', { tabindex: '-1' }, 'Gift ideas'), lovesEl), h('div', { class: 'head-actions' }, h('a', { class: 'btn ghost small', href: '#/' }, icon('back', 16), 'Edit favourites'), imagesSwitch)),
+      h('div', { class: 'screen-head' }, h('div', {}, h('h1', { tabindex: '-1' }, 'Gift ideas'), lovesEl), h('div', { class: 'head-actions' }, h('a', { class: 'btn small', href: '#/' }, icon('back', 16), 'Edit favourites'), imagesSwitch)),
       h('div', { class: 'ideas-layout' }, agent, h('div', { class: 'col-main' }, notices, list, barRoot)),
     ),
   );
@@ -152,13 +152,18 @@ export function mountIdeas(root) {
 
   function setAgentStatus() {
     agentStatus.replaceChildren();
+    delete agentStatus.dataset.state;
     if (run.status === 'running') {
       const p = run.phases.find((x) => x.state === 'running');
       agentStatus.append(spinner(), h('span', {}, p ? p.label : 'Starting'));
+    } else if (run.status === 'done' && !run.ideas.length) {
+      agentStatus.dataset.state = 'empty';
+      agentStatus.append(icon('info', 14), h('span', {}, 'Finished without ideas'));
     } else if (run.status === 'done') {
       const n = run.calls.length;
       agentStatus.append(icon('check', 14), h('span', {}, `Done in ${(run.ms / 1000).toFixed(1)} s · ${n} tool call${n === 1 ? '' : 's'}`));
     } else {
+      agentStatus.dataset.state = 'error';
       agentStatus.append(icon('alert', 14), h('span', {}, 'Stopped'));
     }
   }
@@ -298,20 +303,20 @@ export function mountIdeas(root) {
     const partial = run.ideas.some((i) => i.cards.some((c) => c.purchasable)); // only buyable ideas count as a usable partial result
     const code = err.code || 'internal';
     const title = partial ? 'The agent stopped early' : ERROR_TITLES[code] || 'Something went wrong';
-    const again = !run.example && code !== 'bad_input';
+    const live = !run.example && code !== 'bad_input' && code !== 'limit'; // asking again can work
     const actions = [];
-    if (again) actions.push(h('button', { type: 'button', class: 'btn' + (code === 'limit' ? '' : ' primary'), onclick: () => restart('live') }, 'Try again'));
-    if (code === 'bad_input') actions.push(h('a', { class: 'btn primary', href: '#/' }, icon('back', 16), 'Change favourites or budget'));
-    actions.push(h('button', { type: 'button', class: 'btn' + (code === 'limit' || code === 'upstream' ? ' primary' : ' ghost'), onclick: () => restart('example') }, 'Try an example'));
+    if (code === 'bad_input') actions.push(h('a', { class: 'btn', href: '#/' }, icon('back', 16), 'Change favourites'));
+    if (live) actions.push(h('button', { type: 'button', class: 'btn', onclick: () => restart('live') }, 'Try again'));
+    actions.push(h('button', { type: 'button', class: 'btn', onclick: () => restart('example') }, 'Try an example'));
+    if (!partial) actions[0].classList.add('primary'); // one filled button; with ideas on screen the "Review and pay" bar is the main action
     notices.append(
       h(
         'section',
         { class: 'panel ' + (partial ? 'warn' : 'bad'), role: 'alert' },
         h('div', { class: 'panel-icon' }, icon('alert', 22)),
-        h('div', { class: 'panel-body' }, h('h2', {}, title), h('p', {}, partial ? `${err.message} You can still pick from the ideas below, or try again.` : err.message), h('div', { class: 'panel-actions' }, actions)),
+        h('div', { class: 'panel-body' }, h('h2', {}, title), h('p', {}, partial ? 'Some ideas arrived before it stopped. You can pick from them below.' : err.message), h('div', { class: 'panel-actions' }, actions)),
       ),
     );
-    announce(`${title}. ${err.message}`);
   }
 
   function restart(mode) {
@@ -391,7 +396,7 @@ export function mountIdeas(root) {
     });
     setAgentStatus();
     save();
-    announce(`Done. ${run.ideas.length} gift ideas. Pick the items you like.`);
+    announce(run.ideas.length ? `Done. ${run.ideas.length} gift ideas. Pick the items you like.` : 'Finished without any gift ideas.');
     if (!run.ideas.length) showEmpty();
   }
 
@@ -415,8 +420,6 @@ export function mountIdeas(root) {
       }
     });
     setAgentStatus();
-    agent.dataset.open = 'true';
-    agentHead();
     showError(err);
     if (run.ideas.length) save();
   }
@@ -445,7 +448,7 @@ export function mountIdeas(root) {
     for (let i = 0; i < SKELETONS; i++) list.append(skeletonIdea());
     try {
       await streamNdjson(mode === 'example' ? '/api/sample' : '/api/ideas', body, onEvent, ctl.signal);
-      if (run.status === 'running') fail(new ApiError('network', 'The connection closed before the agent finished. Try again, or try the example.'));
+      if (run.status === 'running') fail(new ApiError('network', 'The connection closed before the agent finished.'));
     } catch (e) {
       if (e && e.name === 'AbortError') return;
       if (run.status === 'running') fail(e instanceof ApiError ? e : new ApiError('internal', 'Something went wrong. Please try again.'));

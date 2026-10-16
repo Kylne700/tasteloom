@@ -18,7 +18,7 @@ async function toApiError(res) {
   return new ApiError((e && e.code) || 'http', (e && e.message) || 'Something went wrong. Please try again.', res.status);
 }
 
-const NETWORK = 'We could not reach the server. Check your connection and try again.';
+const NETWORK = 'Check your connection and try again.'; // shown under the title "We could not reach the server"
 
 export async function postJson(url, body) {
   let res;
@@ -80,7 +80,7 @@ export async function streamNdjson(url, body, onEvent, signal) {
     }
   } catch (e) {
     if (e && e.name === 'AbortError') throw e;
-    throw new ApiError('network', 'The connection dropped while we were working. Try again, or try the example.');
+    throw new ApiError('network', 'The connection dropped while we were working.');
   }
   flush(buf);
 }

@@ -1,6 +1,7 @@
 // Spend and abuse limits, configuration and privacy of the counters.
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { LIMIT_MESSAGE } from '../src/app.ts';
 import { loadConfig, publicStatus, secretsOf } from '../src/config.ts';
 import { LimitError, Meter } from '../src/lib/limits.ts';
 import { memoryStore, type Store } from '../src/lib/store.ts';
@@ -116,11 +117,11 @@ test('ideas: the per-IP daily limit answers 429, another IP is unaffected until 
   assert.equal(refused.status, 429);
   const e = ((await refused.json()) as any).error;
   assert.equal(e.code, 'limit');
-  assert.match(e.message, /Try the example/);
+  assert.equal(e.message, LIMIT_MESSAGE.ip);
   assert.equal((await ideas(h, '203.0.113.2')).status, 200); // global 3 of 3
   const global = await ideas(h, '203.0.113.3');
   assert.equal(global.status, 429);
-  assert.match(((await global.json()) as any).error.message, /demo has reached its daily limit/);
+  assert.equal(((await global.json()) as any).error.message, LIMIT_MESSAGE.global);
 });
 
 test('ideas: when Channel3 is over its daily limit the run ends with a clear limit error, not a crash', async () => {

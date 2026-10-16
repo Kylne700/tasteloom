@@ -26,11 +26,11 @@ export class OrderError extends Error {
 export const ORDER_MESSAGES: Record<OrderErrorCode, string> = {
   bad_request: 'Pick at least one item and try again.',
   empty: 'Pick at least one item first.',
-  too_many: 'That is more items than one gift order can hold.',
+  too_many: 'Remove some items and try again, because one order cannot hold this many.',
   unknown_item: 'One of those items is no longer available. Go back and pick again.',
   not_purchasable: 'That item is a link to another site and cannot be bought here.',
-  over_budget: 'That is over your budget. Remove something and try again.',
-  session_expired: 'Your session expired. Start again or try the example.',
+  over_budget: 'The server counts more than your budget allows. Remove an item or pick cheaper ones.',
+  session_expired: 'The saved prices are gone, so this gift cannot be ordered. Start over, or try the example.',
 };
 
 export const newSession = (budget_cents: number, cards: Card[], example = false): Session => ({
@@ -156,11 +156,11 @@ export async function finishOrder(svc: Svc, id: string): Promise<OrderRecord | n
     if (view.status === 'COMPLETED') return setStatus(svc, o, 'COMPLETED', { captureId: view.captureId, error: undefined });
     if (view.status !== 'APPROVED') return setStatus(svc, o, 'NOT_APPROVED', { error: 'The payment was not approved on PayPal yet.' });
     if (view.total_cents !== o.total_cents || view.currency !== 'USD') {
-      return setStatus(svc, o, 'CAPTURE_FAILED', { error: 'The amount on PayPal does not match your gift, so nothing was charged.' });
+      return setStatus(svc, o, 'CAPTURE_FAILED', { error: 'The amount on PayPal does not match your gift.' });
     }
     const cap = await captureOrder(svc, id);
     if (cap.status === 'COMPLETED') return setStatus(svc, o, 'COMPLETED', { captureId: cap.captureId, error: undefined });
-    return setStatus(svc, o, 'CAPTURE_FAILED', { error: 'PayPal did not complete the payment. Nothing was charged.' });
+    return setStatus(svc, o, 'CAPTURE_FAILED', { error: 'PayPal reported the capture as not completed.' });
   } catch (e) {
     return setStatus(svc, o, 'CAPTURE_FAILED', { error: humanPayPalError(e) });
   }

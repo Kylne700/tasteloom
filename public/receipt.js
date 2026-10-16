@@ -5,17 +5,12 @@ import { startOver, state } from './state.js';
 
 const HEAD = {
   COMPLETED: ['Order confirmed', 'ok', 'Payment approved and captured. Sandbox, no real money moved.'],
-  CAPTURE_FAILED: ['Payment not completed', 'bad', ''],
-  NOT_APPROVED: ['Payment not approved yet', 'warn', ''],
-  CREATED: ['Waiting for your approval on PayPal', 'warn', ''],
-  CANCELLED: ['Payment cancelled', 'warn', ''],
+  CAPTURE_FAILED: ['Payment not completed', 'bad', 'PayPal did not finish the payment. Nothing was charged.'],
+  NOT_APPROVED: ['Payment not approved yet', 'warn', 'PayPal does not show this order as approved. Nothing was charged.'],
+  CREATED: ['Waiting for your approval on PayPal', 'warn', 'The order exists, but it has not been approved on PayPal’s page yet. Nothing was charged.'],
+  CANCELLED: ['Payment cancelled', 'warn', 'You cancelled on PayPal’s page. Nothing was charged.'],
 };
-const STATUS_TEXT = {
-  CAPTURE_FAILED: 'PayPal did not finish the payment. Nothing was charged.',
-  NOT_APPROVED: 'PayPal does not show this order as approved. Nothing was charged.',
-  CREATED: 'The order exists, but it has not been approved on PayPal’s page yet. Nothing was charged.',
-  CANCELLED: 'You cancelled on PayPal’s page. Nothing was charged.',
-};
+const LABEL = { COMPLETED: 'Completed', CAPTURE_FAILED: 'Not completed', NOT_APPROVED: 'Not approved yet', CREATED: 'Waiting for approval', CANCELLED: 'Cancelled' };
 
 export function mountReceipt(root, { orderId }) {
   let alive = true;
@@ -24,6 +19,10 @@ export function mountReceipt(root, { orderId }) {
   const hero = h('div', { class: 'hero' }, h('span', { class: 'hero-icon', 'data-tone': 'wait', 'aria-hidden': 'true' }, spinner()), h('div', {}, title, sub));
   const body = h('div', { class: 'receipt-body' }, h('div', { class: 'sk-card tall', 'aria-hidden': 'true' }));
   root.append(h('div', { class: 'screen receipt' }, h('section', { class: 'panel receipt-card', 'aria-live': 'polite' }, hero, body)));
+
+  const stepper = (completed) => {
+    if (alive) window.dispatchEvent(new CustomEvent('tasteloom:receipt', { detail: { completed } }));
+  };
 
   function head(text, tone, ico, subtitle = '') {
     title.textContent = text;
@@ -56,24 +55,27 @@ export function mountReceipt(root, { orderId }) {
   function showOrder(o) {
     const [text, tone, subtitle] = HEAD[o.status] || ['Order status', 'warn', ''];
     const done = o.status === 'COMPLETED';
-    head(text, tone, done ? 'check' : o.status === 'CAPTURE_FAILED' ? 'alert' : 'info', subtitle || STATUS_TEXT[o.status] || '');
-    const canRetry = o.status === 'CAPTURE_FAILED' || o.status === 'NOT_APPROVED' || o.status === 'CREATED';
+    head(text, tone, done ? 'check' : o.status === 'CAPTURE_FAILED' ? 'alert' : 'info', subtitle);
+    stepper(done);
     const haveGift = !!(state.run && state.selected.length);
-    const actions = [];
-    if (done) actions.push(h('button', { type: 'button', class: 'btn primary big', onclick: again }, 'Start a new gift', icon('arrow', 18)));
-    else {
-      if (o.status === 'CAPTURE_FAILED') actions.push(h('a', { class: 'btn primary big', href: `/api/return?token=${encodeURIComponent(o.id)}` }, 'Check and try again'));
-      actions.push(haveGift ? h('a', { class: 'btn big' + (o.status === 'CAPTURE_FAILED' ? '' : ' primary'), href: '#/checkout' }, icon('back', 16), 'Back to checkout') : h('button', { type: 'button', class: 'btn big primary', onclick: again }, 'Start a new gift'));
-      if (canRetry && o.status !== 'CAPTURE_FAILED') actions.push(h('a', { class: 'btn big ghost', href: `/api/return?token=${encodeURIComponent(o.id)}` }, 'I approved it, check again'));
-    }
+    const check = (label, primary) => h('a', { class: 'btn big' + (primary ? ' primary' : ''), href: `/api/return?token=${encodeURIComponent(o.id)}` }, label);
+    const back = (primary) => (haveGift ? h('a', { class: 'btn big' + (primary ? ' primary' : ''), href: '#/checkout' }, icon('back', 16), 'Back to checkout') : null);
+    const fresh = (primary) => h('button', { type: 'button', class: 'btn big' + (primary ? ' primary' : ''), onclick: again }, 'Start a new gift', primary ? icon('arrow', 18) : null);
+    // exactly one filled button per state: the likeliest next step
+    const actions =
+      done ? [fresh(true)]
+      : o.status === 'CAPTURE_FAILED' ? [check('Check and try again', true), back(false) || fresh(false)]
+      : o.status === 'CANCELLED' ? [back(true) || fresh(true), haveGift ? fresh(false) : null]
+      : haveGift ? [back(true), check('I approved it, check again', false)]
+      : [check('I approved it, check again', true), fresh(false)];
     fill(
       body,
-      o.error && !done ? h('p', { class: 'note ' + (tone === 'bad' ? 'bad' : 'warn'), role: 'status' }, icon('alert', 18), h('span', {}, o.error)) : null,
+      o.error && o.status === 'CAPTURE_FAILED' ? h('p', { class: 'note bad', role: 'status' }, icon('alert', 18), h('span', {}, o.error)) : null,
       h(
         'dl',
         { class: 'facts' },
         fact('Order id', h('code', {}, o.id), o.id),
-        fact('Status', h('span', { class: 'status-pill', 'data-status': o.status }, o.status)),
+        fact('Status', h('span', { class: 'status-pill', 'data-status': o.status }, LABEL[o.status] || o.status)),
         done && o.captureId ? fact('Payment id', h('code', {}, o.captureId), o.captureId) : null,
         fact('Total', h('strong', {}, `${money(o.total_cents)} ${o.currency}`)),
         fact('Mode', 'PayPal sandbox, no real money'),
@@ -88,6 +90,7 @@ export function mountReceipt(root, { orderId }) {
   function showProblem(err) {
     const missing = err.code === 'not_found';
     head(missing ? 'We could not find that order' : 'We could not load your receipt', 'bad', 'alert', missing ? 'It may be older than a week, or the link is wrong.' : err.message);
+    stepper(false);
     body.replaceChildren(h('div', { class: 'receipt-actions' }, missing ? null : h('button', { type: 'button', class: 'btn primary big', onclick: load }, 'Try again'), h('button', { type: 'button', class: 'btn big' + (missing ? ' primary' : ''), onclick: again }, 'Start a new gift')));
   }
 
