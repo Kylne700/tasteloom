@@ -75,10 +75,18 @@ test('wrangler.jsonc: static assets with the API run first, a KV binding and no 
 
 test('repository hygiene: keys and local state are ignored, one runtime dependency, MIT licence', () => {
   const ignore = read('.gitignore').split('\n');
-  for (const line of ['.env*', '.dev.vars', 'node_modules/', '.wrangler/', '.build/']) assert.ok(ignore.includes(line), line);
+  for (const line of ['.env*', '.dev.vars', 'node_modules/', '.wrangler/', '.build/', 'evidence/debug/', 'evidence/screens/']) assert.ok(ignore.includes(line), line);
   const pkg = JSON.parse(read('package.json'));
   assert.deepEqual(Object.keys(pkg.dependencies), ['hono']);
   assert.equal(pkg.license, 'MIT');
   for (const s of ['dev', 'test', 'typecheck', 'build', 'e2e', 'contract:qloo', 'contract:nebius', 'scan']) assert.ok(pkg.scripts[s], s);
   assert.match(read('LICENSE'), /^MIT License/);
+});
+
+test('README: says what it does, how each sponsor technology is used, setup, live versus demo data, and the name', () => {
+  const readme = read('README.md');
+  for (const word of ['Qloo', 'Nebius', 'Nemotron', 'Tavily', 'Channel3', 'PayPal', 'sandbox', 'Demo data', 'MIT', 'Tasteloom', 'npm run dev', '.env.local', 'Why "Tasteloom"']) assert.ok(readme.includes(word), word);
+  for (const tool of ['qloo_search', 'qloo_insights', 'find_products', 'create_order', 'get_order', 'capture_order']) assert.ok(readme.includes(tool), tool);
+  for (const s of Object.keys(JSON.parse(read('package.json')).scripts)) assert.ok(readme.includes(`npm run ${s}`) || readme.includes(`npm ${s}`) || s === 'test', `README does not mention npm run ${s}`);
+  assert.doesNotMatch(readme, /sk-[A-Za-z0-9]{10,}|Bearer\s+[A-Za-z0-9]{10,}/, 'no key-like text');
 });

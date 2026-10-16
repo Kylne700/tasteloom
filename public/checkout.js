@@ -192,7 +192,7 @@ export function mountCheckout(root, { cancelled }) {
             h('li', {}, 'Enter this test card. Name, email, phone and address can be made up.'),
           ),
           card,
-          h('p', { class: 'tip' }, icon('info', 16), h('span', {}, 'Turn off ', h('strong', {}, 'Save info & create your PayPal account'), ', then press ', h('strong', {}, 'Pay Now'), '. You come back here to a receipt.')),
+          h('p', { class: 'tip' }, icon('info', 16), h('span', {}, 'Turn off ', h('strong', {}, 'Save info & create your PayPal account'), ', then press ', h('strong', {}, 'Pay Now'), '. You come back here to a receipt. If PayPal only offers to create an account, reload its page.')),
           payBtn,
           payStatus,
         ),

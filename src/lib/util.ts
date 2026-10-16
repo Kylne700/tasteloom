@@ -41,9 +41,15 @@ export function toCents(v: unknown): number | null {
 
 export const fmtCents = (c: number) => (c / 100).toFixed(2);
 
+/** At most `n` characters on one line. A cut word is dropped when that costs under a quarter of the text, dangling separators go, and a cut right after a sentence end gets no "…". */
 export function clip(s: string, n: number): string {
   const t = s.replace(/\s+/g, ' ').trim();
-  return t.length > n ? t.slice(0, n - 1).trimEnd() + '…' : t;
+  if (t.length <= n) return t;
+  let cut = t.slice(0, n - 1);
+  const sp = cut.lastIndexOf(' ');
+  if (t[n - 1] !== ' ' && sp > (n - 1) * 0.75) cut = cut.slice(0, sp);
+  cut = cut.replace(/[\s,;:\-–—|/&(]+$/u, '') || cut.trimEnd();
+  return /[.!?]$/.test(cut) ? cut : cut + '…';
 }
 
 export function titleCase(s: string): string {

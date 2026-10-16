@@ -4,6 +4,7 @@
 node_modules/
 .wrangler/
 .build/
-# e2e debug output (may contain third-party pages)
+# e2e debug output (may contain third-party pages) and screenshots (regenerable with `npm run e2e`; they show shop product images)
 evidence/debug/
+evidence/screens/
 *.log

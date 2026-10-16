@@ -1,10 +1,10 @@
 // Last step: the receipt. Everything shown here is read back from the server (order id, final status, amounts), not from the URL.
-import { h, icon, money, announce, copyText, spinner } from './dom.js';
+import { fill, h, icon, money, announce, copyText, spinner } from './dom.js';
 import { ApiError, getJson } from './api.js';
 import { startOver, state } from './state.js';
 
 const HEAD = {
-  COMPLETED: ['Order confirmed', 'ok', 'Paid in the PayPal sandbox. Sandbox, no real money moved.'],
+  COMPLETED: ['Order confirmed', 'ok', 'Payment approved and captured. Sandbox, no real money moved.'],
   CAPTURE_FAILED: ['Payment not completed', 'bad', ''],
   NOT_APPROVED: ['Payment not approved yet', 'warn', ''],
   CREATED: ['Waiting for your approval on PayPal', 'warn', ''],
@@ -66,7 +66,8 @@ export function mountReceipt(root, { orderId }) {
       actions.push(haveGift ? h('a', { class: 'btn big' + (o.status === 'CAPTURE_FAILED' ? '' : ' primary'), href: '#/checkout' }, icon('back', 16), 'Back to checkout') : h('button', { type: 'button', class: 'btn big primary', onclick: again }, 'Start a new gift'));
       if (canRetry && o.status !== 'CAPTURE_FAILED') actions.push(h('a', { class: 'btn big ghost', href: `/api/return?token=${encodeURIComponent(o.id)}` }, 'I approved it, check again'));
     }
-    body.replaceChildren(
+    fill(
+      body,
       o.error && !done ? h('p', { class: 'note ' + (tone === 'bad' ? 'bad' : 'warn'), role: 'status' }, icon('alert', 18), h('span', {}, o.error)) : null,
       h(
         'dl',

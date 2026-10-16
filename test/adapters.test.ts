@@ -8,7 +8,7 @@ import { GIFT_TYPES, INSIGHT_TYPES, insights, parseExplainability, parseInsights
 import { cleanSnippet, experienceCards, extractUsdPrices, parseTavily, priceCheck } from '../src/adapters/tavily.ts';
 import { HttpError, callJson, BudgetError } from '../src/lib/http.ts';
 import { LimitError } from '../src/lib/limits.ts';
-import { httpsUrl, redact, toCents } from '../src/lib/util.ts';
+import { clip, httpsUrl, redact, toCents } from '../src/lib/util.ts';
 import type { Card, Seed } from '../src/types.ts';
 import { chatReply, json, makeNet, makeSvc, toolCall } from './helpers.ts';
 
@@ -309,4 +309,14 @@ test('util: cents, urls and redaction', () => {
   assert.deepEqual(['12.34', '$1,234.50', 19.99, 0.1, '0', -3, 'abc', 1e9, null].map(toCents), [1234, 123450, 1999, 10, null, null, null, null, null]);
   assert.deepEqual(['https://a.example/x', 'http://a.example', 'javascript:alert(1)', '//a.example', '', 5].map(httpsUrl), ['https://a.example/x', undefined, undefined, undefined, undefined, undefined]);
   assert.equal(redact('key abc12345 and short xyz', ['abc12345', 'xyz', undefined]), 'key [key] and short xyz');
+});
+
+test('clip: short text is untouched; long text ends cleanly, never on a separator, a cut word or ".…"', () => {
+  assert.equal(clip('  a   b \n c ', 20), 'a b c');
+  const long = 'Gift tickets are perfect for sharing the wonder of Kew Gardens with loved ones. These tickets are flexible';
+  assert.equal(clip(long, 81), 'Gift tickets are perfect for sharing the wonder of Kew Gardens with loved ones.');
+  assert.equal(clip('Kew Gardens, London | Gift Tours, Tickets & Excursions (2026) - Book Now Online', 66), 'Kew Gardens, London | Gift Tours, Tickets & Excursions (2026)…');
+  assert.equal(clip('alpha beta gamma delta epsilon', 14), 'alpha beta…');
+  assert.equal(clip('supercalifragilistic expialidocious', 12), 'supercalifr…');
+  for (const t of [long, 'x'.repeat(300), '- - - - - - - - - - -', 'a b c d e f g h i j k l m n']) for (const n of [5, 10, 33, 80]) assert.ok(clip(t, n).length <= n, `${n} ${t.slice(0, 12)}`);
 });

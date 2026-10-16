@@ -1,0 +1,489 @@
+// The state tour: every screen and every error, empty and rare state of the app at 1280 and 390 px (key screens also at 768 px),
+// as screenshots in evidence/screens/ plus accessibility, focus, layout-shift and overflow checks.
+// The happy path and the example run use the real server. Rare states (API down, over budget, PayPal cancelled, capture failed, ...)
+// are produced by answering the app's own fetch calls inside the page (see pagePatch in browser.mjs), so no real service is touched.
+import { BASE, audit, check, cls, fresh, mock, newPage, overflowSweep, release, say, shot, sleep, tabWalk } from './browser.mjs';
+
+const KEY = 'tasteloom.v1';
+const UPSTREAM_MSG = 'A service we depend on is not answering right now. Try the example, or try again in a minute.';
+const LIMIT_MSG = 'You have used up your live lookups for today. Try the example, or come back tomorrow.';
+const ORDER_ID = '7EX35260AB123456C'; // synthetic ids for the scripted receipts
+const CAPTURE_ID = '3C679366HH908993F';
+const err = (status, code, message) => ({ status, json: { error: { code, message } } });
+
+// ---- small page helpers -------------------------------------------------------------------------------------------------
+const text = (page, sel) => page.$eval(sel, (e) => e.textContent.replace(/\s+/g, ' ').trim()).catch(() => null);
+const count = (page, sel) => page.$$eval(sel, (l) => l.length);
+const shown = (page, sel) => page.$eval(sel, (e) => e.getClientRects().length > 0 && !e.hidden).catch(() => false);
+const until = (page, fn, arg, ms = 20000) => page.waitForFunction(fn, { timeout: ms }, arg);
+const hashIs = (page, h) => until(page, (x) => location.hash === x, h, 10000);
+
+async function findByText(page, re, scope = 'button, a, [role=switch]') {
+  for (const el of await page.$$(scope)) {
+    const t = await el.evaluate((e) => (e.getClientRects().length ? (e.getAttribute('aria-label') || e.textContent || '').trim().replace(/\s+/g, ' ') : ''));
+    if (t && re.test(t)) return el;
+  }
+  return null;
+}
+/** A real mouse or touch click on the first visible control whose name matches. */
+async function tapText(page, re, scope) {
+  const el = await findByText(page, re, scope);
+  if (!el) throw new Error(`no visible control matching ${re}`);
+  await el.evaluate((e) => e.scrollIntoView({ block: 'center', inline: 'nearest' }));
+  await sleep(80);
+  await el.click();
+}
+async function addChip(page, f) {
+  await page.focus('#fav-input');
+  await page.keyboard.type(f.text);
+  await page.select('#fav-type', f.type || '');
+  await page.focus('#fav-input');
+  await page.keyboard.press('Enter');
+}
+async function setBudget(page, v) {
+  await page.focus('#budget');
+  await page.keyboard.down('Control'); await page.keyboard.press('KeyA'); await page.keyboard.up('Control'); // a triple click does not select inside a number input
+  await page.keyboard.type(String(v));
+}
+/** Clicks the first n "Add to gift" buttons; returns how many were added. */
+async function pickCards(page, n) {
+  let k = 0;
+  for (const b of await page.$$('ul.cards li.card button.pick')) {
+    if (k >= n) break;
+    if (!/^Add to gift/.test(await b.evaluate((e) => e.getAttribute('aria-label') || ''))) continue;
+    await b.evaluate((e) => e.scrollIntoView({ block: 'center' }));
+    await sleep(80);
+    await b.click();
+    k++;
+  }
+  return k;
+}
+
+// ---- data for the scripted states ---------------------------------------------------------------------------------------
+function fixtures(sample) {
+  const meta = sample.find((e) => e.t === 'meta');
+  // the saved example has no type hints; give its favourites some so the chips and their hints can be shown and checked
+  const HINT = { 'Hario V60': 'brand', 'Kafka on the Shore': 'book', Nujabes: 'artist', 'Stardew Valley': 'video_game', Kyoto: 'destination' };
+  const FAVS = meta.favorites.map((f) => ({ text: f.text, ...((f.type || HINT[f.text]) ? { type: f.type || HINT[f.text] } : {}) }));
+  // the same events as a live run would send: not flagged as the saved example, Qloo and Nebius on demo data
+  const live = sample.map((e) => (e.t === 'meta' ? { ...e, example: false, mocks: ['qloo', 'nebius'] } : e.t === 'done' ? { t: 'done', tier: 'agent' } : e));
+  const nth = (t, n) => { let k = 0; return live.findIndex((e) => e.t === t && ++k === n); };
+  return {
+    FAVS,
+    live,
+    firstIdea: nth('idea', 1),
+    secondIdea: nth('idea', 2),
+    partial: [...live.filter((e) => e.t !== 'done'), { t: 'error', code: 'upstream', message: UPSTREAM_MSG }],
+    empty: [{ ...live[0], budget_cents: 5000 }, { t: 'phase', id: 'taste', label: 'Reading their taste with Qloo', state: 'running' }, { t: 'done', tier: 'agent' }],
+  };
+}
+
+const purchasable = (done) => done.run.ideas.flatMap((i) => i.cards).filter((c) => c.purchasable);
+const withRun = (done, { budget_cents, selected }) => ({ ...done, run: { ...done.run, ...(budget_cents ? { budget_cents } : {}) }, selected });
+
+/** Reset the page to a known state: clear storage, seed sessionStorage, then script some API answers and go to a route. */
+async function open(c, hash = '#/', { st = null, mocks = {}, search = '' } = {}) {
+  const { page } = c;
+  await page.goto(`${BASE}/${search}`, { waitUntil: 'load' });
+  await page.evaluate((k, s) => { sessionStorage.clear(); if (s) sessionStorage.setItem(k, JSON.stringify(s)); }, KEY, st);
+  await page.reload({ waitUntil: 'load' });
+  await page.waitForSelector('h1');
+  for (const [k, v] of Object.entries(mocks)) await mock(page, k, v);
+  if (hash !== '#/') await page.evaluate((h) => { location.hash = h; }, hash);
+  await page.waitForSelector('h1');
+}
+
+const order = (c, status, over = {}) => {
+  const lines = purchasable(c.done).slice(0, 2).map((x) => ({ id: x.id, title: x.title, shop: x.shop, price_cents: x.price_cents }));
+  return { id: ORDER_ID, status, lines, total_cents: lines.reduce((a, l) => a + l.price_cents, 0), currency: 'USD', captureId: status === 'COMPLETED' ? CAPTURE_ID : null, error: null, trace: ['Priced the order from the saved product cards', 'Created the order in the PayPal sandbox', status === 'COMPLETED' ? 'Captured the approved payment' : 'Waited for the approval'], sandbox: true, ...over };
+};
+const receipt = (c, key, status, over, wantH1) => ({
+  key,
+  tablet: status === 'COMPLETED',
+  async run() {
+    await open(c, '#/', { st: c.done });
+    await mock(c.page, `GET /api/orders/${ORDER_ID}`, { json: order(c, status, over) });
+    await c.page.evaluate((h) => { location.hash = h; }, `#/receipt/${ORDER_ID}`);
+    await c.page.waitForFunction((t) => document.querySelector('h1')?.textContent === t, { timeout: 8000 }, wantH1).catch(() => {});
+    check(`${c.name}/${key}: heading "${wantH1}" and the order id shown`, (await text(c.page, 'h1')) === wantH1 && (await text(c.page, '.facts')).includes(ORDER_ID), await text(c.page, 'h1'));
+    check(`${c.name}/${key}: status pill says ${status}, mode says sandbox`, (await text(c.page, '.status-pill')) === status && (await text(c.page, '.facts')).includes('PayPal sandbox, no real money'));
+    if (status === 'COMPLETED') {
+      check(`${c.name}/${key}: payment id, total and both items on the receipt`, (await text(c.page, '.facts')).includes(CAPTURE_ID) && (await count(c.page, '.receipt .lines li.line')) === 2);
+      await c.audit('receipt');
+      if (c.sweep) await overflowSweep(c.page, `${c.name}/receipt`);
+      await tabWalk(c.page, `${c.name}/receipt`);
+    }
+    await c.snap();
+  },
+});
+
+// ---- the states ---------------------------------------------------------------------------------------------------------
+function states(fx) {
+  const S = [];
+  const add = (key, tablet, run) => S.push({ key, tablet, run });
+
+  add('home-empty', true, async (c) => {
+    const { page } = c;
+    await fresh(page);
+    check(`${c.name}/home: heading, title and focus on the heading`, (await text(page, 'h1')) === 'Gifts that understand them' && (await page.title()) === 'Gifts that understand them · Tasteloom' && (await page.evaluate(() => document.activeElement?.tagName)) === 'H1', await page.title());
+    const status = await page.evaluate(() => fetch('/api/status').then((r) => r.json()));
+    check(`${c.name}/home: the "Demo data" badge is shown exactly while a mock is active`, (await shown(page, '#demo-badge')) === (status.mocks.length > 0), `mocks: ${status.mocks.join(',') || 'none'}`);
+    check(`${c.name}/home: sandbox label in the header, three steps with step 1 current`, /sandbox/i.test((await text(page, '.pill.sandbox')) || '') && (await count(page, '#steps li.step')) === 3 && (await text(page, '#steps li.current')).startsWith('1'), await text(page, '#steps li.current'));
+    check(`${c.name}/home: no third-party image on the first screen`, await page.evaluate(() => [...document.images].every((i) => new URL(i.src).origin === location.origin)));
+    await c.audit('home');
+    if (c.sweep) await overflowSweep(page, `${c.name}/home`);
+    await tabWalk(page, `${c.name}/home`);
+    await fresh(page);
+    await c.snap();
+  });
+
+  add('home-filled', false, async (c) => {
+    const { page } = c;
+    await fresh(page);
+    for (const f of fx.FAVS.slice(0, 4)) await addChip(page, f);
+    await setBudget(page, 120);
+    check(`${c.name}/home: four chips with their type hints, count line and budget`, (await count(page, 'ul.chips li.chip')) === 4 && /^4 of 5 added/.test(await text(page, '#fav-count')) && (await page.$eval('#budget', (e) => e.value)) === '120', await text(page, '#fav-count'));
+    check(`${c.name}/home: the chips show the type hint the user chose`, (await page.$$eval('ul.chips li.chip .chip-type', (l) => l.length)) >= 3);
+    await c.snap();
+    await addChip(page, fx.FAVS[4]);
+    check(`${c.name}/home: a fifth chip is accepted`, (await count(page, 'ul.chips li.chip')) === 5 && /^5 of 5 added/.test(await text(page, '#fav-count')), await text(page, '#fav-count'));
+    await addChip(page, { text: 'One too many' });
+    check(`${c.name}/home: a sixth chip is refused with a plain sentence`, (await count(page, 'ul.chips li.chip')) === 5 && (await text(page, '#fav-error')) === 'You can add up to 5. Remove one to add another.', await text(page, '#fav-error'));
+    await page.focus('#fav-input');
+    await page.keyboard.down('Control'); await page.keyboard.press('KeyA'); await page.keyboard.up('Control');
+    await page.keyboard.press('Backspace');
+    await page.click('ul.chips li.chip:last-child button.chip-x');
+    check(`${c.name}/home: removing a chip works and the count follows`, (await count(page, 'ul.chips li.chip')) === 4 && /^4 of 5 added/.test(await text(page, '#fav-count')), await text(page, '#fav-count'));
+  });
+
+  add('home-error-favs', false, async (c) => {
+    const { page } = c;
+    await fresh(page);
+    await addChip(page, { text: 'Muji' });
+    await addChip(page, { text: 'muji' });
+    check(`${c.name}/home: a repeated favourite is refused`, /already added/i.test((await text(page, '#fav-error')) || ''), await text(page, '#fav-error'));
+    await page.keyboard.press('Backspace');
+    await tapText(page, /^Find gift ideas$/);
+    await sleep(250);
+    check(`${c.name}/home: fewer than three favourites gives a clear error and stays on the first screen`, /at least 3/.test((await text(page, '#fav-error')) || '') && (await page.evaluate(() => location.hash)) !== '#/ideas', await text(page, '#fav-error'));
+    await c.snap();
+  });
+
+  add('home-error-budget', false, async (c) => {
+    const { page } = c;
+    await fresh(page);
+    for (const f of fx.FAVS.slice(0, 3)) await addChip(page, f);
+    await setBudget(page, 5);
+    await tapText(page, /^Find gift ideas$/);
+    await sleep(250);
+    check(`${c.name}/home: a budget below $10 gives a clear error and stays on the first screen`, /at least \$10/.test((await text(page, '#budget-error')) || '') && (await page.evaluate(() => location.hash)) !== '#/ideas', await text(page, '#budget-error'));
+    await c.snap();
+  });
+
+  // one scripted stream gives three states: early (skeletons), mid (two ideas) and stopped early
+  add('ideas-running-early', true, async (c) => {
+    const { page } = c;
+    const key = 'POST /api/ideas';
+    await open(c, '#/', { st: { favorites: fx.FAVS, budget: 120 }, mocks: { [key]: { events: fx.partial } } });
+    await cls(page, true);
+    await tapText(page, /^Find gift ideas$/);
+    await release(page, key, fx.firstIdea);
+    await sleep(500);
+    check(`${c.name}/ideas: while running, the heading, step 2, a running phase, tool calls and skeleton cards`, (await text(page, 'h1')) === 'Gift ideas' && (await count(page, '.phases li.phase[data-state=running]')) >= 1 && (await count(page, '.calls li.call')) >= 3 && (await count(page, '.idea.skeleton')) >= 1 && (await text(page, '#steps li.current')).startsWith('2'));
+    check(`${c.name}/ideas: the demo-data note is shown for a run on mocks`, /Demo data/.test((await text(page, '.demo-note')) || ''), (await text(page, '.demo-note') || '').slice(0, 60));
+    await c.audit('ideas running');
+    await c.snap();
+    c.stream = { key, n: fx.firstIdea };
+  });
+
+  add('ideas-running-mid', false, async (c) => {
+    const { page } = c;
+    await release(page, c.stream.key, fx.secondIdea + 1 - c.stream.n);
+    await sleep(600);
+    check(`${c.name}/ideas: two idea cards have arrived and the loading placeholders for the others remain`, (await count(page, '.ideas-list article.idea:not(.skeleton)')) === 2 && (await count(page, '.idea.skeleton')) >= 1);
+    c.stream.n = fx.secondIdea + 1;
+    await c.snap();
+  });
+
+  add('ideas-error-partial', false, async (c) => {
+    const { page } = c;
+    await release(page, c.stream.key, fx.partial.length - c.stream.n);
+    await page.waitForSelector('section.panel.warn[role=alert]', { timeout: 8000 });
+    check(`${c.name}/ideas: stopping early keeps the ideas, says so, and offers to try again`, (await text(page, 'section.panel.warn h2')) === 'The agent stopped early' && (await count(page, '.ideas-list article.idea:not(.skeleton)')) >= 3 && !!(await findByText(page, /^Try again$/)), await text(page, 'section.panel.warn h2'));
+    check(`${c.name}/ideas: no placeholder is left spinning after the error`, (await count(page, '.idea.skeleton')) === 0 && (await count(page, '.phases li.phase[data-state=running]')) === 0);
+    await c.audit('ideas partial');
+    await c.snap();
+    // a reload while a run is in progress cannot resume it: back to the first screen with the favourites still there
+  });
+
+  add('ideas-example', true, async (c) => {
+    const { page } = c;
+    await fresh(page);
+    await cls(page, true);
+    await tapText(page, /^Try an example$/);
+    await hashIs(page, '#/ideas');
+    check(`${c.name}/ideas: the page title and focus follow the route`, (await page.title()) === 'Gift ideas · Tasteloom' && (await page.evaluate(() => document.activeElement?.tagName)) === 'H1', await page.title());
+    await until(page, () => /Done in/.test(document.querySelector('.agent-status')?.textContent || ''), null, 60000);
+    await sleep(400);
+    c.done = JSON.parse(await page.evaluate((k) => sessionStorage.getItem(k), KEY));
+    const buyable = purchasable(c.done).length;
+    check(`${c.name}/ideas: example run finished with ideas, product cards and the saved-example note`, c.done.run.ideas.length >= 3 && buyable >= 4 && (await shown(page, '.example-note')), `${c.done.run.ideas.length} ideas, ${buyable} buyable cards`);
+    check(`${c.name}/ideas: each idea says why ("Because they love ..." or the overall-taste line)`, await page.$$eval('.ideas-list article.idea:not(.skeleton) .because', (l) => l.length > 0 && l.every((e) => /Because they love|overall taste/.test(e.textContent))));
+    check(`${c.name}/ideas: each product card shows a price, a shop and a link that opens safely`, await page.$$eval('ul.cards li.card[data-kind=product]', (l) => l.length > 0 && l.every((e) => /\$\d/.test(e.querySelector('.price')?.textContent || '') && e.querySelector('.shop')?.textContent && /^https:/.test(e.querySelector('a.shop-link')?.href || '') && /noopener/.test(e.querySelector('a.shop-link')?.rel || ''))));
+    const shift = await cls(page);
+    check(`${c.name}/ideas: layout shift while the example loads is at most 0.1`, shift <= 0.1, `CLS ${shift}`);
+    await c.audit('ideas');
+    if (c.sweep) await overflowSweep(page, `${c.name}/ideas`);
+    await tabWalk(page, `${c.name}/ideas`, 140);
+    await c.snap();
+  });
+
+  add('ideas-selected', true, async (c) => {
+    const { page } = c;
+    await open(c, '#/ideas', { st: c.done });
+    check(`${c.name}/ideas: "Review and pay" is disabled until something is picked`, await page.$eval('.bar .btn.primary', (e) => e.disabled || e.getAttribute('aria-disabled') === 'true'));
+    const k = await pickCards(page, 2);
+    await sleep(200);
+    const now = await page.$eval('.bar div.meter[role=meter]', (e) => Number(e.getAttribute('aria-valuenow'))).catch(() => NaN);
+    check(`${c.name}/ideas: two picks update the card state, the bar count and the budget meter`, k === 2 && (await count(page, 'ul.cards li.card[data-selected="true"]')) === 2 && /2/.test((await text(page, '.bar-count')) || '') && now > 0, `${await text(page, '.bar-count')}, meter ${now}`);
+    check(`${c.name}/ideas: "Review and pay" is now enabled`, !(await page.$eval('.bar .btn.primary', (e) => e.disabled)));
+    await c.snap();
+    check(`${c.name}/ideas: the picks survive a reload`, await (async () => { await page.reload({ waitUntil: 'load' }); await page.waitForSelector('ul.cards'); return (await count(page, 'ul.cards li.card[data-selected="true"]')) === 2; })());
+  });
+
+  add('ideas-over-budget', false, async (c) => {
+    const cheapest = purchasable(c.done).sort((a, b) => a.price_cents - b.price_cents)[0];
+    await open(c, '#/ideas', { st: withRun(c.done, { budget_cents: cheapest.price_cents + 300, selected: [cheapest.id] }) });
+    const labels = await c.page.$$eval('ul.cards li.card button.pick', (l) => l.map((b) => b.getAttribute('aria-label') || ''));
+    check(`${c.name}/ideas: cards that would break the budget say "Over budget" and cannot be added`, labels.some((l) => /^Over budget/.test(l)) && labels.filter((l) => /^Add to gift/.test(l)).length === 0, labels.map((l) => l.split(':')[0]).join(' | ').slice(0, 120));
+    await c.snap();
+  });
+
+  add('ideas-gift-full', false, async (c) => {
+    const ids = purchasable(c.done).slice(0, 6).map((x) => x.id);
+    await open(c, '#/ideas', { st: withRun(c.done, { budget_cents: 50000, selected: ids }) });
+    const labels = await c.page.$$eval('ul.cards li.card button.pick', (l) => l.map((b) => b.getAttribute('aria-label') || ''));
+    check(`${c.name}/ideas: with six picked the others say "Gift is full"`, ids.length === 6 && labels.some((l) => /^Gift is full/.test(l)) && labels.filter((l) => /^Add to gift/.test(l)).length === 0, `${ids.length} picked`);
+    await c.snap();
+  });
+
+  add('ideas-images-off', true, async (c) => {
+    const { page } = c;
+    await open(c, '#/ideas', { st: c.done, search: '?images=off' });
+    const off = await page.evaluate(() => ({ attr: document.documentElement.dataset.images, shown: [...document.querySelectorAll('.media img')].filter((i) => i.getClientRects().length && getComputedStyle(i).display !== 'none').length, sw: document.querySelector('button.switch')?.getAttribute('aria-checked') }));
+    check(`${c.name}/ideas: ?images=off hides every product image and the switch says off`, off.attr === 'off' && off.shown === 0 && off.sw === 'false', JSON.stringify(off));
+    await c.snap();
+  });
+
+  const ideasError = (key, label, spec, title, buttons) =>
+    add(key, key === 'ideas-error-limit', async (c) => {
+      const { page } = c;
+      await open(c, '#/', { st: { favorites: fx.FAVS, budget: 120 }, mocks: { 'POST /api/ideas': spec } });
+      await tapText(page, /^Find gift ideas$/);
+      await page.waitForSelector('section.panel[role=alert]', { timeout: 8000 });
+      await sleep(300);
+      const got = await page.$$eval('section.panel[role=alert] .panel-actions > *', (l) => l.map((e) => e.textContent.trim()));
+      check(`${c.name}/ideas: ${label}: title "${title}" with a plain message and the actions ${buttons.join(', ')}`, (await text(page, 'section.panel[role=alert] h2')) === title && buttons.every((b) => got.includes(b)) && (await count(page, '.idea.skeleton')) === 0, `${await text(page, 'section.panel[role=alert] h2')} / ${got.join(', ')}`);
+      if (key === 'ideas-error-limit') await c.audit('ideas error');
+      await c.snap();
+    });
+  ideasError('ideas-error-network', 'server unreachable', { reject: true }, 'We could not reach the server', ['Try again', 'Try an example']);
+  ideasError('ideas-error-limit', 'daily limit reached', err(429, 'limit', LIMIT_MSG), 'Live lookups are used up for now', ['Try again', 'Try an example']);
+  ideasError('ideas-error-upstream', 'a service is down', err(502, 'upstream', UPSTREAM_MSG), 'A service we depend on is not answering', ['Try again', 'Try an example']);
+  ideasError('ideas-error-bad-input', 'input refused by the server', err(400, 'bad_input', 'Add 3 to 5 things they love.'), 'We could not find gifts for that', ['Change favourites or budget', 'Try an example']);
+
+  add('ideas-empty', false, async (c) => {
+    const { page } = c;
+    await open(c, '#/', { st: { favorites: fx.FAVS, budget: 50 }, mocks: { 'POST /api/ideas': { events: fx.empty } } });
+    await tapText(page, /^Find gift ideas$/);
+    await release(page, 'POST /api/ideas', fx.empty.length);
+    await page.waitForFunction(() => /No ideas to show/.test(document.body.textContent), { timeout: 8000 });
+    check(`${c.name}/ideas: no results gives an explanation and two ways forward`, !!(await findByText(page, /^Try an example$/)) && !!(await findByText(page, /^Change favourites$/)));
+    await c.snap();
+  });
+
+  const two = (c) => purchasable(c.done).slice(0, 2);
+  const ckSt = (c) => ({ ...c.done, selected: two(c).map((x) => x.id) });
+  const total = (c) => two(c).reduce((a, x) => a + x.price_cents, 0);
+
+  add('checkout', true, async (c) => {
+    const { page } = c;
+    await open(c, '#/checkout', { st: ckSt(c) });
+    check(`${c.name}/checkout: heading, title, step 3, both items and the totals`, (await text(page, 'h1')) === 'Checkout' && (await page.title()) === 'Checkout · Tasteloom' && (await text(page, '#steps li.current')).startsWith('3') && (await count(page, '.summary li.line')) === 2 && /Total/.test(await text(page, 'dl.totals')), await text(page, 'dl.totals'));
+    check(`${c.name}/checkout: the sandbox label and the working test card are on screen`, /Sandbox, no real money/.test(await text(page, '.sandbox-note')) && (await text(page, 'dl.testcard')).includes('4005 5192 0000 0004') && (await text(page, 'dl.testcard')).includes('12/30') && (await text(page, 'dl.testcard')).includes('123'));
+    check(`${c.name}/checkout: the pay button names the exact total`, new RegExp(`Pay \\$${(total(c) / 100).toFixed(2).replace('.', '\\.')} with PayPal`).test(await text(page, 'button.pay-btn')), await text(page, 'button.pay-btn'));
+    if (c.clip) {
+      await page.click('dl.testcard button.copy');
+      await sleep(250);
+      const clip = await page.evaluate(() => navigator.clipboard.readText()).catch((e) => `ERR ${e.message}`);
+      check(`${c.name}/checkout: "Copy card number" puts the test card on the clipboard and says Copied`, clip === '4005519200000004' && /Copied/.test(await text(page, 'dl.testcard .tc-row:first-child button.copy')), clip.length > 20 ? 'unexpected' : clip);
+    }
+    await c.audit('checkout');
+    if (c.sweep) await overflowSweep(page, `${c.name}/checkout`);
+    await tabWalk(page, `${c.name}/checkout`);
+    await page.evaluate(() => scrollTo(0, 0));
+    await c.snap();
+    await page.click('.summary li.line:first-child button.icon-btn');
+    await sleep(200);
+    check(`${c.name}/checkout: removing an item updates the list, the total and the pay button`, (await count(page, '.summary li.line')) === 1 && (await text(page, 'button.pay-btn')).includes((((total(c) - two(c)[0].price_cents) / 100).toFixed(2))), await text(page, 'button.pay-btn'));
+  });
+
+  const pay = (key, spec, probe) =>
+    add(key, false, async (c) => {
+      const { page } = c;
+      await open(c, '#/checkout', { st: ckSt(c), mocks: { 'POST /api/checkout': typeof spec === 'function' ? spec(c) : spec } });
+      await tapText(page, /with PayPal$/);
+      await probe(c);
+      if (key === 'checkout-error-upstream') await c.audit('checkout error');
+      await c.snap();
+    });
+  pay('checkout-loading', { hang: true }, async (c) => {
+    await c.page.waitForSelector('button.pay-btn[aria-busy="true"]', { timeout: 5000 });
+    check(`${c.name}/checkout: while the order is created the button is busy and disabled, and a status line says so`, (await c.page.$eval('button.pay-btn', (e) => e.disabled)) && /Creating your order/.test(await text(c.page, '.pay-status')) && /Opening PayPal/.test(await text(c.page, 'button.pay-btn')));
+  });
+  pay('checkout-mismatch', (c) => ({ json: { orderId: ORDER_ID, approveUrl: `https://www.sandbox.paypal.com/checkoutnow?token=${ORDER_ID}`, total_cents: total(c) + 500, lines: [], reused: false, sandbox: true } }), async (c) => {
+    await c.page.waitForSelector('.note.warn', { timeout: 5000 });
+    check(`${c.name}/checkout: a different server total is shown before leaving, with an explicit continue button`, /priced this gift at/.test(await text(c.page, '.note.warn')) && /^Continue to PayPal for \$/.test(await text(c.page, 'button.pay-btn')), await text(c.page, '.note.warn'));
+  });
+  const payError = (key, spec, title, actions) =>
+    pay(key, spec, async (c) => {
+      await c.page.waitForSelector('section.panel.bad[role=alert]', { timeout: 5000 });
+      const got = await c.page.$$eval('section.panel.bad .panel-actions > *', (l) => l.map((e) => e.textContent.trim()));
+      check(`${c.name}/checkout: ${key.replace('checkout-error-', '')}: title "${title}" and actions ${actions.join(', ')}`, (await text(c.page, 'section.panel.bad h2')) === title && actions.every((a) => got.includes(a)), `${await text(c.page, 'section.panel.bad h2')} / ${got.join(', ')}`);
+    });
+  payError('checkout-error-upstream', err(502, 'upstream', 'PayPal is not answering right now. Nothing was charged. Please try again.'), 'PayPal is not answering', ['Try again', 'Back to ideas']);
+  payError('checkout-error-over-budget', err(422, 'over_budget', 'This gift costs more than your budget. Remove an item or pick cheaper ones.'), 'That is over your budget', ['Back to ideas']);
+  payError('checkout-error-session', err(404, 'session_expired', 'Your session has expired, so the saved prices are gone. Start again or try the example.'), 'Your session expired', ['Start over', 'Try an example']);
+  payError('checkout-error-network', { reject: true }, 'We could not reach the server', ['Try again', 'Back to ideas']);
+
+  add('checkout-cancelled', false, async (c) => {
+    await open(c, '#/checkout?cancelled=1', { st: ckSt(c) });
+    check(`${c.name}/checkout: after cancelling on PayPal the page says nothing was charged and keeps the gift`, /nothing was charged/.test((await text(c.page, '.note.info')) || '') && (await count(c.page, '.summary li.line')) === 2, await text(c.page, '.note.info'));
+    await c.snap();
+  });
+
+  add('receipt-loading', false, async (c) => {
+    await open(c, '#/', { st: c.done, mocks: { [`GET /api/orders/${ORDER_ID}`]: { hang: true } } });
+    await c.page.evaluate((h) => { location.hash = h; }, `#/receipt/${ORDER_ID}`);
+    await sleep(400);
+    check(`${c.name}/receipt: while loading it says so and shows a placeholder`, (await text(c.page, 'h1')) === 'Getting your receipt' && (await count(c.page, '.sk-card')) === 1);
+    await c.snap();
+  });
+  // built lazily: they need c.done for the item lines
+  S.push({ key: 'receipt-completed', tablet: true, build: (c) => receipt(c, 'receipt-completed', 'COMPLETED', {}, 'Order confirmed') });
+  S.push({ key: 'receipt-capture-failed', tablet: false, build: (c) => receipt(c, 'receipt-capture-failed', 'CAPTURE_FAILED', { error: 'PayPal declined the payment (INSTRUMENT_DECLINED). Nothing was charged.' }, 'Payment not completed') });
+  S.push({ key: 'receipt-not-approved', tablet: false, build: (c) => receipt(c, 'receipt-not-approved', 'NOT_APPROVED', {}, 'Payment not approved yet') });
+  S.push({ key: 'receipt-created', tablet: false, build: (c) => receipt(c, 'receipt-created', 'CREATED', {}, 'Waiting for your approval on PayPal') });
+  S.push({ key: 'receipt-cancelled', tablet: false, build: (c) => receipt(c, 'receipt-cancelled', 'CANCELLED', {}, 'Payment cancelled') });
+
+  add('receipt-not-found', false, async (c) => {
+    await open(c, '#/', { st: c.done, mocks: { [`GET /api/orders/${ORDER_ID}`]: err(404, 'not_found', 'Order not found.') } });
+    await c.page.evaluate((h) => { location.hash = h; }, `#/receipt/${ORDER_ID}`);
+    await c.page.waitForFunction(() => document.querySelector('h1')?.textContent !== 'Getting your receipt', { timeout: 8000 });
+    check(`${c.name}/receipt: an unknown order says so and offers a new start`, (await text(c.page, 'h1')) === 'We could not find that order' && !!(await findByText(c.page, /^Start a new gift$/)), await text(c.page, 'h1'));
+    await c.snap();
+  });
+  add('receipt-error', false, async (c) => {
+    await open(c, '#/', { st: c.done, mocks: { [`GET /api/orders/${ORDER_ID}`]: { reject: true } } });
+    await c.page.evaluate((h) => { location.hash = h; }, `#/receipt/${ORDER_ID}`);
+    await c.page.waitForFunction(() => document.querySelector('h1')?.textContent !== 'Getting your receipt', { timeout: 8000 });
+    check(`${c.name}/receipt: a network failure says so and offers to try again`, (await text(c.page, 'h1')) === 'We could not load your receipt' && !!(await findByText(c.page, /^Try again$/)), await text(c.page, 'h1'));
+    await c.snap();
+  });
+
+  S.push({ key: 'ideas-live', tablet: true, live: true, run: async (c) => { await open(c, '#/ideas', { st: c.liveRun }); await c.audit('ideas live'); await c.snap(); } });
+  S.push({ key: 'checkout-live', tablet: true, live: true, run: async (c) => { await open(c, '#/checkout', { st: c.liveRun }); await c.audit('checkout live'); await c.snap(); } });
+  return S;
+}
+
+// ---- behaviours that are not a single screen ----------------------------------------------------------------------------
+async function journeys(c, fx) {
+  const { page } = c;
+  say(`  journeys (${c.name})`);
+  // 1. keyboard only: first screen -> ideas -> pick -> checkout
+  const key = 'POST /api/ideas';
+  await fresh(page);
+  await mock(page, key, { events: fx.live });
+  const tabTo = async (pred, arg, max = 120) => {
+    for (let i = 0; i < max; i++) {
+      await page.keyboard.press('Tab');
+      if (await page.evaluate(pred, arg)) return true;
+    }
+    return false;
+  };
+  const gotInput = await tabTo((id) => document.activeElement?.id === id, 'fav-input', 20);
+  for (const f of fx.FAVS.slice(0, 3)) {
+    await page.keyboard.type(f.text);
+    await page.keyboard.press(f === fx.FAVS[1] ? 'Comma' : 'Enter');
+  }
+  check(`${c.name}/keyboard: Tab reaches the favourites field; Enter and comma add chips`, gotInput && (await count(page, 'ul.chips li.chip')) === 3, `${await count(page, 'ul.chips li.chip')} chips`);
+  const gotBudget = await tabTo((id) => document.activeElement?.id === id, 'budget', 30);
+  await page.keyboard.down('Control'); await page.keyboard.press('KeyA'); await page.keyboard.up('Control');
+  await page.keyboard.type('120');
+  await page.keyboard.press('Enter');
+  const started = await hashIs(page, '#/ideas').then(() => true, () => false);
+  check(`${c.name}/keyboard: Tab reaches the budget; Enter in it submits`, gotBudget && started);
+  if (started) {
+    await release(page, key, fx.live.length);
+    await until(page, () => /Done in/.test(document.querySelector('.agent-status')?.textContent || ''), null, 20000);
+    const gotPick = await tabTo(() => document.activeElement?.matches('button.pick') && /^Add to gift/.test(document.activeElement.getAttribute('aria-label') || ''), null, 200);
+    await page.keyboard.press('Enter');
+    await sleep(150);
+    check(`${c.name}/keyboard: a product card can be reached and picked with Tab and Enter`, gotPick && (await count(page, 'ul.cards li.card[data-selected="true"]')) === 1);
+    const gotReview = await tabTo(() => document.activeElement?.matches('.bar .btn.primary'), null, 200);
+    await page.keyboard.press('Enter');
+    const atCheckout = await hashIs(page, '#/checkout').then(() => true, () => false);
+    await until(page, () => document.activeElement?.tagName === 'H1', null, 3000).catch(() => {}); // the hash changes before the router's hashchange handler runs
+    const active = await page.evaluate(() => document.activeElement?.tagName);
+    check(`${c.name}/keyboard: "Review and pay" opens checkout and moves focus to its heading`, gotReview && atCheckout && active === 'H1', `reached ${gotReview}, checkout ${atCheckout}, focus on ${active}`);
+    // 2. browser back and forward keep the picks
+    await page.goBack();
+    await hashIs(page, '#/ideas').catch(() => {});
+    await sleep(300);
+    check(`${c.name}/history: Back from checkout returns to the ideas with the pick kept`, (await text(page, 'h1')) === 'Gift ideas' && (await count(page, 'ul.cards li.card[data-selected="true"]')) === 1, await page.evaluate(() => location.hash));
+    await page.goForward();
+    await hashIs(page, '#/checkout').catch(() => {});
+    check(`${c.name}/history: Forward returns to checkout`, (await text(page, 'h1')) === 'Checkout');
+  }
+  // 3. a reload during a run cannot resume it: back to the first screen, favourites kept (typed through the UI, so the app's own save is tested)
+  await fresh(page);
+  await mock(page, key, { events: fx.live, close: false });
+  for (const f of fx.FAVS.slice(0, 3)) await addChip(page, f);
+  await setBudget(page, 120);
+  await tapText(page, /^Find gift ideas$/);
+  await release(page, key, 3);
+  await page.reload({ waitUntil: 'load' });
+  await page.waitForSelector('h1');
+  await sleep(300);
+  check(`${c.name}/reload: reloading during a run returns to the first screen and keeps the favourites`, (await text(page, 'h1')) === 'Gifts that understand them' && (await count(page, 'ul.chips li.chip')) === 3, `${await text(page, 'h1')}, ${await count(page, 'ul.chips li.chip')} chips`);
+}
+
+/** Runs the whole tour in one viewport. `round` = { name, vp, full, sweep, clip }. */
+export async function tourRound(browser, round, sample, liveRun) {
+  const fx = fixtures(sample);
+  const ctx = await browser.createBrowserContext();
+  if (round.clip) await ctx.overridePermissions(BASE, ['clipboard-read', 'clipboard-write']);
+  const page = await newPage(ctx, round.vp, round.name);
+  const list = states(fx);
+  const c = { page, name: round.name, sweep: round.sweep, clip: round.clip, done: null, liveRun, stream: null };
+  say(`TOUR ${round.name} ${round.vp.width}x${round.vp.height}: ${round.full ? 'every state' : 'key screens'}`);
+  for (let i = 0; i < list.length; i++) {
+    const s = list[i];
+    if ((!round.full && !s.tablet) || (s.live && !liveRun)) continue;
+    if (process.env.TOUR_STATES && !process.env.TOUR_STATES.split(',').includes(s.key)) continue; // debugging aid: run only these states
+    c.audit = (label) => audit(page, `${round.name}/${label}`);
+    c.snap = () => shot(page, `${String(i + 1).padStart(2, '0')}-${s.key}`);
+    const step = s.build ? s.build(c) : s;
+    try {
+      if (!c.done && !['home-empty', 'home-filled', 'home-error-favs', 'home-error-budget', 'ideas-running-early', 'ideas-running-mid', 'ideas-error-partial', 'ideas-example'].includes(s.key)) throw new Error('needs the example run first');
+      await step.run(c);
+    } catch (e) {
+      check(`${round.name}/${s.key}: state completed without an unexpected error`, false, String(e.message).slice(0, 160));
+      try { await page.screenshot({ path: new URL(`../../evidence/debug/crash-${round.name}-${s.key}.png`, import.meta.url).pathname }); } catch {}
+    }
+  }
+  if (round.full && c.done) {
+    try { await journeys(c, fx); } catch (e) { check(`${round.name}/journeys completed without an unexpected error`, false, String(e.message).slice(0, 160)); }
+  }
+  await ctx.close();
+}

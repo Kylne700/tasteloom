@@ -1,0 +1,4 @@
+# npm run contract:qloo (2026-10-16T22:34Z)
+contract:qloo: KEY MISSING. QLOO_API_KEY is not set in tasteagent/.env.local, so no request was made.
+The app runs on documented-shape demo data until the key appears; add the key and run this again.
+exit code: 2

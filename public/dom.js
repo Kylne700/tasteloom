@@ -14,6 +14,11 @@ export function h(tag, props, ...kids) {
   return el;
 }
 
+/** Like el.replaceChildren(...), but null, undefined and false are skipped; the native method would print them as the text "null". */
+export function fill(el, ...kids) {
+  el.replaceChildren(...kids.flat(Infinity).filter((k) => k != null && k !== false));
+}
+
 const ICONS = {
   check: 'M5 12.5l4.5 4.5L19 7',
   x: 'M6 6l12 12M18 6L6 18',

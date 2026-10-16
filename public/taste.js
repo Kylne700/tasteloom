@@ -81,7 +81,10 @@ export function mountTaste(root) {
     // a pasted list ("A, B, C") adds each part
     const parts = input.value.split(',');
     for (const p of parts) if (!add(p)) break;
-    if (!err.textContent) input.value = '';
+    if (!err.textContent) {
+      input.value = '';
+      type.value = ''; // the type hint belongs to the item just added; the next one starts as "Any type"
+    }
     renderChips();
     input.focus();
   }
