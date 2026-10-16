@@ -116,7 +116,7 @@ export interface Candidate {
 }
 
 export type StreamEvent =
-  | { t: 'meta'; session: string; budget_cents: number; mocks: string[]; example: boolean; asOf?: string }
+  | { t: 'meta'; session: string; budget_cents: number; mocks: string[]; example: boolean; asOf?: string; favorites?: { text: string; type?: string }[] }
   | { t: 'phase'; id: string; label: string; state: 'running' | 'done' | 'skipped' | 'error'; note?: string }
   | { t: 'call'; tool: string; arg: string; ms: number; ok: boolean; out: string; via: 'live' | 'mock' | 'cache' }
   | { t: 'taste'; seeds: { id: string; name: string; type: string }[] }

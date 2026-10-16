@@ -14,8 +14,8 @@ import type { Candidate, Seed } from '../types.ts';
 /** Valid `filter.type` values for /v2/insights (from the docs). */
 export const INSIGHT_TYPES = ['artist', 'book', 'brand', 'destination', 'movie', 'person', 'place', 'podcast', 'tv_show', 'video_game'] as const;
 export type InsightType = (typeof INSIGHT_TYPES)[number];
-/** Types that make sense as gift sources. */
-export const GIFT_TYPES: InsightType[] = ['brand', 'book', 'artist', 'video_game', 'place', 'destination'];
+/** Types that make sense as gift sources (games, films and shows still work as favourites, they are just not shopped for). */
+export const GIFT_TYPES: InsightType[] = ['brand', 'book', 'artist', 'place', 'destination'];
 
 const shortType = (u: unknown): string => String(u ?? '').replace(/^urn:entity:/, '');
 

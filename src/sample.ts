@@ -2,28 +2,18 @@
 // so judges never hit a dead end when a key is missing, a daily limit is reached or an upstream API is down.
 import { SAMPLE } from './sample-data.ts';
 import { newSession } from './commerce.ts';
-import type { Session, StreamEvent } from './types.ts';
+import type { Card, Session, StreamEvent } from './types.ts';
 
 export function sampleSession(): Session {
-  return newSession(SAMPLE.budget_cents, SAMPLE.cards, true);
+  const cards: Card[] = SAMPLE.events.flatMap((e) => (e.t === 'idea' ? e.cards : []));
+  return newSession(SAMPLE.budget_cents, cards, true);
 }
 
+// Pacing of the replay in milliseconds, so the agent steps are readable (a live run is as slow as the services).
+const PACE: Record<StreamEvent['t'], number> = { meta: 0, phase: 260, call: 200, taste: 300, idea: 380, reasons: 350, check: 120, done: 120, error: 0 };
+
 export function* sampleEvents(session: Session, mocks: string[]): Generator<{ delay: number; e: StreamEvent }> {
-  const note = `from the saved example (recorded ${SAMPLE.asOf})`;
-  const phase = (id: string, label: string, state: 'running' | 'done', d = 260): { delay: number; e: StreamEvent } => ({ delay: d, e: { t: 'phase', id, label, state, note: state === 'done' ? note : undefined } });
-  yield { delay: 0, e: { t: 'meta', session: session.id, budget_cents: session.budget_cents, mocks, example: true, asOf: SAMPLE.asOf } };
-  yield phase('qloo', 'Reading their taste with Qloo', 'running', 120);
-  yield { delay: 320, e: { t: 'taste', seeds: SAMPLE.seeds } };
-  yield phase('qloo', 'Reading their taste with Qloo', 'done');
-  yield phase('plan', 'Nemotron is planning', 'running');
-  yield phase('plan', 'Nemotron is planning', 'done', 420);
-  yield phase('products', 'Finding real products', 'running');
-  for (const idea of SAMPLE.ideas) {
-    const cards = idea.cardIds.map((id) => session.cards.find((c) => c.id === id)!).filter(Boolean);
-    yield { delay: 380, e: { t: 'idea', idea, cards } };
-  }
-  yield phase('products', 'Finding real products', 'done');
-  yield phase('prices', 'Checking prices', 'running');
-  yield phase('prices', 'Checking prices', 'done', 300);
-  yield { delay: 120, e: { t: 'done', ideas: SAMPLE.ideas.length, cards: session.cards.length, tier: 'example' } };
+  yield { delay: 0, e: { t: 'meta', session: session.id, budget_cents: session.budget_cents, mocks, example: true, asOf: SAMPLE.asOf, favorites: SAMPLE.favorites } };
+  for (const e of SAMPLE.events) yield { delay: PACE[e.t], e };
+  yield { delay: PACE.done, e: { t: 'done', ideas: SAMPLE.events.filter((e) => e.t === 'idea').length, cards: session.cards.length, tier: 'example' } };
 }

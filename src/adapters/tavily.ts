@@ -4,7 +4,7 @@
 import { TAVILY_BASE } from '../config.ts';
 import { cached, callJson, type Svc } from '../lib/http.ts';
 import { asObject } from '../lib/json.ts';
-import { clip, fnv, hostOf, httpsUrl } from '../lib/util.ts';
+import { clip, fnv, hostOf, httpsUrl, nameTokens } from '../lib/util.ts';
 import type { Card } from '../types.ts';
 
 export interface WebResult {
@@ -55,13 +55,32 @@ export async function searchWeb(svc: Svc, q: { query: string; domains?: string[]
 
 const NOT_GIFT_HOSTS = /(^|\.)(youtube|youtu|facebook|instagram|pinterest|reddit|tiktok|x|twitter|linkedin|wikipedia|quora)\.(com|be|org)$/i;
 
+/** Search snippets arrive as markdown-ish text; the card shows plain words. */
+export function cleanSnippet(s: string, max = 180): string {
+  return clip(
+    s
+      .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
+      .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+      .replace(/https?:\/\/\S+/g, ' ')
+      .replace(/[#*_`>|]+/g, ' '),
+    max,
+  );
+}
+
 /** Experience ideas (tickets, classes, tours) for a place or destination. Link cards only, never purchasable here. */
 export async function experienceCards(svc: Svc, a: { name: string; ideaId: string; max?: number }): Promise<{ cards: Card[]; hit: boolean }> {
-  const { results, hit } = await searchWeb(svc, { query: `${a.name} experience gift tickets tour class`, max: 6 });
+  const { results, hit } = await searchWeb(svc, { query: `${a.name} experience gift tickets tour class`, max: 8 });
   const cards: Card[] = [];
+  const need = nameTokens(a.name);
+  const seen = new Set<string>();
   for (const r of results) {
-    const host = hostOf(r.url);
+    const host = hostOf(r.url).replace(/^www\./, '');
     if (!host || NOT_GIFT_HOSTS.test(host)) continue;
+    // about this place, and one card per distinct page title (sites often return the same page under several URLs)
+    const hay = ' ' + nameTokens(`${r.title} ${r.url} ${r.content}`).join(' ') + ' ';
+    const dup = `${host}|${r.title.toLowerCase()}`;
+    if (!need.every((t) => hay.includes(` ${t} `) || hay.includes(` ${t}s `)) || seen.has(dup)) continue;
+    seen.add(dup);
     cards.push({
       id: 'x' + fnv(r.url).toString(16).padStart(8, '0'),
       ideaId: a.ideaId,
@@ -72,7 +91,7 @@ export async function experienceCards(svc: Svc, a: { name: string; ideaId: strin
       url: r.url,
       purchasable: false,
       source: 'tavily',
-      snippet: r.content,
+      snippet: cleanSnippet(r.content),
     });
     if (cards.length >= (a.max ?? 3)) break;
   }
@@ -97,8 +116,8 @@ const tokens = (s: string) => s.toLowerCase().split(/[^a-z0-9]+/).filter((t) => 
  * Only an exact price match on a page about the same product counts as "confirmed"; anything else is "unknown" (page prices are too
  * noisy to call a mismatch). Never changes the price that is charged: PayPal totals always come from the stored card.
  */
-export async function priceCheck(svc: Svc, card: Card): Promise<Card['priceCheck']> {
-  const { results } = await searchWeb(svc, { query: card.title, domains: [card.shop], max: 3, raw: true });
+export async function priceCheck(svc: Svc, card: Card, hint = ''): Promise<Card['priceCheck']> {
+  const { results } = await searchWeb(svc, { query: clip(`${card.title} ${hint}`.trim(), 160), domains: [card.shop], max: 3, raw: true });
   const want = new Set(tokens(card.title));
   for (const r of results) {
     if (!hostOf(r.url).endsWith(card.shop)) continue; // include_domains should guarantee this; never trust a price from another site

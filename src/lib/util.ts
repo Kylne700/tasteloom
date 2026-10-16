@@ -79,3 +79,8 @@ export function redact(s: string, secrets: (string | undefined)[]): string {
 export function errMsg(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
+
+const STOP = new Set(['the', 'and', 'of', 'a', 'an', 'in', 'on', 'for', 'to', 'at', 'by', 'with']);
+/** Lowercase letter/digit tokens without stop words; diacritics folded. */
+export const nameTokens = (s: string): string[] =>
+  s.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^\p{L}\p{N}]+/gu, ' ').split(' ').filter((t) => t.length > 1 && !STOP.has(t));

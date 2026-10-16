@@ -52,15 +52,15 @@ export function parseIdeasInput(body: Record<string, unknown> | undefined, limit
 const MAX_IDEAS = 6;
 const MIN_IDEAS = 4;
 const CARDS_PER_IDEA = 3;
-const TYPE_ORDER = ['brand', 'book', 'artist', 'video_game', 'place'];
-const DEFAULT_TYPES = ['brand', 'book', 'artist', 'video_game', 'place'];
+const MIN_CARDS = 2; // a product idea with a single card looks thin and is usually a weak match
+const TYPE_ORDER = ['brand', 'book', 'artist', 'place'];
+const DEFAULT_TYPES = ['brand', 'book', 'artist', 'place'];
 const EXPERIENCE = new Set(['place', 'destination']);
 
 const IDEA_TITLE: Record<string, (n: string) => string> = {
   brand: (n) => `Something from ${n}`,
   book: (n) => `The book “${n}”`,
   artist: (n) => `For a ${n} fan`,
-  video_game: (n) => `A gift for ${n} players`,
   place: (n) => `A visit to ${n}`,
   destination: (n) => `A trip to ${n}`,
 };
@@ -68,8 +68,9 @@ const QUERY_FOR: Record<string, (n: string) => string> = {
   brand: (n) => n,
   book: (n) => `${n} book`,
   artist: (n) => `${n} vinyl`,
-  video_game: (n) => n,
 };
+/** Catalog category a result must belong to, so "Norwegian Wood" the novel does not come back as firewood. */
+const CATEGORY_FOR: Record<string, string> = { book: 'books', artist: 'records-lps|vinyl|compact-discs|music' };
 
 const IDEAS_SYSTEM = `[task:ideas]
 You are the gift agent of Tasteloom. Turn the things a person loves into 4 to 6 gift ideas that fit the budget.
@@ -232,19 +233,19 @@ class Run {
       const found = await this.traced('find_products', experience ? `${cand.name} (experiences)` : q, async () => {
         const x = experience
           ? await experienceCards(this.svc, { name: cand.name, ideaId, max: CARDS_PER_IDEA })
-          : await searchProducts(this.svc, { query: q, ideaId, maxPriceCents: maxCents, limit: CARDS_PER_IDEA, entity: cand.name });
+          : await searchProducts(this.svc, { query: q, ideaId, maxPriceCents: maxCents, limit: CARDS_PER_IDEA, gate: { entity: cand.name, category: CATEGORY_FOR[cand.type] } });
         const shops = new Set(x.cards.map((c) => c.shop)).size;
         return {
           value: x.cards,
           via: x.hit ? ('cache' as const) : ('live' as const),
           out: experience ? `${x.cards.length} experience links via Tavily` : `${x.cards.length} products, ${shops} shop${shops === 1 ? '' : 's'}, via Channel3`,
-          ok: x.cards.length > 0,
+          ok: x.cards.length >= (experience ? 1 : MIN_CARDS),
         };
       });
       const fresh = found.filter((c) => !this.cards.some((x) => x.id === c.id)).slice(0, CARDS_PER_IDEA);
-      if (!fresh.length) {
+      if (fresh.length < (experience ? 1 : MIN_CARDS)) {
         this.used.delete(cand.id);
-        throw new ToolError('no matching results within the budget; put the exact entity name in the query, or choose another entity');
+        throw new ToolError('too few matching results within the budget; put the exact entity name in the query, or choose another entity');
       }
       const idea: Idea = {
         id: ideaId,
@@ -421,14 +422,14 @@ class Run {
     const targets = this.ideas
       .filter((i) => i.kind === 'product')
       .slice(0, 3)
-      .map((i) => this.cards.find((c) => c.id === i.cardIds[0]))
-      .filter((c): c is Card => !!c && c.purchasable);
+      .map((i) => ({ card: this.cards.find((c) => c.id === i.cardIds[0]), hint: i.entity.name }))
+      .filter((t): t is { card: Card; hint: string } => !!t.card && t.card.purchasable);
     await Promise.allSettled(
-      targets.map(async (card) => {
+      targets.map(async ({ card, hint }) => {
         try {
           const res = await this.traced('tavily_search', `${card.shop} price check`, async () => {
-            const v = (await priceCheck(this.svc, card)) ?? { state: 'unknown' as const };
-            return { value: v, via: 'live' as const, out: v.state === 'confirmed' ? 'price matches the shop page' : 'could not confirm on the shop page', ok: v.state === 'confirmed' };
+            const v = (await priceCheck(this.svc, card, hint)) ?? { state: 'unknown' as const };
+            return { value: v, via: 'live' as const, out: v.state === 'confirmed' ? 'price matches the shop page' : 'could not confirm on the shop page', ok: true };
           });
           card.priceCheck = res;
           this.emit({ t: 'check', cardId: card.id, state: res.state, url: res.url });

@@ -30,14 +30,13 @@ const QUERY: Record<string, (n: string) => string> = {
   brand: (n) => n,
   book: (n) => `${n} book`,
   artist: (n) => `${n} vinyl`,
-  video_game: (n) => n,
   movie: (n) => `${n} poster`,
   place: (n) => `${n} experience`,
   destination: (n) => `${n} experience`,
 };
 
 function diversePicks(cands: { id: string; name: string; type: string }[], n: number) {
-  const order = ['brand', 'book', 'artist', 'video_game', 'place', 'destination', 'movie'];
+  const order = ['brand', 'book', 'artist', 'place', 'destination'];
   const byType = new Map<string, typeof cands>();
   for (const c of cands) byType.set(c.type, [...(byType.get(c.type) ?? []), c]);
   const out: typeof cands = [];
@@ -91,13 +90,17 @@ export function makeNebiusFake(opts: { delayMs?: number } = {}) {
         const because = (Array.isArray(i.because) ? i.because : []).map(String);
         const name = String(i.entity);
         const [a, b] = because;
+        const loved = b ? `${a} and ${b}` : a;
+        // first product title, cut at a separator so it reads like a name ("Kew Gardens Tickets 2026 | Book Now" -> "Kew Gardens Tickets 2026")
+        const prod = (Array.isArray(i.products) ? i.products : []).map(String).map((t) => t.split(/\s[|\u2013-]\s/)[0]!.trim()).find((t) => t.length >= 3 && t.length <= 52);
         reasons[String(i.id)] = !a
           ? `${name} matches the overall taste in what they love.`
           : [
-              `Because they love ${a}${b ? ` and ${b}` : ''}, ${name} should feel instantly right.`,
-              `${name} is the kind of thing someone who loves ${a}${b ? ` and ${b}` : ''} keeps reaching for.`,
-              `With ${a}${b ? ` and ${b}` : ''} on their favourites list, ${name} is an easy yes.`,
-            ][n % 3]!;
+              `Since they love ${loved}, ${name} is a safe bet${prod ? `: ${prod} is a good place to start` : ''}.`,
+              `${name} sits close to ${loved} in taste${prod ? `, and ${prod} shows why` : ', so it should land well'}.`,
+              `A gift in the spirit of ${loved}: ${prod ?? name} feels chosen, not generic.`,
+              `Fans of ${loved} tend to like ${name}${prod ? `, and ${prod} makes an easy first pick` : ', so start with the first product'}.`,
+            ][n % 4]!;
       });
       return reply(model, { content: '<think>writing short reasons</think>\n```json\n' + JSON.stringify({ reasons }) + '\n```' }, 'stop', len);
     }
@@ -125,7 +128,7 @@ export function makeNebiusFake(opts: { delayMs?: number } = {}) {
     }
     if (!insightsRes.length) {
       const ids = searches.map((s) => asObject(s)?.id).filter((x): x is string => typeof x === 'string');
-      const types = ['brand', 'book', 'artist', 'video_game', 'place'];
+      const types = ['brand', 'book', 'artist', 'place'];
       return reply(model, { content: null, tool_calls: types.map((t, i) => call(i + 1, 'qloo_insights', { seed_ids: ids, target_type: t })) }, 'tool_calls', len);
     }
     if (!productRes.length) {

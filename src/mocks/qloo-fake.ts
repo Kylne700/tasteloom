@@ -1,21 +1,52 @@
 // Fake Qloo server for demos and tests while QLOO_API_KEY is missing. It answers with the documented response shapes
 // ({success, duration, results} for /search; {success, results:{entities, duration}} for /v2/insights, each entity with
 // query.explainability as a map seed-id -> score), so the real parser in adapters/qloo.ts runs unchanged.
-// The data is invented demo data: names of well-known works and places, picked deterministically from the request.
+// The data is invented demo data: well-known works and places, each with a few theme tags. Entities that share tags with the
+// favourites rank higher and the explainability weights follow the shared tags, so "because they love X" reads plausibly.
 import { fnv, sleep, titleCase } from '../lib/util.ts';
 
-const CATALOG: Record<string, string[]> = {
-  brand: ['Muji', 'Moleskine', 'Leuchtturm1917', 'Field Notes', 'Hario', 'Fellow', 'Lodge', 'Aesop', 'Kinto', 'Peak Design'],
-  book: ['Kafka on the Shore', 'Piranesi', 'The Overstory', 'Braiding Sweetgrass', 'Norwegian Wood', 'Station Eleven', 'Klara and the Sun', 'A Gentleman in Moscow'],
-  video_game: ['Stardew Valley', 'Hades', 'Hollow Knight', 'Celeste', 'Outer Wilds', 'Journey', 'Animal Crossing: New Horizons'],
-  artist: ['Nujabes', 'Khruangbin', 'Bill Evans', 'Joe Hisaishi', 'Nils Frahm', 'Norah Jones', 'Hiromi', 'Bonobo'],
-  place: ['teamLab Planets', 'Ghibli Museum', 'Shakespeare and Company', 'Kew Gardens', 'The Morgan Library', 'Powell’s Books'],
-  destination: ['Kyoto', 'Lisbon', 'Hokkaido', 'Edinburgh', 'Oaxaca', 'Reykjavik'],
-  movie: ['Spirited Away', 'Perfect Days', 'Paterson', 'Lost in Translation', 'Amelie'],
-  tv_show: ['Midnight Diner', 'Terrace House', 'The Great British Bake Off'],
-  podcast: ['Radiolab', '99% Invisible'],
-  person: ['Haruki Murakami', 'Hayao Miyazaki'],
+const CATALOG: Record<string, [name: string, tags: string][]> = {
+  brand: [
+    ['Muji', 'japan design calm stationery'], ['Moleskine', 'stationery reading travel'], ['Leuchtturm1917', 'stationery reading craft'],
+    ['Field Notes', 'stationery craft nature'], ['Hario', 'coffee japan craft'], ['Fellow', 'coffee design'], ['Lodge', 'cozy nature craft'],
+    ['Aesop', 'design calm'], ['Kinto', 'japan coffee design'], ['Peak Design', 'travel nature design'],
+  ],
+  book: [
+    ['Kafka on the Shore', 'japan reading music'], ['Piranesi', 'reading art calm'], ['The Overstory', 'nature reading'],
+    ['Braiding Sweetgrass', 'nature calm reading'], ['The Housekeeper and the Professor', 'japan reading calm'], ['Station Eleven', 'reading music travel'],
+    ['Klara and the Sun', 'reading calm'], ['A Gentleman in Moscow', 'reading travel cozy'],
+  ],
+  video_game: [
+    ['Stardew Valley', 'cozy games nature craft'], ['Hades', 'games art music'], ['Hollow Knight', 'games art'], ['Celeste', 'games music calm'],
+    ['Outer Wilds', 'games nature'], ['Journey', 'games calm art music'], ['Animal Crossing: New Horizons', 'cozy games nature'],
+  ],
+  artist: [
+    ['Nujabes', 'japan music calm'], ['Khruangbin', 'music travel'], ['Bill Evans', 'music calm'], ['Joe Hisaishi', 'japan music film'],
+    ['Nils Frahm', 'music calm'], ['Norah Jones', 'music cozy'], ['Ryuichi Sakamoto', 'japan music calm'], ['Bonobo', 'music travel'],
+  ],
+  place: [
+    ['teamLab Planets', 'japan art'], ['Ghibli Museum', 'japan film art'], ['Shakespeare and Company', 'reading travel'],
+    ['Kew Gardens', 'nature calm'], ['The Morgan Library', 'reading art'], ['Powell’s Books', 'reading cozy'],
+  ],
+  destination: [
+    ['Kyoto', 'japan calm nature'], ['Lisbon', 'travel coffee'], ['Hokkaido', 'japan nature'], ['Edinburgh', 'reading travel'],
+    ['Oaxaca', 'craft travel'], ['Reykjavik', 'nature travel'],
+  ],
+  movie: [
+    ['Spirited Away', 'japan film art'], ['Perfect Days', 'japan film calm'], ['Paterson', 'reading film calm'],
+    ['Lost in Translation', 'japan film travel'], ['Amelie', 'film travel coffee'],
+  ],
+  tv_show: [['Midnight Diner', 'japan cozy'], ['Terrace House', 'japan'], ['The Great British Bake Off', 'cozy craft']],
+  podcast: [['Radiolab', 'calm'], ['99% Invisible', 'design']],
+  person: [['Haruki Murakami', 'japan reading music'], ['Hayao Miyazaki', 'japan film art']],
 };
+const VOCAB = ['japan', 'coffee', 'cozy', 'calm', 'music', 'reading', 'stationery', 'nature', 'design', 'travel', 'craft', 'art', 'film', 'games'];
+
+const idOf = (name: string, type: string) => 'MOCK' + fnv(name.toLowerCase() + type).toString(16).toUpperCase().padStart(8, '0');
+/** id -> tags for catalog entities; anything else (a favourite the user typed) gets two stable pseudo-random tags */
+const KNOWN = new Map<string, Set<string>>();
+for (const [type, list] of Object.entries(CATALOG)) for (const [name, tags] of list) KNOWN.set(idOf(name, type), new Set(tags.split(' ')));
+const tagsOfId = (id: string) => KNOWN.get(id) ?? new Set([VOCAB[fnv(id) % VOCAB.length]!, VOCAB[fnv(id + 'b') % VOCAB.length]!]);
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 const shortType = (u: string | null) => (u ?? '').replace(/^urn:entity:/, '').split(',')[0] ?? '';
@@ -34,15 +65,17 @@ function answer(input: string): Response {
     const query = (url.searchParams.get('query') ?? '').trim();
     if (!query) return json({ success: true, duration: 3, results: [] });
     const asked = shortType(url.searchParams.get('types'));
-    // known names resolve to their catalog type and spelling; anything else becomes a brand (or the asked type) with a title-cased name
-    const known = (asked ? [asked] : Object.keys(CATALOG)).flatMap((t) => (CATALOG[t] ?? []).filter((n) => n.toLowerCase() === query.toLowerCase()).map((n) => ({ t, n })))[0];
+    const q = query.toLowerCase();
+    // a typed name resolves to the catalog entity it equals or contains ("Hario V60" -> Hario), like Qloo's entity matching
+    const known = (asked ? [asked] : Object.keys(CATALOG)).flatMap((t) =>
+      (CATALOG[t] ?? []).filter(([n]) => n.toLowerCase() === q || (n.length >= 4 && q.includes(n.toLowerCase()))).map(([n]) => ({ t, n })),
+    )[0];
     const type = known?.t ?? (asked || 'brand');
     const name = known?.n ?? titleCase(query);
-    const id = 'MOCK' + fnv(name.toLowerCase() + type).toString(16).toUpperCase().padStart(8, '0');
     return json({
       success: true,
       duration: 7,
-      results: [{ entity_id: id, name, types: [`urn:entity:${type}`], popularity: 0.5, disambiguation: 'demo data' }],
+      results: [{ entity_id: idOf(name, type), name, types: [`urn:entity:${type}`], popularity: 0.5, disambiguation: 'demo data' }],
     });
   }
   if (url.pathname === '/v2/insights') {
@@ -52,21 +85,22 @@ function answer(input: string): Response {
     const seeds = (url.searchParams.get('signal.interests.entities') ?? '').split(',').filter(Boolean);
     const take = Math.min(Number(url.searchParams.get('take')) || 8, 12);
     const salt = seeds.join('|');
-    const picked = [...list].map((n) => ({ n, k: fnv(salt + n) })).sort((a, b) => a.k - b.k).slice(0, take);
-    const entities = picked.map(({ n, k }, rank) => {
-      // explainability: weights over a few of the seeds, normalized to sum 1
-      const chosen = seeds.filter((s) => fnv(s + n) % 3 !== 0);
-      const use = (chosen.length ? chosen : seeds).slice(0, 3);
-      const w = use.map((s) => 1 + (fnv(n + s) % 5));
-      const sum = w.reduce((a, b) => a + b, 0) || 1;
+    const ranked = list
+      .map(([name, tags]) => {
+        const id = idOf(name, type);
+        const mine = new Set(tags.split(' '));
+        const shared = seeds.map((s) => ({ s, n: [...tagsOfId(s)].filter((t) => mine.has(t)).length })).filter((x) => x.n > 0).sort((a, b) => b.n - a.n);
+        return { name, id, shared, total: shared.reduce((a, b) => a + b.n, 0), k: fnv(salt + name) };
+      })
+      .sort((a, b) => b.total - a.total || a.k - b.k)
+      .slice(0, take);
+    const entities = ranked.map(({ name, id, shared, total, k }) => {
+      // explainability: weights over the favourites that share the most themes with this entity, normalized to sum 1
+      const use = shared.length ? shared.slice(0, 3) : seeds.slice(k % Math.max(seeds.length, 1)).slice(0, 1).map((s) => ({ s, n: 1 }));
+      const sum = use.reduce((a, b) => a + b.n, 0) || 1;
       const explainability: Record<string, number> = {};
-      use.forEach((s, i) => (explainability[s] = Math.round((w[i]! / sum) * 100) / 100));
-      return {
-        entity_id: 'MOCK' + fnv(n.toLowerCase() + type).toString(16).toUpperCase().padStart(8, '0'),
-        name: n,
-        types: [`urn:entity:${type}`],
-        query: { affinity: Math.round((0.95 - rank * 0.04) * 100) / 100, explainability },
-      };
+      for (const u of use) explainability[u.s] = Math.round((u.n / sum) * 100) / 100;
+      return { entity_id: id, name, types: [`urn:entity:${type}`], query: { affinity: Math.min(0.97, Math.round((0.5 + 0.06 * total) * 100) / 100), explainability } };
     });
     return json({ success: true, results: { entities, duration: 12 } });
   }

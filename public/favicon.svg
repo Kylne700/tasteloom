@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Tasteloom">
+  <rect width="32" height="32" rx="8" fill="#b4492d"/>
+  <g fill="none" stroke-linecap="round" stroke-width="2.6">
+    <path stroke="#faf6f0" d="M10 6v20M16 6v20M22 6v20"/>
+    <path stroke="#1f1b16" d="M6 12h8M18 12h8M12 20h8M6 20h2M24 20h2"/>
+  </g>
+</svg>

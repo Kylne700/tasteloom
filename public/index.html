@@ -1,1 +1,42 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><title>scaffold</title></head><body><main>scaffold</main></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tasteloom: gifts that understand them</title>
+  <meta name="description" content="Tell Tasteloom what someone loves. Qloo reads their taste, an agent on Nemotron finds real products, and you check out with the PayPal sandbox.">
+  <meta name="theme-color" content="#faf6f0">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="top">
+    <div class="wrap top-row">
+      <a class="brand" href="#/" aria-label="Tasteloom, start over">
+        <img src="/favicon.svg" alt="" width="30" height="30">
+        <span>Tasteloom</span>
+      </a>
+      <nav class="steps-nav" aria-label="Progress"><ol class="steps" id="steps"></ol></nav>
+      <div class="badges" id="badges">
+        <span class="pill sandbox" title="PayPal runs in sandbox mode: no real money moves"><span class="long">Sandbox, no real money</span><span class="short">Sandbox</span></span>
+        <span class="pill demo" id="demo-badge" hidden title="Qloo and Nebius keys are not set yet, so taste links and the agent run on built-in demo data. Products, prices, Tavily and PayPal are live.">Demo data</span>
+      </div>
+    </div>
+  </header>
+
+  <main id="main" tabindex="-1">
+    <div class="wrap" id="view"></div>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap">
+      <p>Tasteloom is a hackathon demo, taste + loom. PayPal runs in sandbox mode, so no real money moves. No account, and what you type is not stored.</p>
+    </div>
+  </footer>
+
+  <div id="live" class="sr-only" role="status" aria-live="polite"></div>
+  <noscript><div class="wrap"><p class="note bad">Tasteloom needs JavaScript to stream the agent's work into the page.</p></div></noscript>
+</body>
+</html>
