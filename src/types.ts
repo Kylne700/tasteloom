@@ -51,7 +51,7 @@ export interface Card {
   source: 'channel3' | 'tavily' | 'sample';
   snippet?: string;
   /** informational Tavily check of the shop page; never used for pricing */
-  priceCheck?: { state: 'confirmed' | 'differs' | 'unknown'; pagePrice_cents?: number; url?: string };
+  priceCheck?: { state: 'confirmed' | 'unknown'; url?: string };
 }
 
 export interface Idea {
@@ -92,6 +92,8 @@ export interface OrderRecord {
   status: OrderStatus;
   error?: string;
   captureId?: string;
+  /** short lines describing which agent tools ran for this order, e.g. "create_order -> CREATED" */
+  trace?: string[];
   approveUrl: string;
   createdAt: number;
   updatedAt: number;
@@ -120,5 +122,6 @@ export type StreamEvent =
   | { t: 'taste'; seeds: { id: string; name: string; type: string }[] }
   | { t: 'idea'; idea: Idea; cards: Card[] }
   | { t: 'reasons'; reasons: Record<string, string> }
+  | { t: 'check'; cardId: string; state: 'confirmed' | 'unknown'; url?: string }
   | { t: 'done'; ideas: number; cards: number; tier: 'tools' | 'pipeline' | 'template' | 'example' }
   | { t: 'error'; code: 'limit' | 'upstream' | 'bad_input' | 'internal'; message: string };

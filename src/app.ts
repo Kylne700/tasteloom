@@ -5,8 +5,12 @@ import { LimitError, Meter } from './lib/limits.ts';
 import { storeFor } from './lib/store.ts';
 import { dayKey, sha256Hex, sleep, errMsg } from './lib/util.ts';
 import { loadConfig, publicStatus, secretsOf } from './config.ts';
-import { cancelOrder, finishOrder, loadOrder, loadSession, OrderError, publicOrder, saveSession, startCheckout } from './commerce.ts';
+import { cancelOrder, loadOrder, loadSession, OrderError, publicOrder, saveSession } from './commerce.ts';
 import { validOrderId } from './adapters/paypal.ts';
+import { InputError, parseIdeasInput, runIdeas } from './agent/ideas.ts';
+import { agentCheckout, agentReturn } from './agent/orders.ts';
+import { makeNebiusFake } from './mocks/nebius-fake.ts';
+import { makeQlooFake, qlooFake } from './mocks/qloo-fake.ts';
 import { sampleEvents, sampleSession } from './sample.ts';
 import type { Env, FetchFn, StreamEvent } from './types.ts';
 
@@ -29,6 +33,9 @@ export const LIMIT_MESSAGE = {
 
 export function createApp(deps: Deps = {}) {
   const app = new Hono<AppEnv>();
+  // Fake Qloo and Nebius servers (doc-shaped responses) answer while those keys are missing; slightly paced so the step list is readable
+  const qlooMock = deps.fast ? qlooFake : makeQlooFake({ delayMs: 250 });
+  const nebiusMock = makeNebiusFake({ delayMs: deps.fast ? 0 : 450 });
 
   app.use('/api/*', async (c, next) => {
     const cfg = loadConfig(c.env);
@@ -37,7 +44,10 @@ export function createApp(deps: Deps = {}) {
     const day = dayKey();
     const ipHash = (await sha256Hex(`${day}:${ip}`)).slice(0, 16); // no raw IP is ever stored
     const meter = await Meter.load(store, cfg.limits, ipHash, day);
-    const mocks: Svc['mocks'] = { ...(deps.mocks ?? {}) };
+    const mocks: Svc['mocks'] = {};
+    if (cfg.qloo === 'mock') mocks.qloo = qlooMock;
+    if (cfg.nebius === 'mock') mocks.nebius = nebiusMock;
+    Object.assign(mocks, deps.mocks);
     c.set('svc', { cfg, fetch: deps.fetch ?? ((u, i) => fetch(u, i)), store, meter, sub: { left: SUB_BUDGET }, mocks });
     c.header('Cache-Control', 'no-store');
     c.header('X-Content-Type-Options', 'nosniff');
@@ -46,7 +56,7 @@ export function createApp(deps: Deps = {}) {
     await c.get('svc').meter.flush();
   });
 
-  app.get('/api/status', (c) => c.json(publicStatus(c.get('svc').cfg)));
+  app.get('/api/status', (c) => c.json({ ...publicStatus(c.get('svc').cfg), usage: c.get('svc').meter.used().global }));
 
   app.post('/api/sample', (c) => {
     const svc = c.get('svc');
@@ -61,6 +71,18 @@ export function createApp(deps: Deps = {}) {
     });
   });
 
+  app.post('/api/ideas', async (c) => {
+    const svc = c.get('svc');
+    const parsed = parseIdeasInput(await readJson(c), svc.cfg.limits);
+    if (!parsed.ok) return c.json({ error: { code: 'bad_input', message: parsed.message } }, 400);
+    try {
+      svc.meter.take('ideas');
+    } catch (e) {
+      return fail(c, e);
+    }
+    return ndjson(c, svc, (emit) => runIdeas(svc, parsed.value, emit));
+  });
+
   app.post('/api/checkout', async (c) => {
     const svc = c.get('svc');
     const body = await readJson(c);
@@ -71,7 +93,7 @@ export function createApp(deps: Deps = {}) {
       if (!session) throw new OrderError('session_expired', 'Your session expired. Start again or try the example.');
       // Only item ids are read from the request. Any price, title or total a client sends is ignored.
       const base = svc.cfg.publicBase ?? new URL(c.req.url).origin;
-      const { order, reused } = await startCheckout(svc, session, body?.itemIds, { returnUrl: `${base}/api/return`, cancelUrl: `${base}/api/cancel` });
+      const { order, reused } = await agentCheckout(svc, session, body?.itemIds, { returnUrl: `${base}/api/return`, cancelUrl: `${base}/api/cancel` });
       return c.json({ orderId: order.id, approveUrl: order.approveUrl, total_cents: order.total_cents, lines: order.lines, reused, sandbox: true });
     } catch (e) {
       return fail(c, e);
@@ -88,7 +110,7 @@ export function createApp(deps: Deps = {}) {
   app.get('/api/return', async (c) => {
     const id = c.req.query('token') ?? '';
     if (!validOrderId(id)) return c.redirect('/#/receipt/unknown', 302);
-    await finishOrder(c.get('svc'), id);
+    await agentReturn(c.get('svc'), id);
     return c.redirect(`/#/receipt/${id}`, 302);
   });
 
@@ -124,6 +146,7 @@ async function readJson(c: Context<AppEnv>): Promise<Record<string, unknown> | u
 
 /** Human message and status for an error; raw upstream text never reaches the browser. */
 export function describeError(e: unknown): { status: 400 | 404 | 429 | 502 | 500; code: string; message: string } {
+  if (e instanceof InputError) return { status: 400, code: 'bad_input', message: e.message };
   if (e instanceof OrderError) return { status: e.code === 'session_expired' ? 404 : 400, code: e.code, message: e.message };
   if (e instanceof LimitError) return { status: 429, code: 'limit', message: LIMIT_MESSAGE[e.scope] };
   if (e instanceof HttpError || e instanceof BudgetError) return { status: 502, code: 'upstream', message: 'A service we depend on is not answering right now. Try the example, or try again in a minute.' };
@@ -148,7 +171,7 @@ export function ndjson(c: Context<AppEnv>, svc: Svc, producer: (emit: (e: Stream
     } catch (e) {
       const d = describeError(e);
       console.error('stream failed:', d.code, errMsg(e).slice(0, 200));
-      emit({ t: 'error', code: d.code === 'limit' ? 'limit' : d.code === 'upstream' ? 'upstream' : 'internal', message: d.message });
+      emit({ t: 'error', code: d.code === 'limit' || d.code === 'upstream' || d.code === 'bad_input' ? d.code : 'internal', message: d.message });
     } finally {
       await svc.meter.flush();
       await w.close().catch(() => {});

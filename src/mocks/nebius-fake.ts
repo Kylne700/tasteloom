@@ -12,18 +12,25 @@ import { sleep } from '../lib/util.ts';
 interface Msg {
   role: string;
   content?: string | null;
-  name?: string;
-  tool_calls?: unknown[];
+  tool_call_id?: string;
+  tool_calls?: { id?: string; function?: { name?: string } }[];
 }
 
-const toolResults = (msgs: Msg[], name: string): unknown[] =>
-  msgs.filter((m) => m.role === 'tool' && m.name === name).map((m) => parseLooseJson(m.content ?? '')).filter((v) => v !== undefined);
+/** Tool results of one tool, found the way real servers pair them: tool_call_id -> the assistant's tool_calls entry. */
+function toolResults(msgs: Msg[], name: string): unknown[] {
+  const names = new Map<string, string>();
+  for (const m of msgs) for (const tc of m.tool_calls ?? []) if (tc.id && tc.function?.name) names.set(tc.id, tc.function.name);
+  return msgs
+    .filter((m) => m.role === 'tool' && names.get(m.tool_call_id ?? '') === name)
+    .map((m) => parseLooseJson(m.content ?? ''))
+    .filter((v) => v !== undefined);
+}
 
 const QUERY: Record<string, (n: string) => string> = {
-  brand: (n) => `${n} gift`,
+  brand: (n) => n,
   book: (n) => `${n} book`,
-  artist: (n) => `${n} vinyl record`,
-  video_game: (n) => `${n} gift`,
+  artist: (n) => `${n} vinyl`,
+  video_game: (n) => n,
   movie: (n) => `${n} poster`,
   place: (n) => `${n} experience`,
   destination: (n) => `${n} experience`,
@@ -56,7 +63,9 @@ function reply(model: string, message: Record<string, unknown>, finish: string, 
   );
 }
 
-const call = (i: number, name: string, args: unknown) => ({ id: `call_${i}`, type: 'function', function: { name, arguments: JSON.stringify(args) } });
+// ids must be unique across turns (real servers use random ids); the turn number is the count of assistant messages so far
+let turnNo = 0;
+const call = (i: number, name: string, args: unknown) => ({ id: `call_${turnNo}_${i}`, type: 'function', function: { name, arguments: JSON.stringify(args) } });
 
 export function makeNebiusFake(opts: { delayMs?: number } = {}) {
   return async function nebiusFake(_url: string, init?: RequestInit): Promise<Response> {
@@ -68,6 +77,7 @@ export function makeNebiusFake(opts: { delayMs?: number } = {}) {
     const task = /\[task:(\w+)\]/.exec(sys)?.[1] ?? 'ideas';
     const user = asObject(parseLooseJson(msgs.filter((m) => m.role === 'user').at(-1)?.content ?? '')) ?? {};
     const len = JSON.stringify(msgs).length;
+    turnNo = msgs.filter((m) => m.role === 'assistant').length + 1;
 
     if (task === 'picks') {
       const cands = (Array.isArray(user.candidates) ? user.candidates : []).map(asObject).filter(Boolean) as Record<string, string>[];
@@ -77,13 +87,18 @@ export function makeNebiusFake(opts: { delayMs?: number } = {}) {
     if (task === 'reasons') {
       const ideas = (Array.isArray(user.ideas) ? user.ideas : []).map(asObject).filter(Boolean) as Record<string, unknown>[];
       const reasons: Record<string, string> = {};
-      for (const i of ideas) {
+      ideas.forEach((i, n) => {
         const because = (Array.isArray(i.because) ? i.because : []).map(String);
-        const first = String((Array.isArray(i.products) ? i.products[0] : '') ?? '').slice(0, 60);
-        reasons[String(i.id)] = because.length
-          ? `Because they love ${because.slice(0, 2).join(' and ')}, ${String(i.entity)} feels like a natural gift${first ? `, such as ${first}` : ''}.`
-          : `${String(i.entity)} fits their overall taste${first ? `, for example ${first}` : ''}.`;
-      }
+        const name = String(i.entity);
+        const [a, b] = because;
+        reasons[String(i.id)] = !a
+          ? `${name} matches the overall taste in what they love.`
+          : [
+              `Because they love ${a}${b ? ` and ${b}` : ''}, ${name} should feel instantly right.`,
+              `${name} is the kind of thing someone who loves ${a}${b ? ` and ${b}` : ''} keeps reaching for.`,
+              `With ${a}${b ? ` and ${b}` : ''} on their favourites list, ${name} is an easy yes.`,
+            ][n % 3]!;
+      });
       return reply(model, { content: '<think>writing short reasons</think>\n```json\n' + JSON.stringify({ reasons }) + '\n```' }, 'stop', len);
     }
     if (task === 'checkout') {

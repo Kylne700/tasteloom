@@ -42,8 +42,9 @@ export function loadConfig(env: Env): Config {
   };
   const L = (name: string, d: number) => num(env[`LIMIT_${name}`], d);
   const limits: Limits = {
-    ip: { ideas: L('IP_IDEAS', 12), nebius: L('IP_NEBIUS', 80), tavily: L('IP_TAVILY', 40), channel3: L('IP_CHANNEL3', 40), orders: L('IP_ORDERS', 8) },
-    global: { ideas: L('GLOBAL_IDEAS', 400), nebius: L('GLOBAL_NEBIUS', 2000), tavily: L('GLOBAL_TAVILY', 300), channel3: L('GLOBAL_CHANNEL3', 150), orders: L('GLOBAL_ORDERS', 200) },
+    ip: { ideas: L('IP_IDEAS', 8), nebius: L('IP_NEBIUS', 80), tavily: L('IP_TAVILY', 40), channel3: L('IP_CHANNEL3', 40), orders: L('IP_ORDERS', 8) },
+    // global defaults sit under the free quotas of the sponsors' plans (Channel3 1,000 searches a month, Tavily 1,000 credits a month)
+    global: { ideas: L('GLOBAL_IDEAS', 100), nebius: L('GLOBAL_NEBIUS', 600), tavily: L('GLOBAL_TAVILY', 100), channel3: L('GLOBAL_CHANNEL3', 60), orders: L('GLOBAL_ORDERS', 100) },
     dailyCapCents: Math.round(L('DAILY_CAP_USD', 2000) * 100),
     maxItems: L('MAX_ITEMS', 6),
     minBudgetCents: 1000,

@@ -78,6 +78,7 @@ export function publicOrder(o: OrderRecord) {
     currency: o.currency,
     captureId: o.captureId,
     error: o.error,
+    trace: o.trace ?? [],
     sandbox: true,
   };
 }
@@ -128,6 +129,12 @@ async function setStatus(svc: Svc, o: OrderRecord, status: OrderStatus, extra: P
   const next = { ...o, ...extra, status, updatedAt: Date.now() };
   await saveOrder(svc, next);
   return next;
+}
+
+/** Append short lines saying which agent tools ran for this order (shown on the receipt). */
+export async function addTrace(svc: Svc, id: string, ...lines: string[]): Promise<void> {
+  const o = lines.length ? await loadOrder(svc, id) : null;
+  if (o) await saveOrder(svc, { ...o, trace: [...(o.trace ?? []), ...lines].slice(-8) });
 }
 
 export async function cancelOrder(svc: Svc, id: string): Promise<OrderRecord | null> {

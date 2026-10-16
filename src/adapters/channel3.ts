@@ -11,14 +11,29 @@ import type { Card } from '../types.ts';
 const BAD_AVAILABILITY = /out.?of.?stock|sold.?out|unavailable|discontinued|backorder|preorder/i;
 const BAD_CONDITION = /used|refurb|open.?box|damaged/i;
 
-export function parseChannel3(json: unknown, ideaId: string, maxPriceCents: number, limit = 8): Card[] {
+const STOP = new Set(['the', 'and', 'of', 'a', 'an', 'in', 'on', 'for', 'to', 'at', 'by', 'with']);
+/** Lowercase letter/digit tokens without stop words; diacritics folded. */
+export const nameTokens = (s: string): string[] =>
+  s.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^\p{L}\p{N}]+/gu, ' ').split(' ').filter((t) => t.length > 1 && !STOP.has(t));
+
+/**
+ * `entity`: the Qloo entity this search is for. A product is kept only if its title, brand or description contains every
+ * distinctive word of the entity's name, so a niche entity never fills the page with look-alike junk.
+ */
+export function parseChannel3(json: unknown, ideaId: string, maxPriceCents: number, limit = 8, entity?: string): Card[] {
   const products = asObject(json)?.products;
   if (!Array.isArray(products)) return [];
   const cards: Card[] = [];
   const perShop = new Map<string, number>();
+  const need = entity ? nameTokens(entity) : [];
   for (const raw of products) {
     const p = asObject(raw);
     if (!p || typeof p.title !== 'string' || !p.title.trim()) continue;
+    if (need.length) {
+      const brands = (Array.isArray(p.brands) ? p.brands : []).map((b) => asObject(b)?.name ?? '').join(' ');
+      const hay = ' ' + nameTokens(`${p.title} ${brands} ${String(p.description ?? '').slice(0, 300)}`).join(' ') + ' ';
+      if (!need.every((t) => hay.includes(t))) continue;
+    }
     const offers = Array.isArray(p.offers) ? p.offers : [];
     let best: { cents: number; url: string; shop: string } | undefined;
     for (const o of offers) {
@@ -63,6 +78,7 @@ export interface ProductSearch {
   ideaId: string;
   maxPriceCents: number;
   limit?: number;
+  entity?: string;
 }
 
 /** One Channel3 call (cached 12 h: the free key allows 1,000 searches a month). Returns [] when the adapter is off. */
@@ -70,14 +86,14 @@ export async function searchProducts(svc: Svc, s: ProductSearch): Promise<{ card
   if (svc.cfg.channel3 !== 'live' || !svc.cfg.keys.channel3) return { cards: [], hit: false };
   const query = clip(s.query, 100);
   const limit = s.limit ?? 6;
-  const { value, hit } = await cached(svc, 'channel3', { query: query.toLowerCase(), max: s.maxPriceCents, limit }, 12 * 3600, async () => {
-    const body = { query, limit: limit + 4, filters: { price: { max_price: s.maxPriceCents / 100 } } };
+  const { value, hit } = await cached(svc, 'channel3', { query: query.toLowerCase(), max: s.maxPriceCents, limit, entity: s.entity ?? '' }, 12 * 3600, async () => {
+    const body = { query, limit: Math.max(limit + 6, 10), filters: { price: { max_price: s.maxPriceCents / 100 } } };
     const r = await callJson(svc, 'channel3', `${CHANNEL3_BASE}/v1/search`, {
       method: 'POST',
       headers: { 'x-api-key': svc.cfg.keys.channel3!, 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
-    return parseChannel3(r.json, 'x', s.maxPriceCents, limit);
+    return parseChannel3(r.json, 'x', s.maxPriceCents, limit, s.entity);
   });
   // cached cards are stored without an idea; stamp the caller's idea id
   return { cards: value.map((c) => ({ ...c, ideaId: s.ideaId })), hit };

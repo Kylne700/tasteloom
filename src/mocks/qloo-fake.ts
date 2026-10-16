@@ -2,7 +2,7 @@
 // ({success, duration, results} for /search; {success, results:{entities, duration}} for /v2/insights, each entity with
 // query.explainability as a map seed-id -> score), so the real parser in adapters/qloo.ts runs unchanged.
 // The data is invented demo data: names of well-known works and places, picked deterministically from the request.
-import { fnv, titleCase } from '../lib/util.ts';
+import { fnv, sleep, titleCase } from '../lib/util.ts';
 
 const CATALOG: Record<string, string[]> = {
   brand: ['Muji', 'Moleskine', 'Leuchtturm1917', 'Field Notes', 'Hario', 'Fellow', 'Lodge', 'Aesop', 'Kinto', 'Peak Design'],
@@ -20,17 +20,29 @@ const CATALOG: Record<string, string[]> = {
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 const shortType = (u: string | null) => (u ?? '').replace(/^urn:entity:/, '').split(',')[0] ?? '';
 
-export async function qlooFake(input: string, init?: RequestInit): Promise<Response> {
+export function makeQlooFake(opts: { delayMs?: number } = {}) {
+  return async function qlooFake(input: string, _init?: RequestInit): Promise<Response> {
+    if (opts.delayMs) await sleep(opts.delayMs); // paces the demo so the step list is readable
+    return answer(input);
+  };
+}
+export const qlooFake = makeQlooFake();
+
+function answer(input: string): Response {
   const url = new URL(input);
   if (url.pathname === '/search') {
     const query = (url.searchParams.get('query') ?? '').trim();
     if (!query) return json({ success: true, duration: 3, results: [] });
-    const type = shortType(url.searchParams.get('types')) || 'brand';
-    const id = 'MOCK' + fnv(query.toLowerCase() + type).toString(16).toUpperCase().padStart(8, '0');
+    const asked = shortType(url.searchParams.get('types'));
+    // known names resolve to their catalog type and spelling; anything else becomes a brand (or the asked type) with a title-cased name
+    const known = (asked ? [asked] : Object.keys(CATALOG)).flatMap((t) => (CATALOG[t] ?? []).filter((n) => n.toLowerCase() === query.toLowerCase()).map((n) => ({ t, n })))[0];
+    const type = known?.t ?? (asked || 'brand');
+    const name = known?.n ?? titleCase(query);
+    const id = 'MOCK' + fnv(name.toLowerCase() + type).toString(16).toUpperCase().padStart(8, '0');
     return json({
       success: true,
       duration: 7,
-      results: [{ entity_id: id, name: titleCase(query), types: [`urn:entity:${type}`], popularity: 0.5, disambiguation: 'demo data' }],
+      results: [{ entity_id: id, name, types: [`urn:entity:${type}`], popularity: 0.5, disambiguation: 'demo data' }],
     });
   }
   if (url.pathname === '/v2/insights') {
