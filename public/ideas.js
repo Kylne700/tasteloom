@@ -295,7 +295,7 @@ export function mountIdeas(root) {
 
   // ---- notices ----------------------------------------------------------------------------------------------------------
   function showError(err) {
-    const partial = run.ideas.length > 0;
+    const partial = run.ideas.some((i) => i.cards.some((c) => c.purchasable)); // only buyable ideas count as a usable partial result
     const code = err.code || 'internal';
     const title = partial ? 'The agent stopped early' : ERROR_TITLES[code] || 'Something went wrong';
     const again = !run.example && code !== 'bad_input';

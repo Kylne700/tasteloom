@@ -472,7 +472,7 @@ export async function runIdeas(svc: Svc, input: IdeasInput, emit: Emit): Promise
   run.phase('taste', PH.taste, 'done');
   run.phase('products', PH.products, 'running');
   const added = await run.ensureIdeas();
-  if (!run.ideas.length) {
+  if (!run.cards.some((c) => c.purchasable)) { // experience links alone leave nothing to buy, so this is a failure, not a result
     if (run.limited) throw run.limited;
     if (run.failed) throw run.failed;
     throw new InputError('We could not find gifts for that within the budget. Try a higher budget or different favourites.');

@@ -48,7 +48,7 @@ export async function agentCheckout(svc: Svc, session: Session, itemIds: unknown
   if (orderErr) throw orderErr;
   if (!result) result = await startCheckout(svc, session, ids, urls);
   if (!result.reused) {
-    await addTrace(svc, result.order.id, viaAgent ? `Nemotron called create_order: CREATED, total $${fmtCents(result.order.total_cents)}` : `Server created the order (agent unavailable): total $${fmtCents(result.order.total_cents)}`);
+    await addTrace(svc, result.order.id, viaAgent ? `Nemotron called create_order: CREATED, total $${fmtCents(result.order.total_cents)}` : `Server created the order directly (the agent did not): total $${fmtCents(result.order.total_cents)}`);
   }
   return result;
 }

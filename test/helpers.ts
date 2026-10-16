@@ -1,8 +1,13 @@
 // Test harness: the real app with a Map-backed KV, the Qloo and Nebius fake servers (default, as in production without keys)
 // and one fake "internet" for Channel3, Tavily and the PayPal sandbox, built from synthetic doc-shaped JSON.
-import { createApp } from '../src/app.ts';
+import { createApp, type Deps } from '../src/app.ts';
 import { resetPayPalTokenCache } from '../src/adapters/paypal.ts';
-import type { Env, FetchFn, StreamEvent } from '../src/types.ts';
+import { loadConfig } from '../src/config.ts';
+import type { Svc } from '../src/lib/http.ts';
+import { Meter } from '../src/lib/limits.ts';
+import { memoryStore } from '../src/lib/store.ts';
+import { newSession } from '../src/commerce.ts';
+import type { Card, Env, FetchFn, StreamEvent } from '../src/types.ts';
 
 export function fakeKV() {
   const m = new Map<string, string>();
@@ -18,7 +23,9 @@ const j = (body: unknown, status = 200) => new Response(JSON.stringify(body), { 
 
 export interface Net {
   fetch: FetchFn;
-  calls: { host: string; path: string; body?: any }[];
+  calls: { host: string; path: string; method: string; headers: Record<string, string>; body?: any }[];
+  /** return a Response to answer a request yourself (used to simulate declines and hostile PayPal answers) */
+  intercept?: (path: string, init?: RequestInit) => Response | undefined;
   /** PayPal sandbox order states by id: set to 'APPROVED' to simulate the buyer approving */
   orders: Map<string, { status: string; amount: string; currency: string; captured?: string }>;
   count(host: string): number;
@@ -39,7 +46,9 @@ export function makeNet(): Net {
     } catch {
       body = undefined;
     }
-    calls.push({ host: u.host, path: u.pathname, body });
+    calls.push({ host: u.host, path: u.pathname, method: init?.method ?? 'GET', headers: { ...(init?.headers as Record<string, string> | undefined) }, body });
+    const mine = net.intercept?.(u.pathname, init);
+    if (mine) return mine;
     if (down.has(u.host)) return j({ message: 'down' }, 503);
     if (u.host === 'api.trychannel3.com') {
       const q = String(body?.query ?? 'item');
@@ -82,14 +91,15 @@ export function makeNet(): Net {
     }
     return j({ message: 'unexpected host ' + u.host }, 404);
   };
-  return { fetch: f, calls, orders, down, count: (h) => calls.filter((c) => c.host === h).length };
+  const net: Net = { fetch: f, calls, orders, down, count: (h) => calls.filter((c) => c.host === h).length };
+  return net;
 }
 
-export function makeHarness(extraEnv: Partial<Env> = {}) {
+export function makeHarness(extraEnv: Partial<Env> = {}, deps: Partial<Deps> = {}) {
   resetPayPalTokenCache();
   const net = makeNet();
   const kv = fakeKV();
-  const app = createApp({ fetch: net.fetch, fast: true });
+  const app = createApp({ fetch: net.fetch, fast: true, ...deps });
   const env = { KV: kv, TAVILY_API_KEY: 'tv-test', CHANNEL3_API_KEY: 'c3-test', PAYPAL_CLIENT_ID: 'pp-id', PAYPAL_CLIENT_SECRET: 'pp-secret', ...extraEnv } as Env;
   const req = (path: string, init?: RequestInit) => app.request('http://localhost:8791' + path, init, env);
   const post = (path: string, body: unknown) => req(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
@@ -106,3 +116,44 @@ export const FAVS = [
   { text: 'Nujabes', type: 'artist' },
   { text: 'Muji' },
 ];
+
+/** A catalog-style product card with a server-side price. */
+export const card = (id: string, price_cents: number, extra: Partial<Card> = {}): Card => ({
+  id,
+  ideaId: 'i1',
+  title: `Item ${id}`,
+  price_cents,
+  currency: 'USD',
+  shop: 'shop.example',
+  url: `https://shop.example/${id}`,
+  purchasable: true,
+  source: 'channel3',
+  ...extra,
+});
+
+/** Store a session with the given cards directly in KV (what runIdeas does at the end of a run); returns its id. */
+export async function seedSession(h: ReturnType<typeof makeHarness>, cards: Card[], budget_cents: number): Promise<string> {
+  const s = newSession(budget_cents, cards);
+  await h.kv.put(`s:${s.id}`, JSON.stringify(s));
+  return s.id;
+}
+
+/** A request context for calling adapters and commerce functions directly (no HTTP layer). */
+export async function makeSvc(extraEnv: Partial<Env> = {}, net: Net = makeNet(), mocks: Svc['mocks'] = {}): Promise<{ svc: Svc; net: Net }> {
+  resetPayPalTokenCache();
+  const cfg = loadConfig({ TAVILY_API_KEY: 'tv-test', CHANNEL3_API_KEY: 'c3-test', PAYPAL_CLIENT_ID: 'pp-id', PAYPAL_CLIENT_SECRET: 'pp-secret', ...extraEnv } as Env);
+  const store = memoryStore();
+  const meter = await Meter.load(store, cfg.limits, 'iphash', '2026-10-16');
+  return { svc: { cfg, fetch: net.fetch, store, meter, sub: { left: 40 }, mocks }, net };
+}
+
+export const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+
+/** OpenAI-compatible chat completion carrying a message (and optionally tool calls), as Nebius answers. */
+export const chatReply = (message: Record<string, unknown>, finish = 'stop') =>
+  json({ id: 'chatcmpl-test', object: 'chat.completion', choices: [{ index: 0, finish_reason: finish, message: { role: 'assistant', ...message } }], usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 } });
+
+export const toolCall = (name: string, args: unknown, id = 'call_1') => ({ id, type: 'function', function: { name, arguments: typeof args === 'string' ? args : JSON.stringify(args) } });
+
+/** Which agent task a chat request is for, from the [task:...] marker in its system prompt. */
+export const taskOf = (init?: RequestInit): string => /\[task:(\w+)\]/.exec(JSON.parse(String(init?.body)).messages[0].content)?.[1] ?? '';

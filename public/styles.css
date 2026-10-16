@@ -31,7 +31,7 @@
 
 /* ---- base ----------------------------------------------------------------------------------------------------------- */
 *, *::before, *::after { box-sizing: border-box; }
-html { scrollbar-gutter: stable; -webkit-text-size-adjust: 100%; }
+html { scrollbar-gutter: stable; scrollbar-color: #cdbfae var(--bg); -webkit-text-size-adjust: 100%; }
 body {
   margin: 0; min-height: 100vh; display: flex; flex-direction: column;
   background: var(--bg); color: var(--ink); font: 16px/1.5 var(--sans); -webkit-font-smoothing: antialiased;
@@ -256,6 +256,7 @@ html[data-images='off'] .media img, html[data-images='off'] .thumb img { display
 .card[data-selected='true'] .sel-tag { display: inline-flex; }
 .card-body { display: flex; flex: 1; flex-direction: column; gap: 6px; padding: 14px 16px 16px; }
 .card-title { display: -webkit-box; margin: 0; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow-wrap: anywhere; }
+.card[data-kind='product'] .card-title { flex: 1 0 auto; } /* keeps price rows level across a row of cards */
 .card-meta { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 0; color: var(--ink-2); font-size: 0.875rem; }
 .card-meta .shop { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .price { color: var(--ink); font-size: 1.1875rem; font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -279,6 +280,7 @@ html[data-images='off'] .media img, html[data-images='off'] .thumb img { display
 .fill { display: block; width: calc(var(--p, 0) * 1%); height: 100%; background: #f2a67b; border-radius: inherit; transition: width 0.3s ease; }
 .meter[data-level='high'] .fill { background: #f5c15a; }
 .bar .btn.primary { border-color: rgb(255 255 255 / 0.4); }
+.bar :focus-visible { outline-color: #fff; } /* the accent ring is only 2.7:1 on the dark bar */
 .bar .btn.primary:disabled { opacity: 1; background: rgb(255 255 255 / 0.14); border-color: transparent; color: #d8ccc0; }
 
 /* ---- screen 3: checkout and receipt ------------------------------------------------------------------------------------ */
