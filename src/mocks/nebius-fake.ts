@@ -1,0 +1,124 @@
+// Fake Nebius Token Factory for demos and tests while NEBIUS_API_KEY is missing. It speaks the OpenAI-compatible chat shape
+// (message.tool_calls[].function.arguments as a JSON string, usage, finish_reason) and scripts a plausible agent:
+//   task "ideas":    qloo_search per favourite -> qloo_insights per gift type -> find_products for a diverse pick -> DONE
+//   task "picks":    JSON-only: choose entities and shopping queries
+//   task "reasons":  JSON-only: one grounded sentence per idea
+//   task "checkout": create_order for the buyer's selection -> DONE
+//   task "return":   get_order -> capture_order when APPROVED -> DONE
+// The task is read from a [task:...] marker in the system prompt. This is demo data, not model output.
+import { asObject, parseLooseJson } from '../lib/json.ts';
+import { sleep } from '../lib/util.ts';
+
+interface Msg {
+  role: string;
+  content?: string | null;
+  name?: string;
+  tool_calls?: unknown[];
+}
+
+const toolResults = (msgs: Msg[], name: string): unknown[] =>
+  msgs.filter((m) => m.role === 'tool' && m.name === name).map((m) => parseLooseJson(m.content ?? '')).filter((v) => v !== undefined);
+
+const QUERY: Record<string, (n: string) => string> = {
+  brand: (n) => `${n} gift`,
+  book: (n) => `${n} book`,
+  artist: (n) => `${n} vinyl record`,
+  video_game: (n) => `${n} gift`,
+  movie: (n) => `${n} poster`,
+  place: (n) => `${n} experience`,
+  destination: (n) => `${n} experience`,
+};
+
+function diversePicks(cands: { id: string; name: string; type: string }[], n: number) {
+  const order = ['brand', 'book', 'artist', 'video_game', 'place', 'destination', 'movie'];
+  const byType = new Map<string, typeof cands>();
+  for (const c of cands) byType.set(c.type, [...(byType.get(c.type) ?? []), c]);
+  const out: typeof cands = [];
+  for (let round = 0; out.length < n && round < 4; round++) {
+    for (const t of order) {
+      const c = byType.get(t)?.[round];
+      if (c && out.length < n && !out.some((x) => x.id === c.id)) out.push(c);
+    }
+  }
+  return out;
+}
+
+function reply(model: string, message: Record<string, unknown>, finish: string, promptLen: number) {
+  return new Response(
+    JSON.stringify({
+      id: 'chatcmpl-mock',
+      object: 'chat.completion',
+      model,
+      choices: [{ index: 0, finish_reason: finish, message: { role: 'assistant', ...message } }],
+      usage: { prompt_tokens: Math.ceil(promptLen / 4), completion_tokens: 60, total_tokens: Math.ceil(promptLen / 4) + 60 },
+    }),
+    { status: 200, headers: { 'content-type': 'application/json' } },
+  );
+}
+
+const call = (i: number, name: string, args: unknown) => ({ id: `call_${i}`, type: 'function', function: { name, arguments: JSON.stringify(args) } });
+
+export function makeNebiusFake(opts: { delayMs?: number } = {}) {
+  return async function nebiusFake(_url: string, init?: RequestInit): Promise<Response> {
+    if (opts.delayMs) await sleep(opts.delayMs);
+    const body = asObject(JSON.parse(String(init?.body ?? '{}'))) ?? {};
+    const model = String(body.model ?? 'mock');
+    const msgs = (Array.isArray(body.messages) ? body.messages : []) as Msg[];
+    const sys = msgs.find((m) => m.role === 'system')?.content ?? '';
+    const task = /\[task:(\w+)\]/.exec(sys)?.[1] ?? 'ideas';
+    const user = asObject(parseLooseJson(msgs.filter((m) => m.role === 'user').at(-1)?.content ?? '')) ?? {};
+    const len = JSON.stringify(msgs).length;
+
+    if (task === 'picks') {
+      const cands = (Array.isArray(user.candidates) ? user.candidates : []).map(asObject).filter(Boolean) as Record<string, string>[];
+      const picks = diversePicks(cands as { id: string; name: string; type: string }[], 5).map((c) => ({ entity_id: c.id, query: (QUERY[c.type] ?? QUERY.brand!)(c.name) }));
+      return reply(model, { content: JSON.stringify({ picks }) }, 'stop', len);
+    }
+    if (task === 'reasons') {
+      const ideas = (Array.isArray(user.ideas) ? user.ideas : []).map(asObject).filter(Boolean) as Record<string, unknown>[];
+      const reasons: Record<string, string> = {};
+      for (const i of ideas) {
+        const because = (Array.isArray(i.because) ? i.because : []).map(String);
+        const first = String((Array.isArray(i.products) ? i.products[0] : '') ?? '').slice(0, 60);
+        reasons[String(i.id)] = because.length
+          ? `Because they love ${because.slice(0, 2).join(' and ')}, ${String(i.entity)} feels like a natural gift${first ? `, such as ${first}` : ''}.`
+          : `${String(i.entity)} fits their overall taste${first ? `, for example ${first}` : ''}.`;
+      }
+      return reply(model, { content: '<think>writing short reasons</think>\n```json\n' + JSON.stringify({ reasons }) + '\n```' }, 'stop', len);
+    }
+    if (task === 'checkout') {
+      if (toolResults(msgs, 'create_order').length) return reply(model, { content: 'DONE' }, 'stop', len);
+      return reply(model, { content: null, tool_calls: [call(1, 'create_order', { item_ids: user.selected_item_ids ?? [] })] }, 'tool_calls', len);
+    }
+    if (task === 'return') {
+      const got = toolResults(msgs, 'get_order').at(-1) as Record<string, unknown> | undefined;
+      const cap = toolResults(msgs, 'capture_order').at(-1);
+      if (cap) return reply(model, { content: 'DONE' }, 'stop', len);
+      if (!got) return reply(model, { content: null, tool_calls: [call(1, 'get_order', { order_id: user.order_id })] }, 'tool_calls', len);
+      if (got.status === 'APPROVED') return reply(model, { content: null, tool_calls: [call(2, 'capture_order', { order_id: user.order_id })] }, 'tool_calls', len);
+      return reply(model, { content: 'DONE' }, 'stop', len);
+    }
+
+    // task "ideas"
+    const searches = toolResults(msgs, 'qloo_search');
+    const insightsRes = toolResults(msgs, 'qloo_insights');
+    const productRes = toolResults(msgs, 'find_products');
+    if (!searches.length) {
+      const favs = (Array.isArray(user.favorites) ? user.favorites : []).map(asObject).filter(Boolean) as Record<string, unknown>[];
+      const calls = favs.slice(0, 5).map((f, i) => call(i + 1, 'qloo_search', f.type ? { query: f.text, type: f.type } : { query: f.text }));
+      return reply(model, { content: '<think>Resolve each favourite to a Qloo entity first.</think>', tool_calls: calls }, 'tool_calls', len);
+    }
+    if (!insightsRes.length) {
+      const ids = searches.map((s) => asObject(s)?.id).filter((x): x is string => typeof x === 'string');
+      const types = ['brand', 'book', 'artist', 'video_game', 'place'];
+      return reply(model, { content: null, tool_calls: types.map((t, i) => call(i + 1, 'qloo_insights', { seed_ids: ids, target_type: t })) }, 'tool_calls', len);
+    }
+    if (!productRes.length) {
+      const cands = insightsRes.flatMap((r) => (Array.isArray(asObject(r)?.candidates) ? (asObject(r)!.candidates as Record<string, string>[]) : []));
+      const picks = diversePicks(cands as { id: string; name: string; type: string }[], 5);
+      const budget = Number(user.budget_usd) || 100;
+      return reply(model, { content: null, tool_calls: picks.map((c, i) => call(i + 1, 'find_products', { query: (QUERY[c.type] ?? QUERY.brand!)(c.name), entity_id: c.id, max_price_usd: Math.max(10, Math.round(budget * 0.7)) })) }, 'tool_calls', len);
+    }
+    return reply(model, { content: 'DONE' }, 'stop', len);
+  };
+}
