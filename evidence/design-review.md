@@ -1,10 +1,11 @@
 # Tasteloom design review and polish (stage 2)
 
-Start HEAD f24f118. Commits: 93b03aa, 7d0fd62, cec3674, and the one that adds this file. Local only, nothing pushed. Light theme only: the app has no dark theme and none was added. Only CSS, markup, client rendering and copy changed; no payment, pricing, caps, adapter, agent-loop or server-route code (`git diff f24f118 --stat -- src` is empty).
+Start HEAD f24f118. Commits: 93b03aa, 7d0fd62, cec3674, a493528 (this file and the evidence) and one later correction of this file. Local only, nothing pushed. Light theme only: the app has no dark theme and none was added. Only CSS, markup, client rendering and copy changed; no payment, pricing, caps, adapter, agent-loop or server-route code (`git diff f24f118 --stat -- src` is empty).
 
 ## How it was reviewed
 
-- Every tour state (35 plus the new `checkout-images-off`) at 1280, 768, 390 and 320 px, before (f24f118: `evidence/screens-before/`, 97 files) and after (`evidence/screens-after/`, 99 files). Both folders are git-ignored because they show shop product photos. The four tracked pictures below use product images off.
+- What the committed tour (`npm run e2e`) renders: every state (35 plus the new `checkout-images-off`) at 1280 and 390 px, and only the key screens at 768 and 320 px. Before (f24f118: `evidence/screens-before/`, 97 files = 40 at 1280, 36 at 390, 11 at 768, 10 at 320) and after (`evidence/screens-after/`, 99 files = 41 / 37 / 11 / 10) are those sets. Both folders are git-ignored because they show shop product photos. The four tracked pictures below use product images off.
+- Every state at 768 and 320 px, which the brief asks for and the committed tour does not do: run once as a one-off after the official e2e (the `tablet` and `narrow` rounds temporarily set to every state in `scripts/e2e.mjs`, tour only on mocks, then reverted; nothing committed). Result: PASS, 504 checks, 0 failed, exit 0, 138 s; 36 shots at each width, every one with the no-sideways-scroll check passing; 0 console errors; layout shift at most 0.007; 0 billed calls. The 26 extra shots per width have no "before" picture, so they were reviewed from scratch, not compared: all 26 at 320 px (top 1500 px of each) on contact sheets, and 12 of the 26 at 768 px (top 1100 px): home-error-favs, ideas-error-partial, ideas-error-bad-input, ideas-empty, checkout-mismatch, checkout-error-upstream, checkout-error-over-budget, checkout-cancelled, receipt-capture-failed, receipt-created, receipt-not-found, receipt-error. Nothing needed a change; two judgement items are under "left as is". The other 14 states at 768 px, and the lower part of the long pages, had the automated checks only. The shots are in `evidence/screens/` (git-ignored) and were not copied into `screens-after/`.
 - Looked at on contact sheets and crops, plus the tour's own per-screen checks: no sideways scroll, one h1 and no skipped heading level, landmarks and live region, touch targets of 24 px or more, a focus ring on every Tab stop, one filled button per state, AA contrast.
 - Brief criteria walked through: one primary action per screen, spacing grid, radii 18/14/10 and two shadows from the tokens, taste-link chips, live agent steps without layout jump, loading/empty/error/limit states, PayPal test-card panel with copy buttons, receipt.
 - Result: the earlier design stages had left the app consistent; this pass found the five leftovers named in the brief plus four more (rows 6 to 9), all fixed.
@@ -66,8 +67,9 @@ Lowest text ratio: 4.98 (accent on sand). Lowest control ratio: 3.51 (edge on sa
 
 ## Check results (real)
 
-- `npm test`: 115 pass, 0 fail. `npm run typecheck`: exit 0. `npm run build`: exit 0. `npm run scan`: exit 0 (secret hits 0, denylist lines 0).
+- `npm test`: 115 pass, 0 fail. `npm run typecheck`: exit 0. `npm run build`: exit 0. `npm run scan`: exit 0 (secret hits 0, denylist lines 0; `evidence/scan.txt` is from the run before the last commit and goes stale by a few bytes with every commit).
 - `npm run e2e` (at cec3674): RESULT PASS, 758 checks, 0 failed, 229 s, exit 0. Live PayPal sandbox capture COMPLETED and the server record agrees (one capture); the live phase used 4 Channel3 and 4 Tavily calls, the tour 0. 0 console errors or uncaught exceptions across all pages and states. No sideways scroll from 320 to 1440 px on home, ideas, checkout and receipt, and on all 99 screenshots. Layout shift: 0 while steps stream in, at most 0.02 while the example loads (limit 0.1). Keyboard: Tab stops all show a ring (home 12, ideas 27, checkout 11, receipt 8 in each of 4 rounds); the keyboard-only journey (type, Enter, ideas, pick a card with Tab and Enter, Review and pay, focus on the checkout heading) passes at 1280 and 390.
+- Billed calls for the whole stage (caps 30 Channel3, 30 Tavily): 8 Channel3 and 8 Tavily. Two live phases ran, the two full e2e runs described here, 4 Channel3 and 4 Tavily each (the harness prints the counter deltas as `billed calls this live phase`; for the passing run see `evidence/e2e.txt` line 60; the first run's log is not kept in the repo). Nebius 0. PayPal sandbox orders created: 3 per live phase, no real money. Every tour-only run (Chromium, Firefox, the one-off 768/320 run) asserted deltas 0/0/0. A live-only run from stage 1 (before f24f118) is not counted here.
 - An earlier full run (7d0fd62) failed 1 of 758 checks: the checkout Tab walk found 0 stops because Chromium continues sequential focus from the last click. Harness bug, fixed in cec3674 with a start marker; the run above is the second.
 
 ## Firefox
@@ -86,12 +88,13 @@ Fixes that need server code (listed, not changed):
 
 Left as is, by judgement:
 - Receipt "Mode" row stacks under its label at 390 and 320 px (long value; same rule as the order id row).
-- The Pay button label wraps to two lines at 320 px (the exact total stays on screen).
+- Button labels wrap to two lines at 320 px: Pay (the exact total stays on screen), Change favourites (ideas, bad-input state) and I approved it, check again (receipt, created and not approved states). Found in the 320 px review of every state.
+- Receipt header at 320 px: the icon sits beside the title, which leaves a narrow text column (title up to 3 lines, subtitle up to 5). Readable; stacking the icon above the title below 360 px would be the polish.
 - Receipt not-found and error states show the sandbox only in the header badge (no order, no Mode row; the footer sentence is hidden on every receipt route).
 - Preset budget chips wrap to a second row at 320 px.
 
-NOT VERIFIED: Safari/WebKit, real phones, screen readers, forced-colors mode, the look of reduced-motion (the rule exists, no capture), print. Layout shift and clipboard in Firefox (see above).
+NOT VERIFIED: Safari/WebKit, real phones, screen readers, forced-colors mode, the look of reduced-motion (the rule exists, no capture), print. Layout shift and clipboard in Firefox (see above). In Firefox only every state at 1280 and 390 px and the key screens at 768 and 320 px ran, not every state at 768 and 320. Seen by eye: all 26 extra states at 320 px and 12 of 26 at 768 px; the other 14 at 768 px and the lower part of the long pages are covered by the automated checks only.
 
 ## Reproduce
 
-`npm run e2e` (Chromium, live PayPal sandbox, tour at 1280/390 with key screens at 768/320; writes `evidence/e2e.txt`, `evidence/screens/`). `TOUR_BROWSER=firefox node scripts/e2e.mjs tour` for Firefox (shots in `evidence/debug/firefox/`). `TOUR_ROUNDS=desktop,mobile,tablet,narrow` and `TOUR_STATES=key1,key2` narrow a tour run.
+`npm run e2e` (Chromium, live PayPal sandbox, tour at 1280/390 with key screens at 768/320; writes `evidence/e2e.txt`, `evidence/screens/`). `TOUR_BROWSER=firefox node scripts/e2e.mjs tour` for Firefox (shots in `evidence/debug/firefox/`). `TOUR_ROUNDS=desktop,mobile,tablet,narrow` and `TOUR_STATES=key1,key2` narrow a tour run. For every state at 768 and 320 px, set `full: true` on the `tablet` and `narrow` rounds in `scripts/e2e.mjs` (one-off, `git checkout scripts/e2e.mjs` afterwards) and run `TOUR_ROUNDS=tablet,narrow nice -n 10 node scripts/e2e.mjs tour --keep` (about 140 s, mocks only, 0 billed calls).
