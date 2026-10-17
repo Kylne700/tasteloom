@@ -194,14 +194,21 @@ export async function audit(page, label) {
 
 /** Presses Tab through the page; every stop must show a focus ring (outline of 2 px or more, or a box shadow). */
 export async function tabWalk(page, label, max = 90) {
-  // A focusable sentinel ends the walk inside the page: in Firefox, Tab past the last control moves to the browser's own UI and the page never gets keyboard focus back.
+  // Two invisible focusable markers keep the walk inside the page, from the top to the bottom: Chromium continues from where the last focus or click was, and Firefox hands focus to the browser's own UI after the last control and never gives it back.
   await page.evaluate(() => {
     document.activeElement?.blur();
     scrollTo(0, 0);
-    const end = document.createElement('button');
-    end.id = 'tab-walk-end';
-    end.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0';
-    document.body.append(end);
+    const mark = (id) => {
+      const b = document.createElement('button');
+      b.id = id;
+      b.tabIndex = id === 'tab-walk-start' ? -1 : 0;
+      b.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0';
+      return b;
+    };
+    const start = mark('tab-walk-start');
+    document.body.prepend(start);
+    document.body.append(mark('tab-walk-end'));
+    start.focus();
   });
   const stops = [];
   const weak = [];
@@ -220,7 +227,7 @@ export async function tabWalk(page, label, max = 90) {
     stops.push(s);
     if (!s.ring) weak.push(s.name);
   }
-  await page.evaluate(() => document.getElementById('tab-walk-end')?.remove());
+  await page.evaluate(() => document.querySelectorAll('#tab-walk-start, #tab-walk-end').forEach((e) => e.remove()));
   check(`${label}: ${stops.length} keyboard stops, each with a visible focus ring`, stops.length >= 3 && weak.length === 0, weak.slice(0, 4).join(', '));
   return stops;
 }

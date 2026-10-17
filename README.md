@@ -62,7 +62,7 @@ Deploying is not part of this repository's checks. A deployment would need the k
 | `npm test` | unit tests (money rules, adapters on documented fixtures, malformed model JSON, spend counters, contrast of the stylesheet, static checks) |
 | `npm run typecheck` | `tsc --noEmit` on `src/` |
 | `npm run build` | `wrangler deploy --dry-run`: bundles the Worker without deploying |
-| `npm run e2e` | real Chromium against `wrangler dev`: the full flow with a PayPal sandbox guest payment to COMPLETED, then a tour of every screen and error state at 1280 and 390 px (key screens also at 768 and 320 px); writes `evidence/e2e.txt` and `evidence/screens/` |
+| `npm run e2e` | real Chromium against `wrangler dev`: the full flow with a PayPal sandbox guest payment to COMPLETED, then a tour of every screen and error state at 1280 and 390 px (key screens also at 768 and 320 px); writes `evidence/e2e.txt` and `evidence/screens/`. `TOUR_BROWSER=firefox node scripts/e2e.mjs tour` runs the tour alone in Firefox (`/usr/bin/firefox`, no downloads; shots go to `evidence/debug/firefox/`) |
 | `npm run contract:qloo`, `npm run contract:nebius` | cheap live checks of the two APIs that still run on stand-ins |
 | `npm run scan` | secret and privacy scan of the tracked files, built assets and git history |
 
