@@ -194,7 +194,15 @@ export async function audit(page, label) {
 
 /** Presses Tab through the page; every stop must show a focus ring (outline of 2 px or more, or a box shadow). */
 export async function tabWalk(page, label, max = 90) {
-  await page.evaluate(() => { document.activeElement?.blur(); scrollTo(0, 0); });
+  // A focusable sentinel ends the walk inside the page: in Firefox, Tab past the last control moves to the browser's own UI and the page never gets keyboard focus back.
+  await page.evaluate(() => {
+    document.activeElement?.blur();
+    scrollTo(0, 0);
+    const end = document.createElement('button');
+    end.id = 'tab-walk-end';
+    end.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0';
+    document.body.append(end);
+  });
   const stops = [];
   const weak = [];
   for (let i = 0; i < max; i++) {
@@ -207,11 +215,12 @@ export async function tabWalk(page, label, max = 90) {
       const r = el.getBoundingClientRect();
       return { key: `${el.tagName}#${el.id}.${String(el.className).slice(0, 30)}|${name}|${Math.round(r.top + scrollY)}|${Math.round(r.left)}`, name, ring: (cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) >= 2) || cs.boxShadow !== 'none', onScreen: r.width > 0 && r.height > 0 };
     });
-    if (!s) break;
+    if (!s || s.name === 'tab-walk-end') break; // left the page, or reached the sentinel
     if (stops.length && s.key === stops[0].key) break; // wrapped around
     stops.push(s);
     if (!s.ring) weak.push(s.name);
   }
+  await page.evaluate(() => document.getElementById('tab-walk-end')?.remove());
   check(`${label}: ${stops.length} keyboard stops, each with a visible focus ring`, stops.length >= 3 && weak.length === 0, weak.slice(0, 4).join(', '));
   return stops;
 }

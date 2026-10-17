@@ -429,6 +429,10 @@ html[data-images='off'] .media img, html[data-images='off'] .thumb img { display
   /* the brand and both badges no longer fit side by side: the badges get a row of their own */
   .top-row { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'brand' 'badges' 'steps'; }
   .badges { justify-content: flex-start; }
+  /* the copy button moves up beside the label so a card number gets the full width of the test card */
+  .tc-row .btn.copy { grid-row: 1; }
+  .tc-row dd { grid-column: 1 / -1; }
+  .tc-row code { font-size: 1rem; }
 }
 
 @media (pointer: coarse) {

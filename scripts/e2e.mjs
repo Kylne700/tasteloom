@@ -206,7 +206,7 @@ async function tour(browser) {
     try { liveRun = JSON.parse(fs.readFileSync(path.join(DEBUG, 'live-run.json'), 'utf8')); } catch {}
   }
   const rounds = [
-    { name: 'desktop', vp: DESKTOP, full: true, sweep: true, clip: true },
+    { name: 'desktop', vp: DESKTOP, full: true, sweep: true, clip: !FIREFOX }, // Firefox cannot be granted the clipboard permission over WebDriver BiDi: its copy checks stay out
     { name: 'mobile', vp: MOBILE, full: true, sweep: false, clip: false },
     { name: 'tablet', vp: TABLET, full: false, sweep: false, clip: false },
     { name: 'narrow', vp: { width: 320, height: 640, deviceScaleFactor: 1, isMobile: true, hasTouch: true }, full: false, sweep: false, clip: false }, // smallest phones: key screens, with the no-sideways-scroll check

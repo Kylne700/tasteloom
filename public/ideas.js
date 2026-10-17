@@ -18,6 +18,9 @@ import { budgetCents, mockNote, newRun, save, selectedCards, state, totalCents }
 const MAX_ITEMS = 6;
 const SKELETONS = 3;
 
+// A shop host breaks after a dot, not in the middle of a word, when a narrow card is too small for it.
+const hostWords = (host) => host.split('.').flatMap((part, i, all) => (i < all.length - 1 ? [`${part}.`, document.createElement('wbr')] : [part]));
+
 // A link card whose page gave no blurb shows where the link goes, built only from its own address (path words, no query or fragment).
 // It never describes the product: the page itself is the only source for that.
 function addressWords(url) {
@@ -255,7 +258,7 @@ export function mountIdeas(root) {
         'div',
         { class: 'card-body' },
         h('h3', { class: 'card-title' }, card.title),
-        h('p', { class: 'card-meta' }, card.purchasable ? h('span', { class: 'price' }, money(card.price_cents)) : null, h('span', { class: 'shop' }, card.shop)),
+        h('p', { class: 'card-meta' }, card.purchasable ? h('span', { class: 'price' }, money(card.price_cents)) : null, h('span', { class: 'shop' }, hostWords(card.shop))),
         card.purchasable ? check : card.snippet ? h('p', { class: 'snippet' }, card.snippet) : where ? h('p', { class: 'snippet trail' }, where) : null,
         h('div', { class: 'card-actions' }, link, card.purchasable ? null : h('span', { class: 'hint-inline' }, 'Price is on the venue’s site')),
       ),

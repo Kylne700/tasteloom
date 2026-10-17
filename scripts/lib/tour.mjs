@@ -18,6 +18,16 @@ const count = (page, sel) => page.$$eval(sel, (l) => l.length);
 const shown = (page, sel) => page.$eval(sel, (e) => e.getClientRects().length > 0 && !e.hidden).catch(() => false);
 const until = (page, fn, arg, ms = 20000) => page.waitForFunction(fn, { timeout: ms }, arg);
 const hashIs = (page, h) => until(page, (x) => location.hash === x, h, 10000);
+/** Visible "Back to ideas" links when the browser has no :has(): drops the :has() rule and applies the @supports fallback unconditionally (a browser without :has() would have invalid-dropped the first and applied the second). */
+const backLinksWithoutHas = async (page) => {
+  await page.evaluate(() => {
+    for (const sheet of document.styleSheets) {
+      for (let i = sheet.cssRules.length - 1; i >= 0; i--) if (sheet.cssRules[i].selectorText?.includes(':has(')) sheet.deleteRule(i);
+      for (const r of [...sheet.cssRules]) if (r.conditionText?.includes('selector(:has')) for (const inner of r.cssRules) sheet.insertRule(inner.cssText, sheet.cssRules.length);
+    }
+  });
+  return page.$$eval('.checkout a', (l) => l.filter((a) => /Back to ideas/.test(a.textContent) && a.getClientRects().length).length);
+};
 /** The buttons of a card or banner: their names and which of them are filled (primary). */
 const actionsOf = (page, sel) => page.$$eval(`${sel} > *`, (l) => ({ names: l.map((e) => e.textContent.trim()), filled: l.filter((e) => e.classList.contains('primary')).map((e) => e.textContent.trim()) }));
 
@@ -214,6 +224,17 @@ function states(fx) {
     await sleep(600);
     check(`${c.name}/ideas: two idea cards have arrived and the loading placeholders for the others remain`, (await count(page, '.ideas-list article.idea:not(.skeleton)')) === 2 && (await count(page, '.idea.skeleton')) >= 1);
     c.stream.n = fx.secondIdea + 1;
+    // wide screens: the step list scrolls in its own panel and follows the newest step while the page itself stays put
+    const f = await page.$eval('.agent', (a) => {
+      const last = [...a.querySelectorAll('li.call')].at(-1)?.getBoundingClientRect();
+      const box = a.getBoundingClientRect();
+      return { wide: matchMedia('(min-width: 1000px)').matches, scrolls: a.scrollHeight > a.clientHeight + 4, visible: !!last && last.top >= box.top - 1 && last.bottom <= box.bottom + 1, pageY: scrollY };
+    });
+    if (f.wide) check(`${c.name}/ideas: while running, the step panel scrolls to show the newest step and the page does not move`, f.scrolls && f.visible && f.pageY === 0, JSON.stringify(f));
+    if (!FIREFOX) {
+      const shift = await cls(page);
+      check(`${c.name}/ideas: layout shift while steps and ideas stream in is at most 0.1`, shift <= 0.1, `CLS ${shift}`);
+    }
     await c.snap();
   });
 
@@ -239,6 +260,7 @@ function states(fx) {
     await cls(page, true);
     await tapText(page, /^Try an example$/);
     await hashIs(page, '#/ideas');
+    await until(page, () => document.title === 'Gift ideas · Tasteloom' && document.activeElement?.tagName === 'H1', null, 5000).catch(() => {}); // the router runs on the hashchange event, a moment after the hash changes
     check(`${c.name}/ideas: the page title and focus follow the route`, (await page.title()) === 'Gift ideas · Tasteloom' && (await page.evaluate(() => document.activeElement?.tagName)) === 'H1', await page.title());
     await until(page, () => /Done in/.test(document.querySelector('.agent-status')?.textContent || ''), null, 60000);
     await sleep(400);
@@ -366,6 +388,10 @@ function states(fx) {
       await probe(c);
       if (key === 'checkout-error-upstream') await c.audit('checkout error');
       await c.snap();
+      if (key.startsWith('checkout-error-')) {
+        const n = await backLinksWithoutHas(page);
+        check(`${c.name}/checkout: ${key.replace('checkout-error-', '')}: with no :has() support (rule dropped, @supports fallback applied) there is still exactly one "Back to ideas"`, n === 1, `${n} visible`);
+      }
     });
   pay('checkout-loading', { hang: true }, async (c) => {
     await c.page.waitForSelector('button.pay-btn[aria-busy="true"]', { timeout: 5000 });
@@ -416,6 +442,8 @@ function states(fx) {
     await page.waitForSelector('section.panel.bad[role=alert]', { timeout: 5000 });
     const refused = await actionsOf(page, 'section.panel.bad .panel-actions');
     check(`${c.name}/checkout: when the server refuses a total, Pay is off with a reason and "Back to ideas" is the one filled button`, (await page.$eval('button.pay-btn', (e) => e.disabled)) && refused.filled.join('|') === 'Back to ideas' && /^Paying is off/.test(await text(page, '.pay-status')));
+    const noHas = await backLinksWithoutHas(page);
+    check(`${c.name}/checkout: over budget: with no :has() support there is still exactly one "Back to ideas"`, noHas === 1, `${noHas} visible`);
     await page.click('.summary li.line:first-child button.icon-btn');
     await sleep(200);
     check(`${c.name}/checkout: removing an item clears a refusal that removing can fix`, (await count(page, 'section.panel.bad')) === 0 && !(await page.$eval('button.pay-btn', (e) => e.disabled)), `${await count(page, '.summary li.line')} item left`);
@@ -463,6 +491,13 @@ function states(fx) {
 
   S.push({ key: 'ideas-live', tablet: true, live: true, run: async (c) => { await open(c, '#/ideas', { st: c.liveRun }); await c.audit('ideas live'); await c.snap(); } });
   S.push({ key: 'checkout-live', tablet: true, live: true, run: async (c) => { await open(c, '#/checkout', { st: c.liveRun }); await c.audit('checkout live'); await c.snap(); } });
+  // The same checkout with the photos hidden: the before/after pictures in evidence/ are made from this (shop photos are third-party and stay out of tracked files).
+  add('checkout-images-off', false, async (c) => {
+    await open(c, '#/checkout', { st: ckSt(c), search: '?images=off' });
+    const shown = await c.page.evaluate(() => [...document.querySelectorAll('.thumb img')].filter((i) => i.getClientRects().length && getComputedStyle(i).display !== 'none').length);
+    check(`${c.name}/checkout: ?images=off hides the line photos`, (await text(c.page, 'h1')) === 'Checkout' && shown === 0, `${shown} shown`);
+    await c.snap();
+  });
   return S;
 }
 
