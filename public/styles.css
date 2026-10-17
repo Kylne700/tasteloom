@@ -149,6 +149,9 @@ select {
 .screen-head .lead { margin: 10px 0 0; }
 .head-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
 .checkout:has(.notices a[href='#/ideas']) .head-actions { display: none; } /* the banner already offers the way back: one "Back to ideas", not two */
+@supports not selector(:has(*)) { /* no :has(): the header button stays and the banner's twin goes, so there is still exactly one "Back to ideas" */
+  .checkout .notices a[href='#/ideas'] { display: none; }
+}
 .eyebrow { margin: 0 0 10px; color: var(--accent); font-size: 0.8125rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
 .lead { max-width: 58ch; margin: 14px 0 0; color: var(--ink-2); font-size: 1.1875rem; line-height: 1.5; }
 
@@ -261,13 +264,13 @@ html[data-images='off'] .media img, html[data-images='off'] .thumb img { display
 .card-body { display: flex; flex: 1; flex-direction: column; gap: 6px; padding: 14px 16px 16px; }
 .card-title { display: -webkit-box; margin: 0; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow-wrap: anywhere; }
 .card[data-kind='product'] .card-title { flex: 1 0 auto; } /* keeps price rows level across a row of cards */
-.card-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; margin: 0; color: var(--ink-2); font-size: 0.875rem; }
-.card-meta .shop { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
-.card-meta .price { margin-left: auto; }
+.card-meta { display: flex; flex-direction: column; gap: 2px; margin: 0; color: var(--ink-2); font-size: 0.875rem; } /* price on its own line, then the shop: a long shop name can never push the price around */
+.card-meta .shop { min-width: 0; overflow-wrap: anywhere; }
 .price { color: var(--ink); font-size: 1.1875rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .price.none { color: var(--ink-2); font-size: 0.875rem; font-weight: 600; }
 .check { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--ok); font-size: 0.8125rem; font-weight: 600; }
 .snippet { display: -webkit-box; margin: 0; overflow: hidden; color: var(--ink-2); font-size: 0.875rem; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.snippet.trail { font-size: 0.8125rem; overflow-wrap: anywhere; } /* a link card without a blurb: where the link goes, from its own address */
 .card-actions { display: flex; flex-direction: column; gap: 10px; margin-top: auto; padding-top: 10px; }
 .shop-link { display: inline-flex; align-items: center; gap: 6px; font-size: 0.875rem; font-weight: 600; }
 .hint-inline { color: var(--ink-2); font-size: 0.8125rem; }
@@ -348,13 +351,14 @@ html[data-images='off'] .media img, html[data-images='off'] .thumb img { display
 .receipt-body .note { margin: 0 0 18px; }
 .foot { border-top: 1px solid var(--line); padding: 26px 0; color: var(--ink-2); font-size: 0.875rem; }
 .foot p { margin: 0; max-width: 70ch; }
+.on-receipt .foot-sandbox { display: none; }
 
 /* ---- wide screens -------------------------------------------------------------------------------------------------------- */
 @media (min-width: 1000px) {
   .taste { grid-template-columns: minmax(0, 1fr) 340px; gap: 48px; }
   .taste .how { position: sticky; top: 24px; margin-top: 56px; }
   .ideas-layout { grid-template-columns: 330px minmax(0, 1fr); gap: 36px; align-items: start; }
-  .agent { position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow: auto; }
+  .agent { position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow: auto; scrollbar-width: thin; scrollbar-gutter: stable both-edges; } /* the gutter is reserved, so the steps do not re-wrap when the scrollbar appears */
   .checkout-layout { grid-template-columns: minmax(0, 1fr) 430px; align-items: start; }
   .panel.pay { position: sticky; top: 16px; }
 }
@@ -387,14 +391,8 @@ html[data-images='off'] .media img, html[data-images='off'] .thumb img { display
   .add-row { grid-template-columns: minmax(0, 1fr) auto; }
   .add-row input { grid-column: 1 / -1; }
   .idea h2 { font-size: 1.5rem; }
-  .line { grid-template-columns: 52px minmax(0, 1fr) auto; gap: 12px; }
+  .line { grid-template-columns: 52px minmax(0, 1fr) auto auto; gap: 12px; }
   .thumb { width: 52px; height: 52px; }
-  .line .icon-btn { grid-column: 3; grid-row: 2; justify-self: end; }
-  .line-price { grid-column: 3; grid-row: 1; }
-  .line-body { grid-column: 2; grid-row: 1 / span 2; }
-  .thumb { grid-row: 1 / span 2; }
-  .lines.plain .line { grid-template-columns: minmax(0, 1fr) auto; }
-  .lines.plain .line-body, .lines.plain .line-price { grid-row: auto; grid-column: auto; }
 }
 @media (max-width: 560px) {
   .pill .long { display: none; }
@@ -420,6 +418,12 @@ html[data-images='off'] .media img, html[data-images='off'] .thumb img { display
   .tc-row { column-gap: 10px; }
   .tc-row code { font-size: clamp(0.75rem, 3.5vw, 1rem); } /* the card number stays on one line down to 360 px */
   .panel-actions .btn { flex: 1 1 100%; }
+  /* a checkout line: picture and name on top, the price and the remove button side by side under the name */
+  .lines:not(.plain) .line { grid-template-columns: 52px minmax(0, 1fr) auto; grid-template-areas: 'thumb body body' 'thumb price remove'; gap: 4px 12px; }
+  .lines:not(.plain) .thumb { grid-area: thumb; align-self: start; }
+  .lines:not(.plain) .line-body { grid-area: body; }
+  .lines:not(.plain) .line-price { grid-area: price; }
+  .lines:not(.plain) .icon-btn { grid-area: remove; justify-self: end; }
 }
 @media (max-width: 360px) {
   /* the brand and both badges no longer fit side by side: the badges get a row of their own */

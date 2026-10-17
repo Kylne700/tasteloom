@@ -4,7 +4,7 @@ import { ApiError, getJson } from './api.js';
 import { startOver, state } from './state.js';
 
 const HEAD = {
-  COMPLETED: ['Order confirmed', 'ok', 'Payment approved and captured. Sandbox, no real money moved.'],
+  COMPLETED: ['Order confirmed', 'ok', 'Payment approved and captured.'], // the "Mode" row below is the one place the receipt says sandbox
   CAPTURE_FAILED: ['Payment not completed', 'bad', 'PayPal did not finish the payment. Nothing was charged.'],
   NOT_APPROVED: ['Payment not approved yet', 'warn', 'PayPal does not show this order as approved. Nothing was charged.'],
   CREATED: ['Waiting for your approval on PayPal', 'warn', 'The order exists, but it has not been approved on PayPal’s page yet. Nothing was charged.'],

@@ -2,7 +2,7 @@
 // as screenshots in evidence/screens/ plus accessibility, focus, layout-shift and overflow checks.
 // The happy path and the example run use the real server. Rare states (API down, over budget, PayPal cancelled, capture failed, ...)
 // are produced by answering the app's own fetch calls inside the page (see pagePatch in browser.mjs), so no real service is touched.
-import { BASE, audit, check, cls, fresh, mock, newPage, overflowSweep, release, say, shot, sleep, tabWalk } from './browser.mjs';
+import { BASE, FIREFOX, audit, check, cls, fresh, mock, newPage, overflowSweep, release, sandboxMentions, say, shot, sleep, tabWalk } from './browser.mjs';
 
 const KEY = 'tasteloom.v1';
 const UPSTREAM_MSG = 'Please try again in a minute.'; // the texts the server sends (src/app.ts, src/commerce.ts)
@@ -110,7 +110,7 @@ const receipt = (c, key, status, over, wantH1, { gift = false, filled, banner = 
     await c.page.evaluate((h) => { location.hash = h; }, `#/receipt/${ORDER_ID}`);
     await c.page.waitForFunction((t) => document.querySelector('h1')?.textContent === t, { timeout: 8000 }, wantH1).catch(() => {});
     check(`${c.name}/${key}: heading "${wantH1}" and the order id shown`, (await text(c.page, 'h1')) === wantH1 && (await text(c.page, '.facts')).includes(ORDER_ID), await text(c.page, 'h1'));
-    check(`${c.name}/${key}: status pill says "${LABEL[status]}" (the raw ${status} stays in the page data only), mode says sandbox`, (await text(c.page, '.status-pill')) === LABEL[status] && (await c.page.$eval('.status-pill', (e) => e.dataset.status)) === status && (await text(c.page, '.facts')).includes('PayPal sandbox, no real money'));
+    check(`${c.name}/${key}: status pill says "${LABEL[status]}" (the raw ${status} stays in the page data only), the page names the sandbox twice (header badge, Mode row), once more only where the server's own error text says it`, (await text(c.page, '.status-pill')) === LABEL[status] && (await c.page.$eval('.status-pill', (e) => e.dataset.status)) === status && (await text(c.page, '.facts')).includes('PayPal sandbox, no real money') && (await sandboxMentions(c.page)) === 2 + (/sandbox/i.test(over?.error || '') ? 1 : 0));
     const card = (await text(c.page, '.receipt-card')) || '';
     check(`${c.name}/${key}: no raw codes in the text and "Nothing was charged" is said at most once`, !/[A-Z]{3,}_[A-Z_]{3,}/.test(card) && (card.match(/Nothing was charged/g) || []).length <= (status === 'COMPLETED' ? 0 : 1), card.slice(0, 80));
     const doneSteps = await count(c.page, '#steps li.done');
@@ -248,7 +248,7 @@ function states(fx) {
     check(`${c.name}/ideas: each idea says why ("Because they love ..." or the overall-taste line)`, await page.$$eval('.ideas-list article.idea:not(.skeleton) .because', (l) => l.length > 0 && l.every((e) => /Because they love|overall taste/.test(e.textContent))));
     check(`${c.name}/ideas: each product card shows a price, a shop and a link that opens safely`, await page.$$eval('ul.cards li.card[data-kind=product]', (l) => l.length > 0 && l.every((e) => /\$\d/.test(e.querySelector('.price')?.textContent || '') && e.querySelector('.shop')?.textContent && /^https:/.test(e.querySelector('a.shop-link')?.href || '') && /noopener/.test(e.querySelector('a.shop-link')?.rel || ''))));
     const shift = await cls(page);
-    check(`${c.name}/ideas: layout shift while the example loads is at most 0.1`, shift <= 0.1, `CLS ${shift}`);
+    if (!FIREFOX) check(`${c.name}/ideas: layout shift while the example loads is at most 0.1`, shift <= 0.1, `CLS ${shift}`); // Firefox has no layout-shift entries: not measured there
     await c.audit('ideas');
     if (c.sweep) await overflowSweep(page, `${c.name}/ideas`);
     await tabWalk(page, `${c.name}/ideas`, 140);

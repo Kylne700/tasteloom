@@ -4,13 +4,16 @@ import path from 'node:path';
 
 export const APP = path.resolve(new URL('../..', import.meta.url).pathname);
 export const EVIDENCE = path.join(APP, 'evidence');
-export const SHOTS = path.join(EVIDENCE, 'screens');
+export const FIREFOX = process.env.TOUR_BROWSER === 'firefox'; // the tour also runs in Firefox over WebDriver BiDi; its shots go to an ignored folder
+export const SHOTS = path.join(EVIDENCE, FIREFOX ? 'debug/firefox' : 'screens');
 export const PORT = 8791;
 export const BASE = `http://localhost:${PORT}`;
 export const DESKTOP = { width: 1280, height: 800, deviceScaleFactor: 1 };
 export const TABLET = { width: 768, height: 1024, deviceScaleFactor: 1 };
 export const MOBILE = { width: 390, height: 844, deviceScaleFactor: 1, isMobile: true, hasTouch: true };
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// How often the page says "sandbox" in visible text (display:none text is not counted): the receipt names it twice, in the header badge and in the Mode row.
+export const sandboxMentions = (page) => page.evaluate(() => (document.body.innerText.match(/sandbox/gi) || []).length);
 
 // ---- report -------------------------------------------------------------------------------------------------------------
 export const report = {

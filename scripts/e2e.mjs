@@ -11,7 +11,7 @@ import { spawnSync } from 'node:child_process';
 import puppeteer from 'puppeteer-core';
 import { startDev } from './lib/server.mjs';
 import { payAsGuest } from './lib/paypal-guest.mjs';
-import { APP, BASE, DESKTOP, EVIDENCE, MOBILE, PORT, SHOTS, TABLET, audit, check, consoleErrors, fresh, newPage, overflowSweep, report, say, shot, shots, sleep, strayText, tabWalk, thirdParty, waitUrl } from './lib/browser.mjs';
+import { APP, BASE, DESKTOP, EVIDENCE, FIREFOX, MOBILE, PORT, SHOTS, TABLET, audit, check, consoleErrors, fresh, newPage, overflowSweep, report, sandboxMentions, say, shot, shots, sleep, strayText, tabWalk, thirdParty, waitUrl } from './lib/browser.mjs';
 import { tourRound } from './lib/tour.mjs';
 
 const args = process.argv.slice(2);
@@ -150,7 +150,7 @@ async function live(browser) {
   out.orderId = id; out.status = status; out.captureId = o2?.captureId || null;
   say(`  ORDER ${id} STATUS ${status} CAPTURE ${out.captureId} TOTAL ${money(o2?.total_cents || 0)} ${o2?.currency}`);
   check('live/receipt: order confirmed - order id equals the PayPal order, status COMPLETED, payment id shown', id === token2 && status === 'COMPLETED' && (await text(page, 'h1')) === 'Order confirmed' && facts.includes(id) && !!out.captureId && facts.includes(out.captureId), `${id} ${status}`);
-  check('live/receipt: total and items on the receipt equal the picks; labelled sandbox, no real money', facts.includes(money(total)) && (await count(page, '.receipt .lines li.line')) === 2 && /Sandbox, no real money/.test((await text(page, '.hero')) || '') && /PayPal sandbox, no real money/.test(facts), money(total));
+  check('live/receipt: total and items on the receipt equal the picks; sandbox named twice (badge and Mode row), no real money', facts.includes(money(total)) && (await count(page, '.receipt .lines li.line')) === 2 && (await sandboxMentions(page)) === 2 && /PayPal sandbox, no real money/.test(facts), money(total));
   check('live/receipt: the server record agrees (COMPLETED, sandbox, same total and items, one capture)', o2?.status === 'COMPLETED' && o2.sandbox === true && o2.total_cents === total && o2.lines.length === 2 && o2.lines.every((l) => sel.includes(l.id)));
   check('live/receipt: the step bar ticks all three steps and "Start a new gift" is the one filled button', (await count(page, '#steps li.done')) === 3 && (await page.$$eval('.receipt-actions .btn.primary', (l) => l.map((e) => e.textContent.trim()))).join('|') === 'Start a new gift');
   await audit(page, 'live/receipt');
@@ -225,7 +225,9 @@ try {
   spawnSync('node', ['scripts/dev-vars.mjs'], { cwd: APP, stdio: 'inherit' }); // writes .dev.vars from ../.env.local, prints key names only
   say(`e2e ${new Date().toISOString()} phases: ${phases.join(', ')}${keep ? ' (kept state)' : ''}`);
   srv = await startDev({ port: PORT, persist: '.wrangler/e2e-state', fresh: !keep });
-  browser = await puppeteer.launch({ executablePath: '/usr/bin/chromium', headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
+  browser = FIREFOX
+    ? await puppeteer.launch({ browser: 'firefox', executablePath: '/usr/bin/firefox', headless: true, protocol: 'webDriverBiDi' })
+    : await puppeteer.launch({ executablePath: '/usr/bin/chromium', headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
   say(`browser: ${await browser.version()}`);
   if (phases.includes('live') && phases.includes('tour')) fs.rmSync(SHOTS, { recursive: true, force: true }); // a full run starts from an empty folder
   for (const ph of phases) {

@@ -77,6 +77,7 @@ function route() {
     arg = { orderId: receipt[1] };
   }
   document.title = `${title} · Tasteloom`;
+  document.body.classList.toggle('on-receipt', !!receipt); // the receipt already says sandbox once, so the footer does not repeat it
   renderSteps(step);
   view.replaceChildren();
   window.scrollTo(0, 0);

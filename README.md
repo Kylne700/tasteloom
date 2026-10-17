@@ -11,7 +11,7 @@ Built for three Devpost contests: the Qloo agentic contest, the Nebius x NVIDIA 
 1. **Loves and budget.** Add 3 to 5 favourites (an optional type hint such as book or artist sharpens the match) and a budget from $10 to $500. Or press **Try an example**: a saved run replays without any key.
 2. **Gift ideas.** A live list shows what the agent is doing (reading taste, finding products, writing reasons, checking prices) while idea cards arrive. Each idea says which favourite it comes from. Product cards show title, price, shop and a link. A product image switch keeps the page free of third-party pictures (`?images=off` turns it off by default).
 3. **Pick and pay.** Pick up to 6 items within the budget, review, and press **Pay with PayPal**. The page shows PayPal's documented sandbox test card with copy buttons; you pay as a guest on PayPal's own page, no PayPal account needed.
-4. **Receipt.** After PayPal approves, the server captures once and shows the order id, the final status and the items. Everything is labelled "sandbox, no real money".
+4. **Receipt.** After PayPal approves, the server captures once and shows the order id, the final status and the items. The receipt carries the sandbox badge and one "Mode: PayPal sandbox, no real money" row.
 
 ## How each sponsor technology is used
 

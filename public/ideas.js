@@ -17,6 +17,29 @@ import { budgetCents, mockNote, newRun, save, selectedCards, state, totalCents }
 
 const MAX_ITEMS = 6;
 const SKELETONS = 3;
+
+// A link card whose page gave no blurb shows where the link goes, built only from its own address (path words, no query or fragment).
+// It never describes the product: the page itself is the only source for that.
+function addressWords(url) {
+  try {
+    const u = new URL(url);
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') return '';
+    const words = u.pathname
+      .split('/')
+      .filter((s) => s && !/^index\.\w+$/i.test(s))
+      .map((s) => {
+        try {
+          return decodeURIComponent(s);
+        } catch {
+          return s;
+        }
+      });
+    const text = words.join(' › ');
+    return text.length > 90 ? `${text.slice(0, 89)}…` : text;
+  } catch {
+    return '';
+  }
+}
 const VIA = { live: 'live', mock: 'demo', cache: 'cached' };
 const wide = window.matchMedia('(min-width: 1000px)');
 
@@ -86,6 +109,13 @@ export function mountIdeas(root) {
   };
   wide.addEventListener('change', onWide);
   agentHead();
+
+  // On wide screens the step list scrolls inside its own panel. While the run is live it follows the newest step, so the reader never has to
+  // chase it; scrolling up stops the following, scrolling back to the end resumes it. Only the panel moves, never the page.
+  let follow = true;
+  agent.addEventListener('scroll', () => { follow = agent.scrollHeight - agent.scrollTop - agent.clientHeight < 48; }, { passive: true });
+  const followRun = () => { if (follow && run && run.status === 'running') agent.scrollTop = agent.scrollHeight; };
+  const settleAgent = () => { if (follow) agent.scrollTop = 0; }; // a finished run shows its summary line first
 
   root.append(
     h(
@@ -218,14 +248,15 @@ export function mountIdeas(root) {
       ? h('a', { class: 'shop-link', href: shopUrl, target: '_blank', rel: 'noopener noreferrer sponsored' }, card.purchasable ? 'View product' : 'Open page', icon('external', 14), h('span', { class: 'sr-only' }, ' (opens in a new tab)'))
       : null;
     const check = h('p', { class: 'check', hidden: true, 'data-id': card.id }, icon('check', 14), h('span', {}, 'Price matches the shop’s page'));
+    const where = card.purchasable || card.snippet ? '' : addressWords(card.url);
     el.append(
       media,
       h(
         'div',
         { class: 'card-body' },
         h('h3', { class: 'card-title' }, card.title),
-        h('p', { class: 'card-meta' }, h('span', { class: 'shop' }, card.shop), card.purchasable ? h('span', { class: 'price' }, money(card.price_cents)) : null),
-        card.purchasable ? check : card.snippet ? h('p', { class: 'snippet' }, card.snippet) : null,
+        h('p', { class: 'card-meta' }, card.purchasable ? h('span', { class: 'price' }, money(card.price_cents)) : null, h('span', { class: 'shop' }, card.shop)),
+        card.purchasable ? check : card.snippet ? h('p', { class: 'snippet' }, card.snippet) : where ? h('p', { class: 'snippet trail' }, where) : null,
         h('div', { class: 'card-actions' }, link, card.purchasable ? null : h('span', { class: 'hint-inline' }, 'Price is on the venue’s site')),
       ),
     );
@@ -344,16 +375,19 @@ export function mountIdeas(root) {
         p.note = e.note || '';
         setPhase(p);
         setAgentStatus();
+        followRun();
         if (e.state === 'running') announce(e.label);
         break;
       }
       case 'call':
         run.calls.push(e);
         addCall(e);
+        followRun();
         break;
       case 'taste':
         run.seeds = e.seeds;
         setSeeds(e.seeds);
+        followRun();
         break;
       case 'idea':
         run.ideas.push({ idea: e.idea, cards: e.cards });
@@ -395,8 +429,9 @@ export function mountIdeas(root) {
       }
     });
     setAgentStatus();
+    settleAgent();
     save();
-    announce(run.ideas.length ? `Done. ${run.ideas.length} gift ideas. Pick the items you like.` : 'Finished without any gift ideas.');
+    announce(run.ideas.length ?`Done. ${run.ideas.length} gift ideas. Pick the items you like.` : 'Finished without any gift ideas.');
     if (!run.ideas.length) showEmpty();
   }
 
@@ -420,6 +455,7 @@ export function mountIdeas(root) {
       }
     });
     setAgentStatus();
+    settleAgent();
     showError(err);
     if (run.ideas.length) save();
   }

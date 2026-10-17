@@ -19,6 +19,7 @@ const TYPE_LABEL = Object.fromEntries(TYPES.map(([v, l]) => [v, l.replace(/ \(.*
 const PRESETS = [25, 50, 100, 200];
 const MIN = 3;
 const MAX = 5;
+const TOO_FEW = `Add at least ${MIN} things they love, so the taste reading has something to work with.`;
 
 export function mountTaste(root) {
   const favs = state.favorites.map((f) => ({ ...f }));
@@ -37,8 +38,16 @@ export function mountTaste(root) {
   const setError = (msg, focus) => {
     err.textContent = msg;
     input.setAttribute('aria-invalid', msg ? 'true' : 'false');
+    syncCount();
     if (msg && focus) input.focus();
   };
+
+  // The count line gives the "add N more" hint only while the too-few error is not already saying it.
+  function syncCount() {
+    const n = favs.length;
+    count.textContent = n >= MIN || err.textContent === TOO_FEW ? `${n} of ${MAX} added.` : `${n} of ${MAX} added. Add ${MIN - n} more to continue.`;
+    count.dataset.ok = String(n >= MIN);
+  }
 
   function syncPresets() {
     presetBtns.forEach((b, i) => b.setAttribute('aria-pressed', String(Number(budget.value) === PRESETS[i])));
@@ -56,9 +65,7 @@ export function mountTaste(root) {
         ),
       ),
     );
-    const n = favs.length;
-    count.textContent = n >= MIN ? `${n} of ${MAX} added.` : `${n} of ${MAX} added. Add ${MIN - n} more to continue.`;
-    count.dataset.ok = String(n >= MIN);
+    syncCount();
   }
 
   function add(raw) {
@@ -115,7 +122,7 @@ export function mountTaste(root) {
         if (input.value.trim()) addFromInput();
         if (err.textContent) return;
         if (favs.length < MIN) {
-          setError(`Add at least ${MIN} things they love, so the taste reading has something to work with.`, true);
+          setError(TOO_FEW, true);
           return;
         }
         const b = readBudget();
