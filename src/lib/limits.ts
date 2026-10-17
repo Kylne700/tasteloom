@@ -53,6 +53,7 @@ export class Counter {
     const g = this.s.get<Counts>('g') ?? {};
     const items = Object.entries(want) as [CounterName, number][];
     for (const [k, n] of items) {
+      if (!(Number.isFinite(n) && n >= 0)) return { counter: k, scope: 'global' }; // NaN or a negative count would pass every later check
       // a counter without a cap at one scope (cents has no per-visitor cap) is limited by the other
       if ((ip[k] ?? 0) + n > (caps.ip[k] ?? Infinity)) return { counter: k, scope: 'ip' };
       if ((g[k] ?? 0) + n > (caps.global[k] ?? Infinity)) return { counter: k, scope: 'global' };

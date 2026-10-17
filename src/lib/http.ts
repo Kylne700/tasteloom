@@ -91,7 +91,7 @@ export async function callJson(svc: Svc, service: ServiceName, url: string, init
 const MAX_BODY = 2_000_000; // bytes; real answers are far smaller, and a Worker has 128 MB
 
 /** The body as text, or undefined once it passes `max` bytes (the rest is not downloaded). */
-async function readText(res: Response, max: number): Promise<string | undefined> {
+export async function readText(res: Pick<Response, 'body'>, max: number): Promise<string | undefined> {
   if (!res.body) return '';
   const reader = res.body.getReader();
   const chunks: Uint8Array[] = [];

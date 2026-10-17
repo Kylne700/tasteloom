@@ -1,4 +1,4 @@
-e2e 2026-10-17T03:26:37.710Z phases: live, tour
+e2e 2026-10-17T03:37:23.719Z phases: live, tour
 browser: Chrome/154.0.8037.92
 LIVE FLOW (desktop 1280x800): real Channel3, Tavily and PayPal sandbox; Qloo and Nebius on stand-ins unless their keys exist
   modes: {"qloo":"mock","nebius":"mock","tavily":"live","channel3":"live","paypal":"live"}; mocks: qloo,nebius
@@ -17,8 +17,8 @@ LIVE FLOW (desktop 1280x800): real Channel3, Tavily and PayPal sandbox; Qloo and
   PASS  live/ideas: header, nav, main, footer landmarks and a live region (1111)
   PASS  live-ideas-done-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
   PASS  live-ideas-done-1280.png: the brand and the badges do not overlap
-  PASS  live/ideas: two cards picked, bar and meter follow, and the total is within the budget ($63.00 of $120.00)
-  PASS  live/checkout: heading, both items, the total and the sandbox label (Pay $63.00 with PayPal)
+  PASS  live/ideas: two cards picked, bar and meter follow, and the total is within the budget ($44.00 of $120.00)
+  PASS  live/checkout: heading, both items, the total and the sandbox label (Pay $44.00 with PayPal)
   PASS  live/checkout: copy button puts the test card number on the clipboard
   PASS  live/checkout: lang and a page title (en, "Checkout · Tasteloom")
   PASS  live/checkout: every control has an accessible name
@@ -27,15 +27,15 @@ LIVE FLOW (desktop 1280x800): real Channel3, Tavily and PayPal sandbox; Qloo and
   PASS  live/checkout: header, nav, main, footer landmarks and a live region (1111)
   PASS  live-checkout-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
   PASS  live-checkout-1280.png: the brand and the badges do not overlap
-  PASS  live/pay: "Pay with PayPal" opens PayPal's sandbox page with a new order (5R236652E0662463A)
-  PASS  live/cancel: cancelling on PayPal returns to checkout with the note, the gift kept, and the order marked CANCELLED (order 5R236652E0662463A -> CANCELLED)
+  PASS  live/pay: "Pay with PayPal" opens PayPal's sandbox page with a new order (9KY968445K803831U)
+  PASS  live/cancel: cancelling on PayPal returns to checkout with the note, the gift kept, and the order marked CANCELLED (order 9KY968445K803831U -> CANCELLED)
   PASS  live-checkout-cancelled-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
   PASS  live-checkout-cancelled-1280.png: the brand and the badges do not overlap
-  PASS  live/pay: paying again after a cancel creates a different order (5R236652E0662463A -> 1M4538524K497974B)
+  PASS  live/pay: paying again after a cancel creates a different order (9KY968445K803831U -> 1WY34830GL6592812)
   PASS  live/pay: PayPal sandbox guest card (no account created) returns to the app
-  ORDER 1M4538524K497974B STATUS COMPLETED CAPTURE 82R107833P809345L TOTAL $63.00 USD
-  PASS  live/receipt: order confirmed - order id equals the PayPal order, status COMPLETED, payment id shown (1M4538524K497974B COMPLETED)
-  PASS  live/receipt: total and items on the receipt equal the picks; sandbox named twice (badge and Mode row), no real money ($63.00)
+  ORDER 1WY34830GL6592812 STATUS COMPLETED CAPTURE 8M187383SP090594E TOTAL $44.00 USD
+  PASS  live/receipt: order confirmed - order id equals the PayPal order, status COMPLETED, payment id shown (1WY34830GL6592812 COMPLETED)
+  PASS  live/receipt: total and items on the receipt equal the picks; sandbox named twice (badge and Mode row), no real money ($44.00)
   PASS  live/receipt: the server record agrees (COMPLETED, sandbox, same total and items, one capture)
   PASS  live/receipt: the step bar ticks all three steps and "Start a new gift" is the one filled button
   PASS  live/receipt: lang and a page title (en, "Receipt · Tasteloom")
@@ -55,8 +55,8 @@ LIVE FLOW (desktop 1280x800): real Channel3, Tavily and PayPal sandbox; Qloo and
   PASS  live-receipt-390.png: the brand and the badges do not overlap
   PASS  live/api: an unknown or expired session is refused (404 session_expired) (404 session_expired)
   PASS  live/api: an item id the server never saved is refused (400 unknown_item)
-  PASS  live/api: a tampered client price is ignored: the order total comes from the server's own card (sent 1 cent, server 3800 vs card 3800)
-  PASS  live/api: a total above the buyer's cap is refused before PayPal is called (over_budget) (400 over_budget, total $186.29 vs $120.00)
+  PASS  live/api: a tampered client price is ignored: the order total comes from the server's own card (sent 1 cent, server 2500 vs card 2500)
+  PASS  live/api: a total above the buyer's cap is refused before PayPal is called (over_budget) (400 over_budget, total $213.89 vs $120.00)
   billed calls this live phase (counter deltas): {"ideas":1,"qloo":0,"nebius":0,"tokens":0,"tavily":4,"channel3":4,"orders":3}
   PASS  live: the meter counted the run, and spend stayed inside the stage budget (Channel3 <= 20, Tavily <= 30 for one run) ({"ideas":1,"qloo":0,"nebius":0,"tokens":0,"tavily":4,"channel3":4,"orders":3})
   PASS  tour: the saved example streams meta, events and a done event without a key (45 events)
@@ -598,7 +598,7 @@ TOUR tablet 768x1024: key screens
   PASS  tablet/ideas: example run finished with ideas, product cards and the saved-example note (4 ideas, 9 buyable cards)
   PASS  tablet/ideas: each idea says why ("Because they love ..." or the overall-taste line)
   PASS  tablet/ideas: each product card shows a price, a shop and a link that opens safely
-  PASS  tablet/ideas: layout shift while the example loads is at most 0.1 (CLS 0.006)
+  PASS  tablet/ideas: layout shift while the example loads is at most 0.1 (CLS 0.007)
   PASS  tablet/ideas: lang and a page title (en, "Gift ideas · Tasteloom")
   PASS  tablet/ideas: every control has an accessible name
   PASS  tablet/ideas: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
@@ -776,5 +776,5 @@ TOUR narrow 320x640: key screens
   third-party resource failures (shop images the page drops by itself, not app errors): 16
 
 SCREENSHOTS 99 in evidence/screens/
-SANDBOX ORDER 1M4538524K497974B COMPLETED (payment id 82R107833P809345L)
+SANDBOX ORDER 1WY34830GL6592812 COMPLETED (payment id 8M187383SP090594E)
 RESULT PASS: 762 checks passed, 0 failed, 231 s

@@ -7,6 +7,7 @@ import { chat } from '../src/adapters/nebius.ts';
 import { runLoop, toolSpec } from '../src/agent/loop.ts';
 import { loadConfig } from '../src/config.ts';
 import { callJson, HttpError } from '../src/lib/http.ts';
+import { LimitError } from '../src/lib/limits.ts';
 import type { Env } from '../src/types.ts';
 import { chatReply, FAVS, fakeKV, json, makeHarness, makeNet, makeSvc, readEvents, toolCall } from './helpers.ts';
 
@@ -99,6 +100,13 @@ test('meter: IPv6 visitors are counted per /64, so new addresses in the same net
   await readEvents(other);
 });
 
+test('meter: a count that is not a finite number of 0 or more is refused, so it cannot switch a cap off', async () => {
+  const { svc } = await makeSvc();
+  for (const n of [NaN, -5]) await assert.rejects(svc.meter.take({ tokens: n }), LimitError, String(n));
+  await svc.meter.take({ tokens: 1 });
+  assert.equal((await svc.meter.used()).global.tokens, 1);
+});
+
 // ---- bounded work ---------------------------------------------------------------------------------------------------
 
 test('http: an oversized upstream answer is refused, not parsed', async () => {
@@ -120,6 +128,22 @@ test('runLoop: at most 8 tool calls of one model turn run, and the model sees a 
   const msgs = bodies[1].messages;
   assert.equal(msgs.find((m: any) => m.role === 'assistant').tool_calls.length, 8);
   assert.equal(msgs.filter((m: any) => m.role === 'tool').length, 8);
+});
+
+test('http: a request body is read only up to 8 KB, however much the client sends', async () => {
+  const h = makeHarness();
+  let sent = 0;
+  const body = new ReadableStream<Uint8Array>({
+    pull(c) {
+      if (sent >= 4_000_000) return c.close();
+      sent += 4096;
+      c.enqueue(new Uint8Array(4096).fill(32));
+    },
+  });
+  const res = await h.req('/api/ideas', { method: 'POST', headers: { 'content-type': 'application/json' }, body, duplex: 'half' } as RequestInit);
+  assert.equal(res.status, 400);
+  await res.text();
+  assert.ok(sent < 64_000, `${sent} bytes read`);
 });
 
 // ---- web ------------------------------------------------------------------------------------------------------------

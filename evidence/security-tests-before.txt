@@ -24,3 +24,7 @@ RESULT FAIL: 260 checks passed, 1 failed, 76 s
 
 # not in the before run: test 6 stopped at its first assertion ('qloo' had no cap), so the quota lines never ran. Old defaults:
 # Channel3 60 a day x 31 = 1,860 and Tavily 100 a day x 31 = 3,100, both over the 1,000 a month of the free plans.
+
+# two tests added after the first commit (0dcdc7b), run on that code before their fixes, 2026-10-17T03:35Z
+not ok 8 - meter: a count that is not a finite number of 0 or more is refused, so it cannot switch a cap off  <- Missing expected rejection (LimitError): NaN
+not ok 11 - http: a request body is read only up to 8 KB, however much the client sends  <- 4001792 bytes read

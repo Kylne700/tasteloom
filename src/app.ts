@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import type { Context } from 'hono';
-import { HttpError, BudgetError, type Svc, type ServiceName } from './lib/http.ts';
+import { HttpError, BudgetError, readText, type Svc, type ServiceName } from './lib/http.ts';
 import { LimitError, Meter, meterApi, visitorOf } from './lib/limits.ts';
 import { storeFor } from './lib/store.ts';
 import { dayKey, sha256Hex, sleep } from './lib/util.ts';
@@ -150,8 +150,8 @@ export function createApp(deps: Deps = {}) {
 }
 
 async function readJson(c: Context<AppEnv>): Promise<Record<string, unknown> | undefined> {
-  const text = await c.req.text();
-  if (text.length > 8192) return undefined;
+  const text = await readText(c.req.raw, 8192); // stops after 8 KB, whatever the client sends (Cloudflare accepts 100 MB)
+  if (text === undefined) return undefined;
   try {
     const v = JSON.parse(text);
     return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : undefined;
