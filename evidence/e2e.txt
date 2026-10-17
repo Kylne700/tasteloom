@@ -1,4 +1,4 @@
-e2e 2026-10-17T00:38:44.188Z phases: live, tour
+e2e 2026-10-17T01:50:15.589Z phases: live, tour
 browser: Chrome/154.0.8037.92
 LIVE FLOW (desktop 1280x800): real Channel3, Tavily and PayPal sandbox; Qloo and Nebius on stand-ins unless their keys exist
   modes: {"qloo":"mock","nebius":"mock","tavily":"live","channel3":"live","paypal":"live"}; mocks: qloo,nebius
@@ -6,7 +6,7 @@ LIVE FLOW (desktop 1280x800): real Channel3, Tavily and PayPal sandbox; Qloo and
   PASS  live/ideas: the first idea card arrived (or the run failed visibly)
   PASS  live-ideas-running-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
   PASS  live-ideas-running-1280.png: the brand and the badges do not overlap
-  run: 4 ideas, 12 cards (9 buyable, 0 link-only), tier tools, Done in 5.9 s · 21 tool calls
+  run: 4 ideas, 12 cards (9 buyable, 0 link-only), tier tools, Done in 5.6 s · 21 tool calls
   PASS  live/ideas: at least 3 ideas, each with a reason ("Because they love ..." or the overall-taste line) (4 ideas)
   PASS  live/ideas: real product cards from Channel3 with a title, a price in dollars, a shop and an https link (9 buyable)
   PASS  live/ideas: the demo-data note and badge show while Qloo/Nebius run on stand-ins
@@ -17,8 +17,8 @@ LIVE FLOW (desktop 1280x800): real Channel3, Tavily and PayPal sandbox; Qloo and
   PASS  live/ideas: header, nav, main, footer landmarks and a live region (1111)
   PASS  live-ideas-done-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
   PASS  live-ideas-done-1280.png: the brand and the badges do not overlap
-  PASS  live/ideas: two cards picked, bar and meter follow, and the total is within the budget ($63.00 of $120.00)
-  PASS  live/checkout: heading, both items, the total and the sandbox label (Pay $63.00 with PayPal)
+  PASS  live/ideas: two cards picked, bar and meter follow, and the total is within the budget ($76.90 of $120.00)
+  PASS  live/checkout: heading, both items, the total and the sandbox label (Pay $76.90 with PayPal)
   PASS  live/checkout: copy button puts the test card number on the clipboard
   PASS  live/checkout: lang and a page title (en, "Checkout · Tasteloom")
   PASS  live/checkout: every control has an accessible name
@@ -27,15 +27,15 @@ LIVE FLOW (desktop 1280x800): real Channel3, Tavily and PayPal sandbox; Qloo and
   PASS  live/checkout: header, nav, main, footer landmarks and a live region (1111)
   PASS  live-checkout-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
   PASS  live-checkout-1280.png: the brand and the badges do not overlap
-  PASS  live/pay: "Pay with PayPal" opens PayPal's sandbox page with a new order (8HD45296U53882243)
-  PASS  live/cancel: cancelling on PayPal returns to checkout with the note, the gift kept, and the order marked CANCELLED (order 8HD45296U53882243 -> CANCELLED)
+  PASS  live/pay: "Pay with PayPal" opens PayPal's sandbox page with a new order (1RN26589T8814614R)
+  PASS  live/cancel: cancelling on PayPal returns to checkout with the note, the gift kept, and the order marked CANCELLED (order 1RN26589T8814614R -> CANCELLED)
   PASS  live-checkout-cancelled-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
   PASS  live-checkout-cancelled-1280.png: the brand and the badges do not overlap
-  PASS  live/pay: paying again after a cancel creates a different order (8HD45296U53882243 -> 80L301047U831805B)
+  PASS  live/pay: paying again after a cancel creates a different order (1RN26589T8814614R -> 9DE45037CP221881L)
   PASS  live/pay: PayPal sandbox guest card (no account created) returns to the app
-  ORDER 80L301047U831805B STATUS COMPLETED CAPTURE 90097724X0209925J TOTAL $63.00 USD
-  PASS  live/receipt: order confirmed - order id equals the PayPal order, status COMPLETED, payment id shown (80L301047U831805B COMPLETED)
-  PASS  live/receipt: total and items on the receipt equal the picks; labelled sandbox, no real money ($63.00)
+  ORDER 9DE45037CP221881L STATUS COMPLETED CAPTURE 7ES69041NV5927046 TOTAL $76.90 USD
+  PASS  live/receipt: order confirmed - order id equals the PayPal order, status COMPLETED, payment id shown (9DE45037CP221881L COMPLETED)
+  PASS  live/receipt: total and items on the receipt equal the picks; sandbox named twice (badge and Mode row), no real money ($76.90)
   PASS  live/receipt: the server record agrees (COMPLETED, sandbox, same total and items, one capture)
   PASS  live/receipt: the step bar ticks all three steps and "Start a new gift" is the one filled button
   PASS  live/receipt: lang and a page title (en, "Receipt · Tasteloom")
@@ -43,7 +43,7 @@ LIVE FLOW (desktop 1280x800): real Channel3, Tavily and PayPal sandbox; Qloo and
   PASS  live/receipt: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
   PASS  live/receipt: touch targets at least 24x24 px (inline links excepted)
   PASS  live/receipt: header, nav, main, footer landmarks and a live region (1111)
-  PASS  live/receipt: 4 keyboard stops, each with a visible focus ring
+  PASS  live/receipt: 8 keyboard stops, each with a visible focus ring
   PASS  live-receipt-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
   PASS  live-receipt-1280.png: the brand and the badges do not overlap
   PASS  live/receipt: opening the return link again does not capture twice (same status and payment id)
@@ -55,8 +55,8 @@ LIVE FLOW (desktop 1280x800): real Channel3, Tavily and PayPal sandbox; Qloo and
   PASS  live-receipt-390.png: the brand and the badges do not overlap
   PASS  live/api: an unknown or expired session is refused (404 session_expired) (404 session_expired)
   PASS  live/api: an item id the server never saved is refused (400 unknown_item)
-  PASS  live/api: a tampered client price is ignored: the order total comes from the server's own card (sent 1 cent, server 3800 vs card 3800)
-  PASS  live/api: a total above the buyer's cap is refused before PayPal is called (over_budget) (400 over_budget, total $176.50 vs $120.00)
+  PASS  live/api: a tampered client price is ignored: the order total comes from the server's own card (sent 1 cent, server 3695 vs card 3695)
+  PASS  live/api: a total above the buyer's cap is refused before PayPal is called (over_budget) (400 over_budget, total $188.39 vs $120.00)
   billed calls this live phase (counter deltas): {"ideas":1,"nebius":0,"tavily":4,"channel3":4,"orders":3}
   PASS  live: spend stayed inside the stage budget (Channel3 <= 20, Tavily <= 30 for one run) ({"ideas":1,"nebius":0,"tavily":4,"channel3":4,"orders":3})
   PASS  tour: the saved example streams meta, events and a done event without a key (45 events)
@@ -71,7 +71,7 @@ TOUR desktop 1280x800: every state
   PASS  desktop/home: touch targets at least 24x24 px (inline links excepted)
   PASS  desktop/home: header, nav, main, footer landmarks and a live region (1111)
   PASS  desktop/home: no horizontal scrolling from 320 to 1440 px wide
-  PASS  desktop/home: 10 keyboard stops, each with a visible focus ring
+  PASS  desktop/home: 12 keyboard stops, each with a visible focus ring
   PASS  01-home-empty-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
   PASS  01-home-empty-1280.png: the brand and the badges do not overlap
   PASS  desktop/home: four chips with their type hints, count line and budget (4 of 5 added.)
@@ -98,6 +98,8 @@ TOUR desktop 1280x800: every state
   PASS  05-ideas-running-early-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
   PASS  05-ideas-running-early-1280.png: the brand and the badges do not overlap
   PASS  desktop/ideas: two idea cards have arrived and the loading placeholders for the others remain
+  PASS  desktop/ideas: while running, the step panel scrolls to show the newest step and the page does not move ({"wide":true,"scrolls":true,"visible":true,"pageY":0})
+  PASS  desktop/ideas: layout shift while steps and ideas stream in is at most 0.1 (CLS 0)
   PASS  06-ideas-running-mid-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
   PASS  06-ideas-running-mid-1280.png: the brand and the badges do not overlap
   PASS  desktop/ideas: stopping early keeps the ideas, says so, and offers to try again (The agent stopped early / Try again, Try an example)
@@ -116,14 +118,14 @@ TOUR desktop 1280x800: every state
   PASS  desktop/ideas: example run finished with ideas, product cards and the saved-example note (4 ideas, 9 buyable cards)
   PASS  desktop/ideas: each idea says why ("Because they love ..." or the overall-taste line)
   PASS  desktop/ideas: each product card shows a price, a shop and a link that opens safely
-  PASS  desktop/ideas: layout shift while the example loads is at most 0.1 (CLS 0.032)
+  PASS  desktop/ideas: layout shift while the example loads is at most 0.1 (CLS 0.02)
   PASS  desktop/ideas: lang and a page title (en, "Gift ideas · Tasteloom")
   PASS  desktop/ideas: every control has an accessible name
   PASS  desktop/ideas: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
   PASS  desktop/ideas: touch targets at least 24x24 px (inline links excepted)
   PASS  desktop/ideas: header, nav, main, footer landmarks and a live region (1111)
   PASS  desktop/ideas: no horizontal scrolling from 320 to 1440 px wide
-  PASS  desktop/ideas: 24 keyboard stops, each with a visible focus ring
+  PASS  desktop/ideas: 27 keyboard stops, each with a visible focus ring
   PASS  08-ideas-example-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
   PASS  08-ideas-example-1280.png: the brand and the badges do not overlap
   PASS  desktop/ideas: "Review and pay" is disabled until something is picked
@@ -205,6 +207,7 @@ TOUR desktop 1280x800: every state
   PASS  desktop/checkout error: header, nav, main, footer landmarks and a live region (1111)
   PASS  21-checkout-error-upstream-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
   PASS  21-checkout-error-upstream-1280.png: the brand and the badges do not overlap
+  PASS  desktop/checkout: upstream: with no :has() support (rule dropped, @supports fallback applied) there is still exactly one "Back to ideas" (1 visible)
   PASS  desktop/checkout: over budget: one "Back to ideas" on the screen, not two
   PASS  desktop/checkout: over budget (counted on the page): the banner, the "Over budget by" row and the Pay button agree (Over budget by$5.00 / Back to ideas)
   PASS  desktop/checkout over budget: lang and a page title (en, "Checkout · Tasteloom")
@@ -216,17 +219,20 @@ TOUR desktop 1280x800: every state
   PASS  22-checkout-error-over-budget-1280.png: the brand and the badges do not overlap
   PASS  desktop/checkout: removing the dearest item clears the over-budget banner and switches Pay on (removed 4490 cents)
   PASS  desktop/checkout: when the server refuses a total, Pay is off with a reason and "Back to ideas" is the one filled button
+  PASS  desktop/checkout: over budget: with no :has() support there is still exactly one "Back to ideas" (1 visible)
   PASS  desktop/checkout: removing an item clears a refusal that removing can fix (1 item left)
   PASS  desktop/checkout: session: one "Back to ideas" on the screen, not two (1 visible)
   PASS  desktop/checkout: session: title "Your session expired" and actions Start over, Try an example (Your session expired / Start over, Try an example)
   PASS  desktop/checkout: session: one filled button ("Start over") and Pay is switched off with a reason; the message does not repeat the title (Start over / pay off true / The saved prices are gone, so this gift cannot be ordered. Start over, or try the example.)
   PASS  23-checkout-error-session-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
   PASS  23-checkout-error-session-1280.png: the brand and the badges do not overlap
+  PASS  desktop/checkout: session: with no :has() support (rule dropped, @supports fallback applied) there is still exactly one "Back to ideas" (1 visible)
   PASS  desktop/checkout: network: one "Back to ideas" on the screen, not two (1 visible)
   PASS  desktop/checkout: network: title "We could not reach the server" and actions Try again, Back to ideas (We could not reach the server / Try again, Back to ideas)
   PASS  desktop/checkout: network: Pay stays the one filled button and stays on; the message does not repeat the title ( / pay off false / Check your connection and try again.)
   PASS  24-checkout-error-network-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
   PASS  24-checkout-error-network-1280.png: the brand and the badges do not overlap
+  PASS  desktop/checkout: network: with no :has() support (rule dropped, @supports fallback applied) there is still exactly one "Back to ideas" (1 visible)
   PASS  desktop/checkout: after cancelling on PayPal the page says nothing was charged and keeps the gift (You cancelled on PayPal’s page, so nothing was charged. Your gift is still here.)
   PASS  25-checkout-cancelled-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
   PASS  25-checkout-cancelled-1280.png: the brand and the badges do not overlap
@@ -234,8 +240,8 @@ TOUR desktop 1280x800: every state
   PASS  26-receipt-loading-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
   PASS  26-receipt-loading-1280.png: the brand and the badges do not overlap
   PASS  desktop/receipt-completed: heading "Order confirmed" and the order id shown (Order confirmed)
-  PASS  desktop/receipt-completed: status pill says "Completed" (the raw COMPLETED stays in the page data only), mode says sandbox
-  PASS  desktop/receipt-completed: no raw codes in the text and "Nothing was charged" is said at most once (Order confirmedPayment approved and captured. Sandbox, no real money moved.Order)
+  PASS  desktop/receipt-completed: status pill says "Completed" (the raw COMPLETED stays in the page data only), the page names the sandbox twice (header badge, Mode row), once more only where the server's own error text says it
+  PASS  desktop/receipt-completed: no raw codes in the text and "Nothing was charged" is said at most once (Order confirmedPayment approved and captured.Order id7EX35260AB123456CCopyStatus)
   PASS  desktop/receipt-completed: the step bar ticks all three steps (3 done, current null)
   PASS  desktop/receipt-completed: exactly one filled button ("Start a new gift") among Start a new gift (Start a new gift)
   PASS  desktop/receipt-completed: no extra banner repeats the subtitle (none)
@@ -246,11 +252,11 @@ TOUR desktop 1280x800: every state
   PASS  desktop/receipt: touch targets at least 24x24 px (inline links excepted)
   PASS  desktop/receipt: header, nav, main, footer landmarks and a live region (1111)
   PASS  desktop/receipt: no horizontal scrolling from 320 to 1440 px wide
-  PASS  desktop/receipt: 4 keyboard stops, each with a visible focus ring
+  PASS  desktop/receipt: 8 keyboard stops, each with a visible focus ring
   PASS  27-receipt-completed-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
   PASS  27-receipt-completed-1280.png: the brand and the badges do not overlap
   PASS  desktop/receipt-capture-failed: heading "Payment not completed" and the order id shown (Payment not completed)
-  PASS  desktop/receipt-capture-failed: status pill says "Not completed" (the raw CAPTURE_FAILED stays in the page data only), mode says sandbox
+  PASS  desktop/receipt-capture-failed: status pill says "Not completed" (the raw CAPTURE_FAILED stays in the page data only), the page names the sandbox twice (header badge, Mode row), once more only where the server's own error text says it
   PASS  desktop/receipt-capture-failed: no raw codes in the text and "Nothing was charged" is said at most once (Payment not completedPayPal did not finish the payment. Nothing was charged.The )
   PASS  desktop/receipt-capture-failed: the step bar keeps Checkout as the current step instead of ticking it (2 done, current 3Checkout)
   PASS  desktop/receipt-capture-failed: exactly one filled button ("Check and try again") among Check and try again, Start a new gift (Check and try again)
@@ -258,7 +264,7 @@ TOUR desktop 1280x800: every state
   PASS  28-receipt-capture-failed-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
   PASS  28-receipt-capture-failed-1280.png: the brand and the badges do not overlap
   PASS  desktop/receipt-not-approved: heading "Payment not approved yet" and the order id shown (Payment not approved yet)
-  PASS  desktop/receipt-not-approved: status pill says "Not approved yet" (the raw NOT_APPROVED stays in the page data only), mode says sandbox
+  PASS  desktop/receipt-not-approved: status pill says "Not approved yet" (the raw NOT_APPROVED stays in the page data only), the page names the sandbox twice (header badge, Mode row), once more only where the server's own error text says it
   PASS  desktop/receipt-not-approved: no raw codes in the text and "Nothing was charged" is said at most once (Payment not approved yetPayPal does not show this order as approved. Nothing was)
   PASS  desktop/receipt-not-approved: the step bar keeps Checkout as the current step instead of ticking it (2 done, current 3Checkout)
   PASS  desktop/receipt-not-approved: exactly one filled button ("Back to checkout") among Back to checkout, I approved it, check again (Back to checkout)
@@ -266,7 +272,7 @@ TOUR desktop 1280x800: every state
   PASS  29-receipt-not-approved-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
   PASS  29-receipt-not-approved-1280.png: the brand and the badges do not overlap
   PASS  desktop/receipt-created: heading "Waiting for your approval on PayPal" and the order id shown (Waiting for your approval on PayPal)
-  PASS  desktop/receipt-created: status pill says "Waiting for approval" (the raw CREATED stays in the page data only), mode says sandbox
+  PASS  desktop/receipt-created: status pill says "Waiting for approval" (the raw CREATED stays in the page data only), the page names the sandbox twice (header badge, Mode row), once more only where the server's own error text says it
   PASS  desktop/receipt-created: no raw codes in the text and "Nothing was charged" is said at most once (Waiting for your approval on PayPalThe order exists, but it has not been approve)
   PASS  desktop/receipt-created: the step bar keeps Checkout as the current step instead of ticking it (2 done, current 3Checkout)
   PASS  desktop/receipt-created: exactly one filled button ("I approved it, check again") among I approved it, check again, Start a new gift (I approved it, check again)
@@ -274,7 +280,7 @@ TOUR desktop 1280x800: every state
   PASS  30-receipt-created-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
   PASS  30-receipt-created-1280.png: the brand and the badges do not overlap
   PASS  desktop/receipt-cancelled: heading "Payment cancelled" and the order id shown (Payment cancelled)
-  PASS  desktop/receipt-cancelled: status pill says "Cancelled" (the raw CANCELLED stays in the page data only), mode says sandbox
+  PASS  desktop/receipt-cancelled: status pill says "Cancelled" (the raw CANCELLED stays in the page data only), the page names the sandbox twice (header badge, Mode row), once more only where the server's own error text says it
   PASS  desktop/receipt-cancelled: no raw codes in the text and "Nothing was charged" is said at most once (Payment cancelledYou cancelled on PayPal’s page. Nothing was charged.Order id7EX)
   PASS  desktop/receipt-cancelled: the step bar keeps Checkout as the current step instead of ticking it (2 done, current 3Checkout)
   PASS  desktop/receipt-cancelled: exactly one filled button ("Start a new gift") among Start a new gift (Start a new gift)
@@ -301,6 +307,9 @@ TOUR desktop 1280x800: every state
   PASS  desktop/checkout live: header, nav, main, footer landmarks and a live region (1111)
   PASS  35-checkout-live-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
   PASS  35-checkout-live-1280.png: the brand and the badges do not overlap
+  PASS  desktop/checkout: ?images=off hides the line photos (0 shown)
+  PASS  36-checkout-images-off-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  36-checkout-images-off-1280.png: the brand and the badges do not overlap
   journeys (desktop)
   PASS  desktop/keyboard: Tab reaches the favourites field; Enter and comma add chips (3 chips)
   PASS  desktop/keyboard: Tab reaches the budget; Enter in it submits
@@ -319,7 +328,7 @@ TOUR mobile 390x844: every state
   PASS  mobile/home: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
   PASS  mobile/home: touch targets at least 24x24 px (inline links excepted)
   PASS  mobile/home: header, nav, main, footer landmarks and a live region (1111)
-  PASS  mobile/home: 10 keyboard stops, each with a visible focus ring
+  PASS  mobile/home: 12 keyboard stops, each with a visible focus ring
   PASS  01-home-empty-390.png: no sideways scroll (390 px wide in a 390 px window)
   PASS  01-home-empty-390.png: the brand and the badges do not overlap
   PASS  mobile/home: four chips with their type hints, count line and budget (4 of 5 added.)
@@ -346,6 +355,7 @@ TOUR mobile 390x844: every state
   PASS  05-ideas-running-early-390.png: no sideways scroll (390 px wide in a 390 px window)
   PASS  05-ideas-running-early-390.png: the brand and the badges do not overlap
   PASS  mobile/ideas: two idea cards have arrived and the loading placeholders for the others remain
+  PASS  mobile/ideas: layout shift while steps and ideas stream in is at most 0.1 (CLS 0)
   PASS  06-ideas-running-mid-390.png: no sideways scroll (390 px wide in a 390 px window)
   PASS  06-ideas-running-mid-390.png: the brand and the badges do not overlap
   PASS  mobile/ideas: stopping early keeps the ideas, says so, and offers to try again (The agent stopped early / Try again, Try an example)
@@ -370,7 +380,7 @@ TOUR mobile 390x844: every state
   PASS  mobile/ideas: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
   PASS  mobile/ideas: touch targets at least 24x24 px (inline links excepted)
   PASS  mobile/ideas: header, nav, main, footer landmarks and a live region (1111)
-  PASS  mobile/ideas: 24 keyboard stops, each with a visible focus ring
+  PASS  mobile/ideas: 27 keyboard stops, each with a visible focus ring
   PASS  08-ideas-example-390.png: no sideways scroll (390 px wide in a 390 px window)
   PASS  08-ideas-example-390.png: the brand and the badges do not overlap
   PASS  mobile/ideas: "Review and pay" is disabled until something is picked
@@ -421,14 +431,14 @@ TOUR mobile 390x844: every state
   PASS  mobile/checkout: the sandbox label and the working test card are on screen
   PASS  mobile/checkout: the only filled button on the screen is Pay (the way back is an outline button)
   PASS  mobile/checkout: the pay button names the exact total (Pay $36.98 with PayPal)
-  PASS  mobile/checkout: pressing Copy moves nothing on the page (the label changes, the layout does not) (Pay button at 1480 px, then 1480 px)
+  PASS  mobile/checkout: pressing Copy moves nothing on the page (the label changes, the layout does not) (Pay button at 1504 px, then 1504 px)
   PASS  mobile/checkout: the Copied label goes back to Copy by itself
   PASS  mobile/checkout: lang and a page title (en, "Checkout · Tasteloom")
   PASS  mobile/checkout: every control has an accessible name
   PASS  mobile/checkout: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
   PASS  mobile/checkout: touch targets at least 24x24 px (inline links excepted)
   PASS  mobile/checkout: header, nav, main, footer landmarks and a live region (1111)
-  PASS  mobile/checkout: 3 keyboard stops, each with a visible focus ring
+  PASS  mobile/checkout: 11 keyboard stops, each with a visible focus ring
   PASS  18-checkout-390.png: no sideways scroll (390 px wide in a 390 px window)
   PASS  18-checkout-390.png: the brand and the badges do not overlap
   PASS  mobile/checkout: removing an item updates the list, the total and the pay button (Pay $11.99 with PayPal)
@@ -450,6 +460,7 @@ TOUR mobile 390x844: every state
   PASS  mobile/checkout error: header, nav, main, footer landmarks and a live region (1111)
   PASS  21-checkout-error-upstream-390.png: no sideways scroll (390 px wide in a 390 px window)
   PASS  21-checkout-error-upstream-390.png: the brand and the badges do not overlap
+  PASS  mobile/checkout: upstream: with no :has() support (rule dropped, @supports fallback applied) there is still exactly one "Back to ideas" (1 visible)
   PASS  mobile/checkout: over budget: one "Back to ideas" on the screen, not two
   PASS  mobile/checkout: over budget (counted on the page): the banner, the "Over budget by" row and the Pay button agree (Over budget by$5.00 / Back to ideas)
   PASS  mobile/checkout over budget: lang and a page title (en, "Checkout · Tasteloom")
@@ -461,17 +472,20 @@ TOUR mobile 390x844: every state
   PASS  22-checkout-error-over-budget-390.png: the brand and the badges do not overlap
   PASS  mobile/checkout: removing the dearest item clears the over-budget banner and switches Pay on (removed 4490 cents)
   PASS  mobile/checkout: when the server refuses a total, Pay is off with a reason and "Back to ideas" is the one filled button
+  PASS  mobile/checkout: over budget: with no :has() support there is still exactly one "Back to ideas" (1 visible)
   PASS  mobile/checkout: removing an item clears a refusal that removing can fix (1 item left)
   PASS  mobile/checkout: session: one "Back to ideas" on the screen, not two (1 visible)
   PASS  mobile/checkout: session: title "Your session expired" and actions Start over, Try an example (Your session expired / Start over, Try an example)
   PASS  mobile/checkout: session: one filled button ("Start over") and Pay is switched off with a reason; the message does not repeat the title (Start over / pay off true / The saved prices are gone, so this gift cannot be ordered. Start over, or try the example.)
   PASS  23-checkout-error-session-390.png: no sideways scroll (390 px wide in a 390 px window)
   PASS  23-checkout-error-session-390.png: the brand and the badges do not overlap
+  PASS  mobile/checkout: session: with no :has() support (rule dropped, @supports fallback applied) there is still exactly one "Back to ideas" (1 visible)
   PASS  mobile/checkout: network: one "Back to ideas" on the screen, not two (1 visible)
   PASS  mobile/checkout: network: title "We could not reach the server" and actions Try again, Back to ideas (We could not reach the server / Try again, Back to ideas)
   PASS  mobile/checkout: network: Pay stays the one filled button and stays on; the message does not repeat the title ( / pay off false / Check your connection and try again.)
   PASS  24-checkout-error-network-390.png: no sideways scroll (390 px wide in a 390 px window)
   PASS  24-checkout-error-network-390.png: the brand and the badges do not overlap
+  PASS  mobile/checkout: network: with no :has() support (rule dropped, @supports fallback applied) there is still exactly one "Back to ideas" (1 visible)
   PASS  mobile/checkout: after cancelling on PayPal the page says nothing was charged and keeps the gift (You cancelled on PayPal’s page, so nothing was charged. Your gift is still here.)
   PASS  25-checkout-cancelled-390.png: no sideways scroll (390 px wide in a 390 px window)
   PASS  25-checkout-cancelled-390.png: the brand and the badges do not overlap
@@ -479,8 +493,8 @@ TOUR mobile 390x844: every state
   PASS  26-receipt-loading-390.png: no sideways scroll (390 px wide in a 390 px window)
   PASS  26-receipt-loading-390.png: the brand and the badges do not overlap
   PASS  mobile/receipt-completed: heading "Order confirmed" and the order id shown (Order confirmed)
-  PASS  mobile/receipt-completed: status pill says "Completed" (the raw COMPLETED stays in the page data only), mode says sandbox
-  PASS  mobile/receipt-completed: no raw codes in the text and "Nothing was charged" is said at most once (Order confirmedPayment approved and captured. Sandbox, no real money moved.Order)
+  PASS  mobile/receipt-completed: status pill says "Completed" (the raw COMPLETED stays in the page data only), the page names the sandbox twice (header badge, Mode row), once more only where the server's own error text says it
+  PASS  mobile/receipt-completed: no raw codes in the text and "Nothing was charged" is said at most once (Order confirmedPayment approved and captured.Order id7EX35260AB123456CCopyStatus)
   PASS  mobile/receipt-completed: the step bar ticks all three steps (3 done, current null)
   PASS  mobile/receipt-completed: exactly one filled button ("Start a new gift") among Start a new gift (Start a new gift)
   PASS  mobile/receipt-completed: no extra banner repeats the subtitle (none)
@@ -490,11 +504,11 @@ TOUR mobile 390x844: every state
   PASS  mobile/receipt: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
   PASS  mobile/receipt: touch targets at least 24x24 px (inline links excepted)
   PASS  mobile/receipt: header, nav, main, footer landmarks and a live region (1111)
-  PASS  mobile/receipt: 4 keyboard stops, each with a visible focus ring
+  PASS  mobile/receipt: 8 keyboard stops, each with a visible focus ring
   PASS  27-receipt-completed-390.png: no sideways scroll (390 px wide in a 390 px window)
   PASS  27-receipt-completed-390.png: the brand and the badges do not overlap
   PASS  mobile/receipt-capture-failed: heading "Payment not completed" and the order id shown (Payment not completed)
-  PASS  mobile/receipt-capture-failed: status pill says "Not completed" (the raw CAPTURE_FAILED stays in the page data only), mode says sandbox
+  PASS  mobile/receipt-capture-failed: status pill says "Not completed" (the raw CAPTURE_FAILED stays in the page data only), the page names the sandbox twice (header badge, Mode row), once more only where the server's own error text says it
   PASS  mobile/receipt-capture-failed: no raw codes in the text and "Nothing was charged" is said at most once (Payment not completedPayPal did not finish the payment. Nothing was charged.The )
   PASS  mobile/receipt-capture-failed: the step bar keeps Checkout as the current step instead of ticking it (2 done, current 3Checkout)
   PASS  mobile/receipt-capture-failed: exactly one filled button ("Check and try again") among Check and try again, Start a new gift (Check and try again)
@@ -502,7 +516,7 @@ TOUR mobile 390x844: every state
   PASS  28-receipt-capture-failed-390.png: no sideways scroll (390 px wide in a 390 px window)
   PASS  28-receipt-capture-failed-390.png: the brand and the badges do not overlap
   PASS  mobile/receipt-not-approved: heading "Payment not approved yet" and the order id shown (Payment not approved yet)
-  PASS  mobile/receipt-not-approved: status pill says "Not approved yet" (the raw NOT_APPROVED stays in the page data only), mode says sandbox
+  PASS  mobile/receipt-not-approved: status pill says "Not approved yet" (the raw NOT_APPROVED stays in the page data only), the page names the sandbox twice (header badge, Mode row), once more only where the server's own error text says it
   PASS  mobile/receipt-not-approved: no raw codes in the text and "Nothing was charged" is said at most once (Payment not approved yetPayPal does not show this order as approved. Nothing was)
   PASS  mobile/receipt-not-approved: the step bar keeps Checkout as the current step instead of ticking it (2 done, current 3Checkout)
   PASS  mobile/receipt-not-approved: exactly one filled button ("Back to checkout") among Back to checkout, I approved it, check again (Back to checkout)
@@ -510,7 +524,7 @@ TOUR mobile 390x844: every state
   PASS  29-receipt-not-approved-390.png: no sideways scroll (390 px wide in a 390 px window)
   PASS  29-receipt-not-approved-390.png: the brand and the badges do not overlap
   PASS  mobile/receipt-created: heading "Waiting for your approval on PayPal" and the order id shown (Waiting for your approval on PayPal)
-  PASS  mobile/receipt-created: status pill says "Waiting for approval" (the raw CREATED stays in the page data only), mode says sandbox
+  PASS  mobile/receipt-created: status pill says "Waiting for approval" (the raw CREATED stays in the page data only), the page names the sandbox twice (header badge, Mode row), once more only where the server's own error text says it
   PASS  mobile/receipt-created: no raw codes in the text and "Nothing was charged" is said at most once (Waiting for your approval on PayPalThe order exists, but it has not been approve)
   PASS  mobile/receipt-created: the step bar keeps Checkout as the current step instead of ticking it (2 done, current 3Checkout)
   PASS  mobile/receipt-created: exactly one filled button ("I approved it, check again") among I approved it, check again, Start a new gift (I approved it, check again)
@@ -518,7 +532,7 @@ TOUR mobile 390x844: every state
   PASS  30-receipt-created-390.png: no sideways scroll (390 px wide in a 390 px window)
   PASS  30-receipt-created-390.png: the brand and the badges do not overlap
   PASS  mobile/receipt-cancelled: heading "Payment cancelled" and the order id shown (Payment cancelled)
-  PASS  mobile/receipt-cancelled: status pill says "Cancelled" (the raw CANCELLED stays in the page data only), mode says sandbox
+  PASS  mobile/receipt-cancelled: status pill says "Cancelled" (the raw CANCELLED stays in the page data only), the page names the sandbox twice (header badge, Mode row), once more only where the server's own error text says it
   PASS  mobile/receipt-cancelled: no raw codes in the text and "Nothing was charged" is said at most once (Payment cancelledYou cancelled on PayPal’s page. Nothing was charged.Order id7EX)
   PASS  mobile/receipt-cancelled: the step bar keeps Checkout as the current step instead of ticking it (2 done, current 3Checkout)
   PASS  mobile/receipt-cancelled: exactly one filled button ("Start a new gift") among Start a new gift (Start a new gift)
@@ -545,6 +559,9 @@ TOUR mobile 390x844: every state
   PASS  mobile/checkout live: header, nav, main, footer landmarks and a live region (1111)
   PASS  35-checkout-live-390.png: no sideways scroll (390 px wide in a 390 px window)
   PASS  35-checkout-live-390.png: the brand and the badges do not overlap
+  PASS  mobile/checkout: ?images=off hides the line photos (0 shown)
+  PASS  36-checkout-images-off-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  36-checkout-images-off-390.png: the brand and the badges do not overlap
   journeys (mobile)
   PASS  mobile/keyboard: Tab reaches the favourites field; Enter and comma add chips (3 chips)
   PASS  mobile/keyboard: Tab reaches the budget; Enter in it submits
@@ -563,7 +580,7 @@ TOUR tablet 768x1024: key screens
   PASS  tablet/home: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
   PASS  tablet/home: touch targets at least 24x24 px (inline links excepted)
   PASS  tablet/home: header, nav, main, footer landmarks and a live region (1111)
-  PASS  tablet/home: 10 keyboard stops, each with a visible focus ring
+  PASS  tablet/home: 12 keyboard stops, each with a visible focus ring
   PASS  01-home-empty-768.png: no sideways scroll (753 px wide in a 768 px window)
   PASS  01-home-empty-768.png: the brand and the badges do not overlap
   PASS  tablet/ideas: while running, the heading, step 2, a running phase, tool calls and skeleton cards
@@ -579,13 +596,13 @@ TOUR tablet 768x1024: key screens
   PASS  tablet/ideas: example run finished with ideas, product cards and the saved-example note (4 ideas, 9 buyable cards)
   PASS  tablet/ideas: each idea says why ("Because they love ..." or the overall-taste line)
   PASS  tablet/ideas: each product card shows a price, a shop and a link that opens safely
-  PASS  tablet/ideas: layout shift while the example loads is at most 0.1 (CLS 0.005)
+  PASS  tablet/ideas: layout shift while the example loads is at most 0.1 (CLS 0.006)
   PASS  tablet/ideas: lang and a page title (en, "Gift ideas · Tasteloom")
   PASS  tablet/ideas: every control has an accessible name
   PASS  tablet/ideas: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
   PASS  tablet/ideas: touch targets at least 24x24 px (inline links excepted)
   PASS  tablet/ideas: header, nav, main, footer landmarks and a live region (1111)
-  PASS  tablet/ideas: 24 keyboard stops, each with a visible focus ring
+  PASS  tablet/ideas: 27 keyboard stops, each with a visible focus ring
   PASS  08-ideas-example-768.png: no sideways scroll (753 px wide in a 768 px window)
   PASS  08-ideas-example-768.png: the brand and the badges do not overlap
   PASS  tablet/ideas: "Review and pay" is disabled until something is picked
@@ -618,13 +635,13 @@ TOUR tablet 768x1024: key screens
   PASS  tablet/checkout: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
   PASS  tablet/checkout: touch targets at least 24x24 px (inline links excepted)
   PASS  tablet/checkout: header, nav, main, footer landmarks and a live region (1111)
-  PASS  tablet/checkout: 3 keyboard stops, each with a visible focus ring
+  PASS  tablet/checkout: 11 keyboard stops, each with a visible focus ring
   PASS  18-checkout-768.png: no sideways scroll (753 px wide in a 768 px window)
   PASS  18-checkout-768.png: the brand and the badges do not overlap
   PASS  tablet/checkout: removing an item updates the list, the total and the pay button (Pay $11.99 with PayPal)
   PASS  tablet/receipt-completed: heading "Order confirmed" and the order id shown (Order confirmed)
-  PASS  tablet/receipt-completed: status pill says "Completed" (the raw COMPLETED stays in the page data only), mode says sandbox
-  PASS  tablet/receipt-completed: no raw codes in the text and "Nothing was charged" is said at most once (Order confirmedPayment approved and captured. Sandbox, no real money moved.Order)
+  PASS  tablet/receipt-completed: status pill says "Completed" (the raw COMPLETED stays in the page data only), the page names the sandbox twice (header badge, Mode row), once more only where the server's own error text says it
+  PASS  tablet/receipt-completed: no raw codes in the text and "Nothing was charged" is said at most once (Order confirmedPayment approved and captured.Order id7EX35260AB123456CCopyStatus)
   PASS  tablet/receipt-completed: the step bar ticks all three steps (3 done, current null)
   PASS  tablet/receipt-completed: exactly one filled button ("Start a new gift") among Start a new gift (Start a new gift)
   PASS  tablet/receipt-completed: no extra banner repeats the subtitle (none)
@@ -634,7 +651,7 @@ TOUR tablet 768x1024: key screens
   PASS  tablet/receipt: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
   PASS  tablet/receipt: touch targets at least 24x24 px (inline links excepted)
   PASS  tablet/receipt: header, nav, main, footer landmarks and a live region (1111)
-  PASS  tablet/receipt: 4 keyboard stops, each with a visible focus ring
+  PASS  tablet/receipt: 8 keyboard stops, each with a visible focus ring
   PASS  27-receipt-completed-768.png: no sideways scroll (753 px wide in a 768 px window)
   PASS  27-receipt-completed-768.png: the brand and the badges do not overlap
   PASS  tablet/ideas live: lang and a page title (en, "Gift ideas · Tasteloom")
@@ -661,7 +678,7 @@ TOUR narrow 320x640: key screens
   PASS  narrow/home: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
   PASS  narrow/home: touch targets at least 24x24 px (inline links excepted)
   PASS  narrow/home: header, nav, main, footer landmarks and a live region (1111)
-  PASS  narrow/home: 10 keyboard stops, each with a visible focus ring
+  PASS  narrow/home: 12 keyboard stops, each with a visible focus ring
   PASS  01-home-empty-320.png: no sideways scroll (320 px wide in a 320 px window)
   PASS  01-home-empty-320.png: the brand and the badges do not overlap
   PASS  narrow/ideas: while running, the heading, step 2, a running phase, tool calls and skeleton cards
@@ -683,7 +700,7 @@ TOUR narrow 320x640: key screens
   PASS  narrow/ideas: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
   PASS  narrow/ideas: touch targets at least 24x24 px (inline links excepted)
   PASS  narrow/ideas: header, nav, main, footer landmarks and a live region (1111)
-  PASS  narrow/ideas: 24 keyboard stops, each with a visible focus ring
+  PASS  narrow/ideas: 27 keyboard stops, each with a visible focus ring
   PASS  08-ideas-example-320.png: no sideways scroll (320 px wide in a 320 px window)
   PASS  08-ideas-example-320.png: the brand and the badges do not overlap
   PASS  narrow/ideas: "Review and pay" is disabled until something is picked
@@ -709,20 +726,20 @@ TOUR narrow 320x640: key screens
   PASS  narrow/checkout: the sandbox label and the working test card are on screen
   PASS  narrow/checkout: the only filled button on the screen is Pay (the way back is an outline button)
   PASS  narrow/checkout: the pay button names the exact total (Pay $36.98 with PayPal)
-  PASS  narrow/checkout: pressing Copy moves nothing on the page (the label changes, the layout does not) (Pay button at 1667 px, then 1667 px)
+  PASS  narrow/checkout: pressing Copy moves nothing on the page (the label changes, the layout does not) (Pay button at 1747 px, then 1747 px)
   PASS  narrow/checkout: the Copied label goes back to Copy by itself
   PASS  narrow/checkout: lang and a page title (en, "Checkout · Tasteloom")
   PASS  narrow/checkout: every control has an accessible name
   PASS  narrow/checkout: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
   PASS  narrow/checkout: touch targets at least 24x24 px (inline links excepted)
   PASS  narrow/checkout: header, nav, main, footer landmarks and a live region (1111)
-  PASS  narrow/checkout: 3 keyboard stops, each with a visible focus ring
+  PASS  narrow/checkout: 11 keyboard stops, each with a visible focus ring
   PASS  18-checkout-320.png: no sideways scroll (320 px wide in a 320 px window)
   PASS  18-checkout-320.png: the brand and the badges do not overlap
   PASS  narrow/checkout: removing an item updates the list, the total and the pay button (Pay $11.99 with PayPal)
   PASS  narrow/receipt-completed: heading "Order confirmed" and the order id shown (Order confirmed)
-  PASS  narrow/receipt-completed: status pill says "Completed" (the raw COMPLETED stays in the page data only), mode says sandbox
-  PASS  narrow/receipt-completed: no raw codes in the text and "Nothing was charged" is said at most once (Order confirmedPayment approved and captured. Sandbox, no real money moved.Order)
+  PASS  narrow/receipt-completed: status pill says "Completed" (the raw COMPLETED stays in the page data only), the page names the sandbox twice (header badge, Mode row), once more only where the server's own error text says it
+  PASS  narrow/receipt-completed: no raw codes in the text and "Nothing was charged" is said at most once (Order confirmedPayment approved and captured.Order id7EX35260AB123456CCopyStatus)
   PASS  narrow/receipt-completed: the step bar ticks all three steps (3 done, current null)
   PASS  narrow/receipt-completed: exactly one filled button ("Start a new gift") among Start a new gift (Start a new gift)
   PASS  narrow/receipt-completed: no extra banner repeats the subtitle (none)
@@ -732,7 +749,7 @@ TOUR narrow 320x640: key screens
   PASS  narrow/receipt: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
   PASS  narrow/receipt: touch targets at least 24x24 px (inline links excepted)
   PASS  narrow/receipt: header, nav, main, footer landmarks and a live region (1111)
-  PASS  narrow/receipt: 4 keyboard stops, each with a visible focus ring
+  PASS  narrow/receipt: 8 keyboard stops, each with a visible focus ring
   PASS  27-receipt-completed-320.png: no sideways scroll (320 px wide in a 320 px window)
   PASS  27-receipt-completed-320.png: the brand and the badges do not overlap
   PASS  narrow/ideas live: lang and a page title (en, "Gift ideas · Tasteloom")
@@ -751,9 +768,9 @@ TOUR narrow 320x640: key screens
   PASS  35-checkout-live-320.png: the brand and the badges do not overlap
   PASS  tour: no billed call (Nebius, Tavily, Channel3) was made by the tour (deltas 0/0/0)
   PASS  no console errors or uncaught exceptions from the app (all pages, all states) (0)
-  PASS  no stray "null", "undefined", "NaN" or "[object ...]" text on any of the 97 screenshotted screens
+  PASS  no stray "null", "undefined", "NaN" or "[object ...]" text on any of the 99 screenshotted screens
   third-party resource failures (shop images the page drops by itself, not app errors): 16
 
-SCREENSHOTS 97 in evidence/screens/
-SANDBOX ORDER 80L301047U831805B COMPLETED (payment id 90097724X0209925J)
-RESULT PASS: 741 checks passed, 0 failed, 227 s
+SCREENSHOTS 99 in evidence/screens/
+SANDBOX ORDER 9DE45037CP221881L COMPLETED (payment id 7ES69041NV5927046)
+RESULT PASS: 758 checks passed, 0 failed, 229 s
