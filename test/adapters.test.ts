@@ -90,7 +90,7 @@ test('channel3: searchProducts sends the documented request, caches for 12 h and
   const call = net.calls[0]!;
   assert.deepEqual([call.method, call.path, call.headers['x-api-key']], ['POST', '/v1/search', 'c3-test']);
   assert.deepEqual(call.body.filters, { price: { max_price: 40 } });
-  assert.equal(svc.meter.used().global.channel3, 1);
+  assert.equal((await svc.meter.used()).global.channel3, 1);
 });
 
 test('channel3: with no key the adapter is off and spends nothing', async () => {
@@ -266,7 +266,7 @@ test('nebius: chat sends the OpenAI request with the key in the header, tools an
   const c = net.calls[0]!;
   assert.deepEqual([c.host, c.path, c.headers.Authorization], ['api.tokenfactory.nebius.com', '/v1/chat/completions', 'Bearer nb-test-key-123']);
   assert.deepEqual([c.body.model, c.body.tool_choice, c.body.tools.length], ['nvidia/test', { type: 'function', function: { name: 'create_order' } }, 1]);
-  assert.equal(svc.meter.used().ip.nebius, 1);
+  assert.equal((await svc.meter.used()).ip.nebius, 1);
 });
 
 test('nebius: one retry on a server error, none on a client error', async () => {
@@ -315,7 +315,8 @@ test('http: billed services spend the counter first and the subrequest budget; m
   svc.sub.left = 3;
   await callJson(svc, 'tavily', 'https://api.tavily.com/search', {});
   await callJson(svc, 'channel3', 'https://api.trychannel3.com/v1/search', {});
-  assert.deepEqual([svc.sub.left, svc.meter.used().global.tavily, svc.meter.used().global.channel3], [1, 1, 1]);
+  const u = (await svc.meter.used()).global;
+  assert.deepEqual([svc.sub.left, u.tavily, u.channel3], [1, 1, 1]);
   svc.mocks.qloo = async () => json({});
   await callJson(svc, 'qloo', 'https://hackathon.api.qloo.com/search', {});
   assert.equal(svc.sub.left, 1);

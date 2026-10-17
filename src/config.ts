@@ -42,9 +42,26 @@ export function loadConfig(env: Env): Config {
   };
   const L = (name: string, d: number) => num(env[`LIMIT_${name}`], d);
   const limits: Limits = {
-    ip: { ideas: L('IP_IDEAS', 8), nebius: L('IP_NEBIUS', 80), tavily: L('IP_TAVILY', 40), channel3: L('IP_CHANNEL3', 40), orders: L('IP_ORDERS', 8) },
-    // global defaults sit under the free quotas of the sponsors' plans (Channel3 1,000 searches a month, Tavily 1,000 credits a month)
-    global: { ideas: L('GLOBAL_IDEAS', 100), nebius: L('GLOBAL_NEBIUS', 600), tavily: L('GLOBAL_TAVILY', 100), channel3: L('GLOBAL_CHANNEL3', 60), orders: L('GLOBAL_ORDERS', 100) },
+    // a live run costs about 7 Qloo, 6 Nebius (~20k estimated tokens), 5 Channel3 and 4 Tavily calls (mocked count, evidence/security-review.md)
+    ip: {
+      ideas: L('IP_IDEAS', 8),
+      qloo: L('IP_QLOO', 60),
+      nebius: L('IP_NEBIUS', 80),
+      tokens: L('IP_TOKENS', 150_000),
+      tavily: L('IP_TAVILY', 10),
+      channel3: L('IP_CHANNEL3', 10),
+      orders: L('IP_ORDERS', 8),
+    },
+    // global: 31 days of Channel3 or Tavily stay under 1,000 a month (free plans); 400k tokens a day for 60 days at $0.90 per 1M stay under the $25 Nebius credit
+    global: {
+      ideas: L('GLOBAL_IDEAS', 100),
+      qloo: L('GLOBAL_QLOO', 600),
+      nebius: L('GLOBAL_NEBIUS', 600),
+      tokens: L('GLOBAL_TOKENS', 400_000),
+      tavily: L('GLOBAL_TAVILY', 30),
+      channel3: L('GLOBAL_CHANNEL3', 30),
+      orders: L('GLOBAL_ORDERS', 100),
+    },
     dailyCapCents: Math.round(L('DAILY_CAP_USD', 2000) * 100),
     maxItems: L('MAX_ITEMS', 6),
     minBudgetCents: 1000,

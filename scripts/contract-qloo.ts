@@ -4,7 +4,7 @@
 import { insights, searchEntity } from '../src/adapters/qloo.ts';
 import { loadConfig } from '../src/config.ts';
 import type { Svc } from '../src/lib/http.ts';
-import { Meter } from '../src/lib/limits.ts';
+import { Meter, memoryMeterApi } from '../src/lib/limits.ts';
 import { memoryStore } from '../src/lib/store.ts';
 import type { Env, FetchFn } from '../src/types.ts';
 import { loadEnvLocal } from './lib/env.mjs';
@@ -14,7 +14,7 @@ export const MAX_CALLS = 5; // 2 searches + 3 insight lookups
 
 export async function makeSvc(env: Partial<Env>, fetchFn: FetchFn, maxCalls = MAX_CALLS): Promise<Svc> {
   const cfg = loadConfig(env as Env);
-  return { cfg, fetch: fetchFn, store: memoryStore(), meter: await Meter.load(memoryStore(), cfg.limits, 'contract', 'contract'), sub: { left: maxCalls }, mocks: {} }; // sub.left is the hard stop
+  return { cfg, fetch: fetchFn, store: memoryStore(), meter: new Meter(memoryMeterApi(), cfg.limits, 'contract', 'contract'), sub: { left: maxCalls }, mocks: {} }; // sub.left is the hard stop
 }
 
 /** The checks, as [name, passed] pairs, plus the error text if a call threw. */

@@ -1,5 +1,5 @@
 // Key-value store: Cloudflare KV in the Worker, a Map in tests and as a per-isolate fallback when no KV binding exists.
-// shortcut: KV is eventually consistent and has no atomic increment, so counters are soft caps; use a Durable Object for hard caps.
+// Sessions, orders and the response cache live here. Spend counters do not: KV has no atomic increment (src/lib/limits.ts).
 
 export interface Store {
   get(key: string): Promise<string | null>;

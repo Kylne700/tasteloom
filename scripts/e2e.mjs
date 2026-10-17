@@ -189,9 +189,9 @@ async function live(browser) {
   } else say(`  NOT VERIFIED over HTTP: the ${all.length} buyable cards sum to ${money(sum)}, within the $120 cap (the unit tests cover the over-cap refusal)`);
 
   const after = (await api('/api/status')).json;
-  out.usage = Object.fromEntries(['ideas', 'nebius', 'tavily', 'channel3', 'orders'].map((k) => [k, (after.usage?.[k] ?? 0) - (before.usage?.[k] ?? 0)]));
+  out.usage = Object.fromEntries(['ideas', 'qloo', 'nebius', 'tokens', 'tavily', 'channel3', 'orders'].map((k) => [k, (after.usage?.[k] ?? 0) - (before.usage?.[k] ?? 0)]));
   say(`  billed calls this live phase (counter deltas): ${JSON.stringify(out.usage)}`);
-  check('live: spend stayed inside the stage budget (Channel3 <= 20, Tavily <= 30 for one run)', out.usage.channel3 <= 20 && out.usage.tavily <= 30, JSON.stringify(out.usage));
+  check('live: the meter counted the run, and spend stayed inside the stage budget (Channel3 <= 20, Tavily <= 30 for one run)', out.usage.ideas >= 1 && out.usage.channel3 <= 20 && out.usage.tavily <= 30, JSON.stringify(out.usage));
   await ctx.close();
 }
 
@@ -213,8 +213,8 @@ async function tour(browser) {
   ];
   for (const r of rounds) if (!process.env.TOUR_ROUNDS || process.env.TOUR_ROUNDS.split(',').includes(r.name)) await tourRound(browser, r, sample, liveRun); // TOUR_ROUNDS, TOUR_STATES: debugging aids
   const after = (await api('/api/status')).json.usage || {};
-  const spent = ['nebius', 'tavily', 'channel3'].map((k) => (after[k] ?? 0) - (before[k] ?? 0));
-  check('tour: no billed call (Nebius, Tavily, Channel3) was made by the tour', spent.every((n) => n === 0), `deltas ${spent.join('/')}`);
+  const spent = ['qloo', 'nebius', 'tavily', 'channel3'].map((k) => (after[k] ?? 0) - (before[k] ?? 0));
+  check('tour: no billed call (Qloo, Nebius, Tavily, Channel3) was made by the tour', spent.every((n) => n === 0), `deltas ${spent.join('/')}`);
 }
 
 // ---- main ---------------------------------------------------------------------------------------------------------------

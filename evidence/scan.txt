@@ -1,10 +1,10 @@
 scan: 5 secret value(s) from .env.local checked (entries shorter than 8 characters skipped); denylist has 5 pattern(s), 0 unusable (empty or CR)
-  git tree (tracked + untracked, not ignored): 74 file(s), secret hits 0, denylist lines 0
+  git tree (tracked + untracked, not ignored): 79 file(s), secret hits 0, denylist lines 0
   built assets (.build/): 3 file(s), secret hits 0, denylist lines 0
   ignored local output (evidence/debug/, evidence/screens/): 199 file(s), secret hits 0, denylist lines 0
   logs (/tmp/ta-wrangler.log): 1 file(s), secret hits 0, denylist lines 0
-  git history and commit metadata (939397 bytes of log): secret hits 0, denylist lines 0
-  file names (74): denylist lines 0
+  git history and commit metadata (1008315 bytes of log): secret hits 0, denylist lines 0
+  file names (79): denylist lines 0
   PASS  no .env* or .dev.vars file is tracked
   PASS  .dev.vars is git-ignored
   PASS  .dev.vars is mode 600 (or absent)

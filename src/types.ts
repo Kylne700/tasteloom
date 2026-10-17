@@ -5,6 +5,8 @@ export type FetchFn = (input: string, init?: RequestInit) => Promise<Response>;
 /** Worker bindings and vars. Secrets come from .dev.vars locally (generated from ../.env.local) or `wrangler secret` in production. */
 export interface Env {
   KV?: KVNamespace;
+  /** the spend meter (src/lib/limits.ts); without it every billed call is refused */
+  METER?: DurableObjectNamespace;
   ASSETS?: { fetch: (req: Request) => Promise<Response> };
   QLOO_API_KEY?: string;
   NEBIUS_API_KEY?: string;
@@ -24,7 +26,8 @@ export interface Env {
   [k: `LIMIT_${string}`]: string | undefined;
 }
 
-export type CounterName = 'ideas' | 'nebius' | 'tavily' | 'channel3' | 'orders' | 'cents';
+/** Daily counters. `tokens` is the Nebius estimate (prompt characters / 3 + max_tokens); `cents` is the sum of sandbox order totals. */
+export type CounterName = 'ideas' | 'qloo' | 'nebius' | 'tokens' | 'tavily' | 'channel3' | 'orders' | 'cents';
 
 export interface Limits {
   ip: Record<Exclude<CounterName, 'cents'>, number>;

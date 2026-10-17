@@ -92,7 +92,7 @@ export interface ChatOpts {
   timeoutMs?: number;
 }
 
-/** One chat call; a single retry on 429/5xx/timeout. The per-IP and global Nebius counters are charged inside callJson. */
+/** One chat call; a single retry on 429/5xx/timeout. Each attempt is charged inside callJson: one request plus estimated tokens. */
 export async function chat(svc: Svc, o: ChatOpts): Promise<ChatResult> {
   const body: Record<string, unknown> = {
     model: o.model,
@@ -104,6 +104,9 @@ export async function chat(svc: Svc, o: ChatOpts): Promise<ChatResult> {
     body.tools = o.tools;
     body.tool_choice = typeof o.toolChoice === 'object' ? { type: 'function', function: { name: o.toolChoice.name } } : (o.toolChoice ?? 'auto');
   }
+  const payload = JSON.stringify(body);
+  // billed tokens, estimated before the call: the prompt at 3 characters a token (JSON and English run near 4) plus the most the model may write
+  const tokens = Math.ceil(payload.length / 3) + Number(body.max_tokens);
   const run = async (): Promise<ChatResult> => {
     let lastErr: unknown;
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -111,8 +114,8 @@ export async function chat(svc: Svc, o: ChatOpts): Promise<ChatResult> {
         const r = await callJson(svc, 'nebius', `${NEBIUS_BASE}/chat/completions`, {
           method: 'POST',
           headers: { Authorization: 'Bearer ' + (svc.cfg.keys.nebius ?? 'mock'), 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        }, o.timeoutMs ?? 60000);
+          body: payload,
+        }, o.timeoutMs ?? 60000, { tokens });
         return parseChat(r.json, r.via);
       } catch (e) {
         lastErr = e;

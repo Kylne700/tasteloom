@@ -1,0 +1,17 @@
+# test/security.test.ts run on the code after the security fixes, 2026-10-17T03:26Z
+# command: node --test --experimental-strip-types --test-reporter=tap test/security.test.ts (exit 0)
+ok 1 - meter: when the counters cannot be reached or written, billed calls are refused (fail closed) and the example still works
+ok 2 - meter: parallel runs of one visitor share one allowance (no lost updates)
+ok 3 - meter: live Qloo calls have a per-visitor cap
+ok 4 - meter: live Nemotron calls are capped in estimated tokens, and the run falls back to the fixed pipeline
+ok 5 - meter: a Nemotron call charges one request plus prompt/3 + max_tokens tokens
+ok 6 - config: every billed counter has both caps, per-visitor below global, inside the free quotas and the Nebius credit
+ok 7 - meter: IPv6 visitors are counted per /64, so new addresses in the same network do not reset the allowance
+ok 8 - http: an oversized upstream answer is refused, not parsed
+ok 9 - runLoop: at most 8 tool calls of one model turn run, and the model sees a result for each of them
+ok 10 - http: a POST that is not JSON is refused with 415 before anything runs (no cross-site form or text/plain posts)
+ok 11 - http: every API answer, the NDJSON stream included, carries nosniff, no-referrer and a CSP that forbids framing
+ok 12 - privacy: logs name the failing service and status, never upstream text that can echo what the visitor typed
+# tests 12
+# pass 12
+# fail 0

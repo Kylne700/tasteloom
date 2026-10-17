@@ -3,73 +3,82 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { LIMIT_MESSAGE } from '../src/app.ts';
 import { loadConfig, publicStatus, secretsOf } from '../src/config.ts';
-import { LimitError, Meter } from '../src/lib/limits.ts';
-import { memoryStore, type Store } from '../src/lib/store.ts';
+import { LimitError, Meter, memoryMeterApi, visitorOf, type MeterApi } from '../src/lib/limits.ts';
 import type { Env } from '../src/types.ts';
-import { FAVS, makeHarness, readEvents } from './helpers.ts';
+import { FAVS, fakeMeter, makeHarness, readEvents } from './helpers.ts';
 
 const DAY = '2026-10-16';
 const lim = (env: Partial<Env> = {}) => loadConfig(env as Env).limits;
 
+const meter = (env: Partial<Env> = {}, api: MeterApi = memoryMeterApi(), visitor = 'ipA', day = DAY) => new Meter(api, lim(env), visitor, day);
+
 test('meter: per-IP limit, then global limit, each with its own scope', async () => {
-  const store = memoryStore();
-  const limits = lim({ LIMIT_IP_IDEAS: '2', LIMIT_GLOBAL_IDEAS: '3' });
-  const a = await Meter.load(store, limits, 'ipA', DAY);
-  a.take('ideas');
-  a.take('ideas');
-  assert.throws(() => a.take('ideas'), (e) => e instanceof LimitError && e.scope === 'ip' && e.counter === 'ideas');
-  await a.flush();
-  const b = await Meter.load(store, limits, 'ipB', DAY);
-  b.take('ideas'); // global 3 of 3
-  await b.flush();
-  assert.throws(() => b.take('ideas'), (e) => e instanceof LimitError && e.scope === 'global', 'B is under its own 2, but the global 3 is used up');
-  const c = await Meter.load(store, limits, 'ipC', DAY);
-  assert.throws(() => c.take('ideas'), (e) => e instanceof LimitError && e.scope === 'global');
+  const api = memoryMeterApi();
+  const env = { LIMIT_IP_IDEAS: '2', LIMIT_GLOBAL_IDEAS: '3' };
+  const a = meter(env, api, 'ipA');
+  await a.take({ ideas: 1 });
+  await a.take({ ideas: 1 });
+  await assert.rejects(a.take({ ideas: 1 }), (e) => e instanceof LimitError && e.scope === 'ip' && e.counter === 'ideas');
+  const b = meter(env, api, 'ipB');
+  await b.take({ ideas: 1 }); // global 3 of 3
+  await assert.rejects(b.take({ ideas: 1 }), (e) => e instanceof LimitError && e.scope === 'global', 'B is under its own 2, but the global 3 is used up');
+  await assert.rejects(meter(env, api, 'ipC').take({ ideas: 1 }), (e) => e instanceof LimitError && e.scope === 'global');
 });
 
-test('meter: a call that would cross the limit is refused whole and changes nothing', async () => {
-  const m = await Meter.load(memoryStore(), lim({ LIMIT_IP_TAVILY: '5' }), 'ip', DAY);
-  m.take('tavily', 3);
-  assert.throws(() => m.take('tavily', 3), LimitError);
-  assert.equal(m.used().ip.tavily, 3);
-  m.take('tavily', 2);
-  assert.equal(m.used().global.tavily, 5);
+test('meter: a take that would pass any cap is refused whole and changes nothing', async () => {
+  const m = meter({ LIMIT_IP_TAVILY: '5' });
+  await m.take({ tavily: 3 });
+  await assert.rejects(m.take({ tavily: 3 }), LimitError);
+  await assert.rejects(m.take({ nebius: 1, tokens: 10_000_000 }), (e) => e instanceof LimitError && e.counter === 'tokens' && e.scope === 'ip');
+  const u = await m.used();
+  assert.deepEqual([u.ip.tavily, u.ip.nebius, u.global.tokens], [3, undefined, undefined]);
+  await m.take({ tavily: 2 });
+  assert.equal((await m.used()).global.tavily, 5);
 });
 
 test('meter: the daily money cap can be reserved and given back, never below zero', async () => {
-  const m = await Meter.load(memoryStore(), lim({ LIMIT_DAILY_CAP_USD: '10' }), 'ip', DAY);
-  m.takeCents(600);
-  assert.throws(() => m.takeCents(401), (e) => e instanceof LimitError && e.counter === 'cents' && e.scope === 'global');
-  m.takeCents(400);
-  m.refundCents(400);
-  m.takeCents(400);
-  m.refundCents(99999);
-  assert.equal(m.used().global.cents, 0);
+  const m = meter({ LIMIT_DAILY_CAP_USD: '10' });
+  await m.take({ cents: 600 });
+  await assert.rejects(m.take({ cents: 401 }), (e) => e instanceof LimitError && e.counter === 'cents' && e.scope === 'global');
+  await m.take({ cents: 400 });
+  await m.give({ cents: 400 });
+  await m.take({ cents: 400 });
+  await m.give({ cents: 99999 });
+  assert.equal((await m.used()).global.cents, 0);
 });
 
-test('meter: counters persist per day, are written once, and keep no raw IP', async () => {
-  const writes: string[] = [];
-  const inner = memoryStore();
-  const store: Store = { ...inner, put: async (k, v, t) => (writes.push(k), inner.put(k, v, t)) };
-  const limits = lim();
-  const m = await Meter.load(store, limits, 'hashed-ip', DAY);
-  await m.flush();
-  assert.equal(writes.length, 0, 'nothing counted, nothing written');
-  m.take('channel3');
-  m.take('channel3');
-  await m.flush();
-  await m.flush();
-  assert.deepEqual(writes.sort(), [`lim:${DAY}:g`, `lim:${DAY}:i:hashed-ip`]);
-  assert.equal((await Meter.load(store, limits, 'hashed-ip', DAY)).used().ip.channel3, 2);
-  assert.equal((await Meter.load(store, limits, 'hashed-ip', '2026-10-17')).used().global.channel3, undefined, 'a new day starts empty');
-  assert.equal((await Meter.load(store, limits, 'other', DAY)).used().ip.channel3, undefined);
+test('meter: counters are kept per visitor and per day; a new day starts empty and days never go back', async () => {
+  const api = memoryMeterApi();
+  const NEXT = '2026-10-17';
+  await meter({}, api, 'v1').take({ channel3: 1 });
+  await meter({}, api, 'v1').take({ channel3: 1 });
+  assert.equal((await meter({}, api, 'v1').used()).ip.channel3, 2);
+  assert.equal((await meter({}, api, 'v2').used()).ip.channel3, undefined);
+  assert.deepEqual(await meter({}, api, 'v1', NEXT).used(), { ip: {}, global: {} });
+  await meter({}, api, 'v1', NEXT).take({ channel3: 1 });
+  await meter({}, api, 'v3', DAY).take({ channel3: 1 }); // a request stamped yesterday that arrives after the new day began
+  assert.deepEqual((await meter({}, api, 'v1', NEXT).used()).global, { channel3: 2 });
 });
 
-test('meter: a failing store never breaks the request', async () => {
-  const broken: Store = { get: async () => null, put: async () => Promise.reject(new Error('KV write quota')), delete: async () => {} };
-  const m = await Meter.load(broken, lim(), 'ip', DAY);
-  m.take('ideas');
-  await m.flush();
+test('meter: when the meter cannot be reached every take is refused (fail closed); give and used never throw', async () => {
+  const down = async () => {
+    throw new Error('meter unreachable');
+  };
+  for (const api of [undefined, { take: down, give: down, used: down }]) {
+    const m = new Meter(api, lim(), 'ip', DAY);
+    await assert.rejects(m.take({ channel3: 1 }), (e) => e instanceof LimitError && e.counter === 'channel3' && e.scope === 'global');
+    await m.give({ cents: 100 });
+    assert.deepEqual(await m.used(), { ip: {}, global: {} });
+  }
+});
+
+test('meter: an IPv6 visitor is its /64; IPv4 is the address', () => {
+  assert.equal(visitorOf('2001:db8:1:2::1'), '2001:db8:1:2');
+  assert.equal(visitorOf('2001:0DB8:0001:0002:aaaa:bbbb:cccc:dddd'), '2001:db8:1:2');
+  assert.equal(visitorOf('2001:db8::7'), '2001:db8:0:0');
+  assert.equal(visitorOf('::1'), '0:0:0:0');
+  assert.equal(visitorOf('203.0.113.9'), '203.0.113.9');
+  assert.equal(visitorOf('::ffff:203.0.113.9'), '::ffff:203.0.113.9');
 });
 
 // ---- configuration -----------------------------------------------------------------------------------------------
@@ -77,13 +86,13 @@ test('meter: a failing store never breaks the request', async () => {
 test('config: documented defaults', () => {
   const l = lim();
   assert.deepEqual([l.maxItems, l.minBudgetCents, l.maxBudgetCents, l.dailyCapCents], [6, 1000, 50000, 200000]);
-  assert.deepEqual([l.ip.ideas, l.ip.nebius, l.ip.tavily, l.ip.channel3, l.ip.orders], [8, 80, 40, 40, 8]);
-  assert.deepEqual([l.global.ideas, l.global.nebius, l.global.tavily, l.global.channel3, l.global.orders], [100, 600, 100, 60, 100]);
+  assert.deepEqual(l.ip, { ideas: 8, qloo: 60, nebius: 80, tokens: 150_000, tavily: 10, channel3: 10, orders: 8 });
+  assert.deepEqual(l.global, { ideas: 100, qloo: 600, nebius: 600, tokens: 400_000, tavily: 30, channel3: 30, orders: 100 });
 });
 
 test('config: overrides apply, junk falls back to the default', () => {
   const l = lim({ LIMIT_MAX_ITEMS: '3', LIMIT_MAX_BUDGET_USD: '120', LIMIT_DAILY_CAP_USD: '12.5', LIMIT_IP_IDEAS: 'lots', LIMIT_GLOBAL_IDEAS: '-4', LIMIT_IP_TAVILY: '' });
-  assert.deepEqual([l.maxItems, l.maxBudgetCents, l.dailyCapCents, l.ip.ideas, l.global.ideas, l.ip.tavily], [3, 12000, 1250, 8, 100, 40]);
+  assert.deepEqual([l.maxItems, l.maxBudgetCents, l.dailyCapCents, l.ip.ideas, l.global.ideas, l.ip.tavily], [3, 12000, 1250, 8, 100, 10]);
 });
 
 test('config: Qloo and Nebius switch from mock to live by themselves when a key appears; FORCE_MOCK overrides', () => {
@@ -145,8 +154,11 @@ test('status: usage counts live Channel3 and Tavily calls only; the Qloo and Neb
   assert.deepEqual(s.mocks, ['qloo', 'nebius']);
 });
 
-test('privacy: KV holds hashed counters, the session and cache entries, and nothing the visitor typed or their IP', async () => {
-  const h = makeHarness();
+test('privacy: KV holds the session and cache entries, the meter hashed counters, and neither holds what the visitor typed or their IP', async () => {
+  const api = memoryMeterApi();
+  const seen: unknown[] = [];
+  const spy: MeterApi = { take: (...a) => (seen.push(a), api.take(...a)), give: (...a) => (seen.push(a), api.give(...a)), used: (...a) => (seen.push(a), api.used(...a)) };
+  const h = makeHarness({ METER: fakeMeter(spy) });
   const typed = ['Zyxwvu Quuxplorg', 'Flurbonic Vrelts', 'Glorptastic Mnemmons'];
   const res = await h.req('/api/ideas', {
     method: 'POST',
@@ -159,5 +171,8 @@ test('privacy: KV holds hashed counters, the session and cache entries, and noth
   assert.ok(h.kv._m.size > 0);
   for (const t of typed) assert.ok(!blob.includes(t.toLowerCase()), `stored: ${t}`);
   assert.ok(!blob.includes('198.51.100.77'));
-  assert.ok([...h.kv._m.keys()].every((k) => /^(lim:|s:|c:|o:|chk:)/.test(k)), [...h.kv._m.keys()].join(' '));
+  assert.ok([...h.kv._m.keys()].every((k) => /^(s:|c:|o:|chk:)/.test(k)), [...h.kv._m.keys()].join(' '));
+  const sent = JSON.stringify(seen).toLowerCase();
+  assert.ok(seen.length > 0 && seen.every((a) => /^[0-9a-f]{16}$/.test((a as string[])[1]!)), 'the meter sees a 16-hex visitor hash');
+  for (const t of [...typed, '198.51.100.77']) assert.ok(!sent.includes(t.toLowerCase()), `sent to the meter: ${t}`);
 });

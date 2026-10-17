@@ -63,12 +63,16 @@ test('_headers: strict CSP without unsafe-inline or unsafe-eval, plus the usual 
   assert.match(headers, /Referrer-Policy: no-referrer/);
 });
 
-test('wrangler.jsonc: static assets with the API run first, a KV binding and no secrets in the file', () => {
+test('wrangler.jsonc: static assets with the API run first, a KV binding, the meter Durable Object and no secrets in the file', () => {
   const w = JSON.parse(read('wrangler.jsonc'));
   assert.equal(w.assets.directory, './public');
   assert.equal(w.assets.binding, 'ASSETS');
   assert.deepEqual(w.assets.run_worker_first, ['/api/*']);
   assert.equal(w.kv_namespaces[0].binding, 'KV');
+  assert.deepEqual(w.durable_objects.bindings, [{ name: 'METER', class_name: 'MeterDO' }]);
+  // Workers Free runs only SQLite-backed Durable Objects, and the dry-run build does not catch `new_classes`
+  assert.deepEqual(w.migrations, [{ tag: 'v1', new_sqlite_classes: ['MeterDO'] }]);
+  assert.match(read('src/index.ts'), /export class MeterDO extends DurableObject/);
   assert.deepEqual(w.vars, {});
   assert.doesNotMatch(read('wrangler.jsonc'), /secret|api[_-]?key|token/i);
 });

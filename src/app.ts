@@ -1,9 +1,9 @@
 import { Hono } from 'hono';
 import type { Context } from 'hono';
 import { HttpError, BudgetError, type Svc, type ServiceName } from './lib/http.ts';
-import { LimitError, Meter } from './lib/limits.ts';
+import { LimitError, Meter, meterApi, visitorOf } from './lib/limits.ts';
 import { storeFor } from './lib/store.ts';
-import { dayKey, sha256Hex, sleep, errMsg } from './lib/util.ts';
+import { dayKey, sha256Hex, sleep } from './lib/util.ts';
 import { loadConfig, publicStatus, secretsOf } from './config.ts';
 import { cancelOrder, loadOrder, loadSession, ORDER_MESSAGES, OrderError, publicOrder, saveSession } from './commerce.ts';
 import { validOrderId } from './adapters/paypal.ts';
@@ -42,31 +42,42 @@ export function createApp(deps: Deps = {}) {
   const qlooMock = deps.fast ? qlooFake : makeQlooFake({ delayMs: 250 });
   const nebiusMock = makeNebiusFake({ delayMs: deps.fast ? 0 : 450 });
 
+  // every API answer, the NDJSON stream and errors included (static files get theirs from public/_headers)
   app.use('/api/*', async (c, next) => {
+    await next();
+    const h = c.res.headers;
+    h.set('Cache-Control', 'no-store');
+    h.set('X-Content-Type-Options', 'nosniff');
+    h.set('Referrer-Policy', 'no-referrer');
+    h.set('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'");
+  });
+
+  app.use('/api/*', async (c, next) => {
+    // JSON only: another site can send a form or text/plain post without a CORS preflight, JSON needs one we never grant
+    if (c.req.method === 'POST' && !/^application\/json\s*(;|$)/i.test(c.req.header('content-type') ?? '')) {
+      return c.json({ error: { code: 'bad_input', message: 'Send the request as JSON.' } }, 415);
+    }
     const cfg = loadConfig(c.env);
     const store = storeFor(c.env.KV);
+    // cf-connecting-ip is always set on Cloudflare; x-forwarded-for only matters under wrangler dev
     const ip = c.req.header('cf-connecting-ip') ?? c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ?? 'local';
     const day = dayKey();
-    const ipHash = (await sha256Hex(`${day}:${ip}`)).slice(0, 16); // no raw IP is ever stored
-    const meter = await Meter.load(store, cfg.limits, ipHash, day);
+    const ipHash = (await sha256Hex(`${day}:${visitorOf(ip)}`)).slice(0, 16); // no raw IP is ever stored
+    const meter = new Meter(meterApi(c.env), cfg.limits, ipHash, day);
     const mocks: Svc['mocks'] = {};
     if (cfg.qloo === 'mock') mocks.qloo = qlooMock;
     if (cfg.nebius === 'mock') mocks.nebius = nebiusMock;
     Object.assign(mocks, deps.mocks);
     c.set('svc', { cfg, fetch: deps.fetch ?? ((u, i) => fetch(u, i)), store, meter, sub: { left: SUB_BUDGET }, mocks });
-    c.header('Cache-Control', 'no-store');
-    c.header('X-Content-Type-Options', 'nosniff');
-    c.header('Referrer-Policy', 'no-referrer');
     await next();
-    await c.get('svc').meter.flush();
   });
 
-  app.get('/api/status', (c) => c.json({ ...publicStatus(c.get('svc').cfg), usage: c.get('svc').meter.used().global }));
+  app.get('/api/status', async (c) => c.json({ ...publicStatus(c.get('svc').cfg), usage: (await c.get('svc').meter.used()).global }));
 
   app.post('/api/sample', (c) => {
     const svc = c.get('svc');
     const session = sampleSession();
-    return ndjson(c, svc, async (emit) => {
+    return ndjson(c, async (emit) => {
       await saveSession(svc, session);
       const mocks = publicStatus(svc.cfg).mocks;
       for (const step of sampleEvents(session, mocks)) {
@@ -81,11 +92,11 @@ export function createApp(deps: Deps = {}) {
     const parsed = parseIdeasInput(await readJson(c), svc.cfg.limits);
     if (!parsed.ok) return c.json({ error: { code: 'bad_input', message: parsed.message } }, 400);
     try {
-      svc.meter.take('ideas');
+      await svc.meter.take({ ideas: 1 });
     } catch (e) {
       return fail(c, e);
     }
-    return ndjson(c, svc, (emit) => runIdeas(svc, parsed.value, emit));
+    return ndjson(c, (emit) => runIdeas(svc, parsed.value, emit));
   });
 
   app.post('/api/checkout', async (c) => {
@@ -131,7 +142,7 @@ export function createApp(deps: Deps = {}) {
   });
 
   app.onError((e, c) => {
-    console.error('unhandled', errMsg(e).slice(0, 200));
+    console.error('unhandled', logOf(e));
     return c.json({ error: { code: 'internal', message: 'Something went wrong on our side. Please try again.' } }, 500);
   });
 
@@ -158,14 +169,20 @@ export function describeError(e: unknown): { status: 400 | 404 | 429 | 502 | 500
   return { status: 500, code: 'internal', message: 'Something went wrong on our side. Please try again.' };
 }
 
+/** A failure as logs may show it: kind, service and status, never upstream text (it can echo what the visitor typed). */
+function logOf(e: unknown): string {
+  if (e instanceof HttpError) return `${e.service} HTTP ${e.status}`;
+  return e instanceof Error ? `${e.name} ${e.stack?.split('\n')[1]?.trim() ?? ''}` : typeof e;
+}
+
 function fail(c: Context<AppEnv>, e: unknown) {
   const d = describeError(e);
-  if (d.status >= 500 || d.code === 'upstream') console.error('request failed:', d.code, errMsg(e).slice(0, 200));
+  if (d.status >= 500 || d.code === 'upstream') console.error('request failed:', d.code, logOf(e));
   return c.json({ error: { code: d.code, message: d.message } }, d.status);
 }
 
 /** Stream newline-delimited JSON events; the producer runs after the response starts, so the browser sees progress live. */
-export function ndjson(c: Context<AppEnv>, svc: Svc, producer: (emit: (e: StreamEvent) => void) => Promise<void>): Response {
+export function ndjson(c: Context<AppEnv>, producer: (emit: (e: StreamEvent) => void) => Promise<void>): Response {
   const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
   const w = writable.getWriter();
   const enc = new TextEncoder();
@@ -175,10 +192,9 @@ export function ndjson(c: Context<AppEnv>, svc: Svc, producer: (emit: (e: Stream
       await producer(emit);
     } catch (e) {
       const d = describeError(e);
-      console.error('stream failed:', d.code, errMsg(e).slice(0, 200));
+      console.error('stream failed:', d.code, logOf(e));
       emit({ t: 'error', code: d.code === 'limit' || d.code === 'upstream' || d.code === 'bad_input' ? d.code : 'internal', message: d.message });
     } finally {
-      await svc.meter.flush();
       await w.close().catch(() => {});
     }
   })();

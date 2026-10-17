@@ -314,6 +314,22 @@ function states(fx) {
     await c.snap();
   });
 
+  add('ideas-images-default', true, async (c) => {
+    // privacy: a shop's image server sees the visitor's IP, so no third-party image may load before the switch is turned on
+    const { page } = c;
+    const asked = [];
+    const seen = (r) => r.resourceType() === 'image' && !r.url().startsWith(BASE) && asked.push(new URL(r.url()).host);
+    page.on('request', seen);
+    await open(c, '#/ideas', { st: c.done });
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await sleep(600);
+    const before = { asked: asked.length, src: await page.evaluate(() => document.querySelectorAll('.media img[src], .thumb img[src]').length) };
+    await page.click('button.switch');
+    const after = await page.evaluate(() => document.querySelectorAll('.media img[src]').length);
+    page.off('request', seen);
+    check(`${c.name}/ideas: a fresh visit asks no shop for an image until the images switch is turned on`, before.asked === 0 && before.src === 0 && after > 0, `${before.asked} third-party image requests and ${before.src} image sources before the switch, ${after} sources after`);
+  });
+
   const ideasError = (key, label, spec, title, buttons, filled) =>
     add(key, key === 'ideas-error-limit', async (c) => {
       const { page } = c;

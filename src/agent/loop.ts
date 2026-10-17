@@ -43,6 +43,9 @@ const clipResult = (v: unknown) => {
   return s.length > 4000 ? s.slice(0, 4000) + '…' : s;
 };
 
+/** Tool calls run from one model turn; a turn asking for more gets only the first ones. */
+const MAX_CALLS_PER_TURN = 8;
+
 export async function runLoop(svc: Svc, o: LoopOpts): Promise<LoopResult> {
   const messages: ChatMessage[] = [
     { role: 'system', content: o.system },
@@ -57,13 +60,14 @@ export async function runLoop(svc: Svc, o: LoopOpts): Promise<LoopResult> {
     const r = await chat(svc, { model: o.model, messages, tools: specs, toolChoice: 'auto', maxTokens: 2000, timeoutMs: o.timeoutMs });
     o.onTurn?.({ turn, ms: Date.now() - t0, calls: r.calls.length, via: r.via });
     if (!r.calls.length) return { turns: turn, calls, bad, stopped: 'done' };
+    const turnCalls = r.calls.slice(0, MAX_CALLS_PER_TURN); // the rest are dropped from the history too, so every call has its result
     messages.push({
       role: 'assistant',
       content: r.content || null,
-      tool_calls: r.calls.map((c) => ({ id: c.id, type: 'function', function: { name: c.name, arguments: c.raw || '{}' } })),
+      tool_calls: turnCalls.map((c) => ({ id: c.id, type: 'function', function: { name: c.name, arguments: c.raw || '{}' } })),
     });
     const results = await Promise.all(
-      r.calls.map(async (c) => {
+      turnCalls.map(async (c) => {
         const tool = byName.get(c.name);
         if (!tool) {
           bad++;
@@ -85,7 +89,7 @@ export async function runLoop(svc: Svc, o: LoopOpts): Promise<LoopResult> {
     );
     for (const x of results) messages.push({ role: 'tool', tool_call_id: x.id, content: x.content });
     if (bad >= 3) return { turns: turn, calls, bad, stopped: 'bad_calls' };
-    if (o.stopAfter && r.calls.some((c) => o.stopAfter!.includes(c.name))) return { turns: turn, calls, bad, stopped: 'stop_after' };
+    if (o.stopAfter && turnCalls.some((c) => o.stopAfter!.includes(c.name))) return { turns: turn, calls, bad, stopped: 'stop_after' };
   }
   return { turns: o.maxTurns, calls, bad, stopped: 'max_turns' };
 }

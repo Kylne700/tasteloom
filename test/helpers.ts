@@ -4,7 +4,7 @@ import { createApp, type Deps } from '../src/app.ts';
 import { resetPayPalTokenCache } from '../src/adapters/paypal.ts';
 import { loadConfig } from '../src/config.ts';
 import type { Svc } from '../src/lib/http.ts';
-import { Meter } from '../src/lib/limits.ts';
+import { Meter, memoryMeterApi } from '../src/lib/limits.ts';
 import { memoryStore } from '../src/lib/store.ts';
 import { newSession } from '../src/commerce.ts';
 import type { Card, Env, FetchFn, StreamEvent } from '../src/types.ts';
@@ -95,12 +95,15 @@ export function makeNet(): Net {
   return net;
 }
 
+/** The meter Durable Object binding as the Worker sees it: one stub, running the real Counter in memory. */
+export const fakeMeter = (api = memoryMeterApi()) => ({ idFromName: () => ({}), get: () => api }) as unknown as Env['METER'];
+
 export function makeHarness(extraEnv: Partial<Env> = {}, deps: Partial<Deps> = {}) {
   resetPayPalTokenCache();
   const net = makeNet();
   const kv = fakeKV();
   const app = createApp({ fetch: net.fetch, fast: true, ...deps });
-  const env = { KV: kv, TAVILY_API_KEY: 'tv-test', CHANNEL3_API_KEY: 'c3-test', PAYPAL_CLIENT_ID: 'pp-id', PAYPAL_CLIENT_SECRET: 'pp-secret', ...extraEnv } as Env;
+  const env = { KV: kv, METER: fakeMeter(), TAVILY_API_KEY: 'tv-test', CHANNEL3_API_KEY: 'c3-test', PAYPAL_CLIENT_ID: 'pp-id', PAYPAL_CLIENT_SECRET: 'pp-secret', ...extraEnv } as Env;
   const req = (path: string, init?: RequestInit) => app.request('http://localhost:8791' + path, init, env);
   const post = (path: string, body: unknown) => req(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
   return { app, net, kv, env, req, post };
@@ -143,7 +146,7 @@ export async function makeSvc(extraEnv: Partial<Env> = {}, net: Net = makeNet(),
   resetPayPalTokenCache();
   const cfg = loadConfig({ TAVILY_API_KEY: 'tv-test', CHANNEL3_API_KEY: 'c3-test', PAYPAL_CLIENT_ID: 'pp-id', PAYPAL_CLIENT_SECRET: 'pp-secret', ...extraEnv } as Env);
   const store = memoryStore();
-  const meter = await Meter.load(store, cfg.limits, 'iphash', '2026-10-16');
+  const meter = new Meter(memoryMeterApi(), cfg.limits, 'iphash', '2026-10-16');
   return { svc: { cfg, fetch: net.fetch, store, meter, sub: { left: 40 }, mocks }, net };
 }
 

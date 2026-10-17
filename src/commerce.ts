@@ -98,13 +98,12 @@ export async function startCheckout(svc: Svc, session: Session, itemIds: unknown
     const existing = await loadOrder(svc, existingId);
     if (existing && existing.status === 'CREATED') return { order: existing, reused: true };
   }
-  svc.meter.take('orders');
-  svc.meter.takeCents(total_cents); // reserve against the global daily cap before PayPal is called
+  await svc.meter.take({ orders: 1, cents: total_cents }); // reserve against the daily caps before PayPal is called
   let created;
   try {
     created = await createOrder(svc, { lines, total_cents, sessionId: session.id, ...urls });
   } catch (e) {
-    svc.meter.refundCents(total_cents);
+    await svc.meter.give({ cents: total_cents });
     throw e;
   }
   const now = Date.now();

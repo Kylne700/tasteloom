@@ -1,0 +1,26 @@
+# test/security.test.ts run on the code before the security fixes (HEAD 2ce0d5a, src untouched), 2026-10-17T02:54Z
+# command: node --test --experimental-strip-types test/security.test.ts
+not ok 1 - meter: when the counters cannot be reached or written, billed calls are refused (fail closed) and the example still works  <- |- expected: 0 actual: 2
+not ok 2 - meter: parallel runs of one visitor share one allowance (no lost updates)  <- |- expected: 2 actual: 8
+not ok 3 - meter: live Qloo calls have a per-visitor cap  <- |- expected: 0 actual: 3
+not ok 4 - meter: live Nemotron calls are capped in estimated tokens, and the run falls back to the fixed pipeline  <- |- expected: 0 actual: 1
+not ok 5 - meter: a Nemotron call charges one request plus prompt/3 + max_tokens tokens  <- 'undefined' expected: true actual: false
+not ok 6 - config: every billed counter has both caps, per-visitor below global, inside the free quotas and the Nebius credit  <- 'qloo' expected: true actual: false
+not ok 7 - meter: IPv6 visitors are counted per /64, so new addresses in the same network do not reset the allowance  <- |- expected: 429 actual: 200
+not ok 8 - http: an oversized upstream answer is refused, not parsed  <- 'Missing expected rejection.'
+not ok 9 - runLoop: at most 8 tool calls of one model turn run, and the model sees a result for each of them  <- |- expected: 8 actual: 20
+not ok 10 - http: a POST that is not JSON is refused with 415 before anything runs (no cross-site form or text/plain posts)  <- |- expected: 415 actual: 200
+not ok 11 - http: every API answer, the NDJSON stream included, carries nosniff, no-referrer and a CSP that forbids framing  <- |- expected: 'nosniff' actual: ~
+not ok 12 - privacy: logs name the failing service and status, never upstream text that can echo what the visitor typed  <- 'stream failed: upstream qloo HTTP 500: {"error":"no entity named Zyxwvu Quuxplorg, Flurbonic Vrelts, Glorptastic Mnemmons"}' expected: 
+# tests 12
+# pass 0
+# fail 12
+
+# the browser check for item 6, run on the front end before the image fix (public/ untouched), 2026-10-17T03:08Z
+# command: TOUR_ROUNDS=desktop node scripts/e2e.mjs tour   (check 'ideas-images-default' in scripts/lib/tour.mjs; no billed call)
+FAIL  desktop/ideas: a fresh visit asks no shop for an image until the images switch is turned on (9 third-party image requests and 9 image sources before the switch, 9 sources after)
+RESULT FAIL: 260 checks passed, 1 failed, 76 s
+# after the fix, same command: PASS (0 third-party image requests and 0 image sources before the switch, 9 sources after); RESULT PASS: 261 checks passed, 0 failed, 75 s
+
+# not in the before run: test 6 stopped at its first assertion ('qloo' had no cap), so the quota lines never ran. Old defaults:
+# Channel3 60 a day x 31 = 1,860 and Tavily 100 a day x 31 = 3,100, both over the 1,000 a month of the free plans.

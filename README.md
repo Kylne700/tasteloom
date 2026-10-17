@@ -9,7 +9,7 @@ Built for three Devpost contests: the Qloo agentic contest, the Nebius x NVIDIA 
 ## The flow
 
 1. **Loves and budget.** Add 3 to 5 favourites (an optional type hint such as book or artist sharpens the match) and a budget from $10 to $500. Or press **Try an example**: a saved run replays without any key.
-2. **Gift ideas.** A live list shows what the agent is doing (reading taste, finding products, writing reasons, checking prices) while idea cards arrive. Each idea says which favourite it comes from. Product cards show title, price, shop and a link. A product image switch keeps the page free of third-party pictures (`?images=off` turns it off by default).
+2. **Gift ideas.** A live list shows what the agent is doing (reading taste, finding products, writing reasons, checking prices) while idea cards arrive. Each idea says which favourite it comes from. Product cards show title, price, shop and a link. Product images are off until you turn on the image switch (`?images=on` starts with them on), because a shop's image server sees your IP.
 3. **Pick and pay.** Pick up to 6 items within the budget, review, and press **Pay with PayPal**. The page shows PayPal's documented sandbox test card with copy buttons; you pay as a guest on PayPal's own page, no PayPal account needed.
 4. **Receipt.** After PayPal approves, the server captures once and shows the order id, the final status and the items. The receipt carries the sandbox badge and one "Mode: PayPal sandbox, no real money" row.
 
@@ -50,9 +50,9 @@ npm run dev        # http://localhost:8791
 
 `npm run dev` first runs `scripts/dev-vars.mjs`, which copies only those six keys from `../.env.local` into `.dev.vars` (the file `wrangler dev` reads). `.dev.vars` is git-ignored and written with mode 600, and the script prints key names, never values. Keys are used only on the server: they are never sent to the browser, never logged, and error messages are redacted. `npm run dev` also sets `DEV_CACHE=1`, which caches Qloo and Nebius answers while developing (Channel3 and Tavily answers are always cached for 12 hours).
 
-Optional settings (plain environment variables): `NEBIUS_AGENT_MODEL`, `NEBIUS_WRITER_MODEL`, `FORCE_MOCK`, `LIMIT_IP_*` / `LIMIT_GLOBAL_*` (`IDEAS`, `NEBIUS`, `TAVILY`, `CHANNEL3`, `ORDERS`), `LIMIT_DAILY_CAP_USD`, `LIMIT_MAX_ITEMS`, `LIMIT_MAX_BUDGET_USD`, `PUBLIC_BASE_URL`.
+Optional settings (plain environment variables): `NEBIUS_AGENT_MODEL`, `NEBIUS_WRITER_MODEL`, `FORCE_MOCK`, `LIMIT_IP_*` / `LIMIT_GLOBAL_*` (`IDEAS`, `QLOO`, `NEBIUS`, `TOKENS`, `TAVILY`, `CHANNEL3`, `ORDERS`), `LIMIT_DAILY_CAP_USD`, `LIMIT_MAX_ITEMS`, `LIMIT_MAX_BUDGET_USD`, `PUBLIC_BASE_URL`.
 
-Deploying is not part of this repository's checks. A deployment would need the keys as Worker secrets (`wrangler secret put`) and a real KV namespace id in `wrangler.jsonc`.
+Deploying is not part of this repository's checks. A deployment would need the keys as Worker secrets (`wrangler secret put NAME` asks for the value at a prompt or reads it from stdin, so it never appears in the command line, shell history or output) and a real KV namespace id in `wrangler.jsonc`. The first deploy also creates the spend meter, a SQLite-backed Durable Object (migration `v1` in `wrangler.jsonc`; Workers Free runs only this kind).
 
 ## Commands
 
@@ -72,12 +72,12 @@ Deploying is not part of this repository's checks. A deployment would need the k
 - **Caps.** A total above the buyer's budget, or above the global daily cap, is refused before PayPal is called.
 - **One capture, only after approval.** Capture needs a fresh PayPal read showing `APPROVED` with the same amount and currency; the request id makes a repeat harmless, and opening the return link twice does not capture twice.
 - **Sandbox only.** The PayPal host is a constant; the UI says "sandbox, no real money" next to every payment step.
-- **Spend limits.** Per-IP and global daily counters for Nebius, Tavily, Channel3 and orders; a per-request subrequest budget; hard timeouts. When a limit is reached the page says so and offers the example.
+- **Spend limits.** Per-visitor (IP, or IPv6 /64) and global daily caps for Qloo, Nebius (requests and estimated tokens), Tavily, Channel3 and sandbox orders, kept in one Durable Object so parallel requests cannot pass a cap; every billed call is reserved before it is made, and when the meter cannot be reached the call is refused. A per-request subrequest budget, hard timeouts and a 2 MB cap on upstream answers. When a limit is reached the page says so and offers the example.
 - **Untrusted text.** Model output is parsed tolerantly and then checked; shop text is clipped, links must be https, and the page has no HTML-injection sinks and a strict Content Security Policy.
 
 ## Privacy
 
-No accounts, no cookies. What you type is sent to the server to build your ideas and is not stored; the server keeps only the saved product cards (for server-side pricing, 2 hours), orders (7 days) and counters keyed by a hash of the IP. The browser keeps your inputs, finished run and picks in `sessionStorage` (this tab only) so the return from PayPal's cancel page restores them. The page ships no third-party logos or fonts; product images load from the shops' CDNs and can be switched off.
+No accounts, no cookies. What you type is sent to the server to build your ideas and is not stored; the server keeps only the saved product cards (for server-side pricing, 2 hours), orders (7 days) and daily spend counters keyed by a hash of the day and your IP (IPv6: its /64 network), cleared the next UTC day. The browser keeps your inputs, finished run and picks in `sessionStorage` (this tab only) so the return from PayPal's cancel page restores them. The page ships no third-party logos or fonts; product images load from the shops' CDNs only after you turn on the image switch.
 
 ## Design
 

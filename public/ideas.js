@@ -1,16 +1,17 @@
 // Screen 2: the agent works (live step list), gift ideas arrive as sections with product cards, the buyer picks items.
-import { h, icon, money, safeUrl, announce, spinner } from './dom.js';
+import { h, icon, money, safeUrl, shopImage, announce, spinner } from './dom.js';
 import { ApiError, streamNdjson } from './api.js';
 import { budgetCents, mockNote, newRun, save, selectedCards, state, totalCents } from './state.js';
 
-// Product images are shown by default; ?images=off (used for the demo video) or the switch hides them. Cards stay complete without them.
+// Product images come from the shops' servers, which see the visitor's IP, so none loads until the switch (or ?images=on) turns
+// them on; ?images=off keeps them off. Cards stay complete without them.
 {
   const q = new URLSearchParams(location.search).get('images');
-  let on = true;
+  let on = q === 'on';
   try {
-    on = q ? q !== 'off' : sessionStorage.getItem('tasteloom.images') !== 'off';
+    on = q ? q === 'on' : sessionStorage.getItem('tasteloom.images') === 'on';
   } catch {
-    on = q !== 'off';
+    // no storage: the address alone decides
   }
   document.documentElement.dataset.images = on ? 'on' : 'off';
 }
@@ -73,6 +74,7 @@ export function mountIdeas(root) {
         const on = document.documentElement.dataset.images !== 'on';
         document.documentElement.dataset.images = on ? 'on' : 'off';
         imagesSwitch.setAttribute('aria-checked', String(on));
+        if (on) for (const i of document.querySelectorAll('img[data-src]')) i.src = i.dataset.src;
         try {
           sessionStorage.setItem('tasteloom.images', on ? 'on' : 'off');
         } catch {
@@ -245,7 +247,7 @@ export function mountIdeas(root) {
   function cardEl(card, idea) {
     const shopUrl = safeUrl(card.url);
     const img = card.image && safeUrl(card.image);
-    const media = h('div', { class: 'media' }, img ? h('img', { src: img, alt: '', loading: 'lazy', decoding: 'async', referrerpolicy: 'no-referrer', width: '320', height: '240', onload: (e) => { e.target.dataset.ok = '1'; }, onerror: (e) => e.target.remove() }) : null, h('span', { class: 'ph', 'aria-hidden': 'true' }, card.title.trim().charAt(0).toUpperCase()), card.purchasable ? h('span', { class: 'sel-tag', 'aria-hidden': 'true' }, icon('check', 12), 'In your gift') : null);
+    const media = h('div', { class: 'media' }, img ? h('img', { ...shopImage(img), alt: '', loading: 'lazy', decoding: 'async', referrerpolicy: 'no-referrer', width: '320', height: '240', onload: (e) => { e.target.dataset.ok = '1'; }, onerror: (e) => e.target.remove() }) : null, h('span', { class: 'ph', 'aria-hidden': 'true' }, card.title.trim().charAt(0).toUpperCase()), card.purchasable ? h('span', { class: 'sel-tag', 'aria-hidden': 'true' }, icon('check', 12), 'In your gift') : null);
     const el = h('li', { class: 'card', 'data-kind': card.purchasable ? 'product' : 'link', 'data-selected': 'false' });
     const link = shopUrl
       ? h('a', { class: 'shop-link', href: shopUrl, target: '_blank', rel: 'noopener noreferrer sponsored' }, card.purchasable ? 'View product' : 'Open page', icon('external', 14), h('span', { class: 'sr-only' }, ' (opens in a new tab)'))

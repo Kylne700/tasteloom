@@ -1,6 +1,6 @@
 // Screen 3: review the picks, then pay as a guest in the PayPal sandbox. The server prices the order from its own saved cards;
 // the page only sends the session id and the picked card ids.
-import { h, icon, money, safeUrl, announce, copyText, spinner } from './dom.js';
+import { h, icon, money, safeUrl, shopImage, announce, copyText, spinner } from './dom.js';
 import { ApiError, postJson } from './api.js';
 import { budgetCents, save, selectedCards, startOver, state, totalCents } from './state.js';
 
@@ -46,7 +46,7 @@ export function mountCheckout(root, { cancelled }) {
   // ---- order summary ----------------------------------------------------------------------------------------------------
   function thumb(card) {
     const img = card.image && safeUrl(card.image);
-    return h('div', { class: 'thumb' }, img ? h('img', { src: img, alt: '', loading: 'lazy', decoding: 'async', referrerpolicy: 'no-referrer', width: '64', height: '64', onload: (e) => { e.target.dataset.ok = '1'; }, onerror: (e) => e.target.remove() }) : null, h('span', { class: 'ph', 'aria-hidden': 'true' }, card.title.trim().charAt(0).toUpperCase()));
+    return h('div', { class: 'thumb' }, img ? h('img', { ...shopImage(img), alt: '', loading: 'lazy', decoding: 'async', referrerpolicy: 'no-referrer', width: '64', height: '64', onload: (e) => { e.target.dataset.ok = '1'; }, onerror: (e) => e.target.remove() }) : null, h('span', { class: 'ph', 'aria-hidden': 'true' }, card.title.trim().charAt(0).toUpperCase()));
   }
 
   function remove(card) {

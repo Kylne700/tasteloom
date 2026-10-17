@@ -56,6 +56,9 @@ const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' 
 export const money = (cents) => usd.format(cents / 100);
 
 /** Only absolute https links are ever put into href. */
+/** Attributes for a shop image: the source is set only while the images switch is on, since the shop's server sees the visitor's IP. */
+export const shopImage = (url) => (document.documentElement.dataset.images === 'on' ? { src: url } : { 'data-src': url });
+
 export function safeUrl(u) {
   try {
     const x = new URL(u);
