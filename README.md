@@ -88,7 +88,7 @@ Plain HTML, CSS and ES modules in `public/` (no framework, no build step). One w
 - Qloo's real response (especially the explainability fields) and Nemotron's real tool-calling behaviour are not verified until keys exist; the contract scripts do that check.
 - Channel3's catalog is thin for niche items (a specific book may return nothing buyable); such ideas show as links or are skipped.
 - Tavily price checks rarely confirm a price; they are informational.
-- PayPal's hosted sandbox page is outside this app's control. In testing it sometimes offered only "create account" on the first load; reloading the same PayPal page showed the guest card form (the checkout screen says so).
+- PayPal's hosted sandbox page is outside this app's control and its layout varies. In testing it showed either a "Save info & create your PayPal account" switch with a "Pay Now" button, or two buttons, "Create Account & Pay Now" and "Pay now as guest"; the guest one is the right one (the checkout screen says so). If a load offers only account creation, reload the PayPal page.
 - Workers Free CPU limits were not measured; the request pipeline stays under the 50-subrequest limit by design (stops at 40).
 
 ## Why "Tasteloom"

@@ -57,7 +57,7 @@ export function makeNet(): Net {
       const products = prices.map((p, k) => ({
         id: `ch3-${q.replace(/\W+/g, '-')}-${k}`,
         title: `${q} ${['notebook', 'mug', 'print', 'set', 'edition', 'box'][k]}`,
-        brands: [{ name: 'Example' }],
+        brands: [{ name: q }], // a real catalog lists the maker: for a brand search that is the brand itself
         images: [{ url: `https://img.example/${k}.jpg`, is_main_image: true }],
         offers: [{ url: `https://buy.example/${q.replace(/\W+/g, '-')}/${k}`, domain: `shop-${'abcdef'[k % 3]}.example`, price: { price: p, currency: 'USD' }, availability: 'InStock', condition: 'new' }],
       }));

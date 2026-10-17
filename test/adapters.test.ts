@@ -70,6 +70,14 @@ test('channel3: the category gate keeps only the wanted catalog category', () =>
   assert.deepEqual(parseChannel3({ products: [books, wood, none] }, 'i', 0, 8, { entity: 'Kafka', category: 'books|literature' }).map((c) => c.title), ['Kafka Novel']);
 });
 
+test('channel3: for a brand entity a listed brand must match, so a book titled "Aesop\'s Fables" is not an Aesop product', () => {
+  const at = (id: string, title: string, brands: string[]) => product(id, title, [offer(9, { domain: `${id}.example`, url: `https://${id}.example/p` })], { brands: brands.map((name) => ({ name })) });
+  const list = { products: [at('a', "Aesop's Fables", ['Barnes & Noble']), at('b', 'AESOP Conditioner (100ml)', ['Aesop']), at('c', 'Aesop Mouthwash', []), at('d', 'Conditioner', ['Aesop']), at('e', 'Fables of Aesop', ['Dover Publications'])] };
+  const titles = (brand: boolean) => parseChannel3(list, 'i', 0, 8, { entity: 'Aesop', brand }).map((c) => c.title);
+  assert.deepEqual(titles(true), ['AESOP Conditioner (100ml)', 'Aesop Mouthwash', 'Conditioner']);
+  assert.equal(titles(false).length, 5, 'other entity types keep the title-or-brand rule');
+});
+
 test('channel3: searchProducts sends the documented request, caches for 12 h and stamps the idea id', async () => {
   const { svc, net } = await makeSvc();
   const a = await searchProducts(svc, { query: 'Muji notebook', ideaId: 'i1', maxPriceCents: 4000, limit: 3 });

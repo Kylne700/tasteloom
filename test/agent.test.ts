@@ -128,6 +128,18 @@ test('ideas: names Qloo cannot place end in a plain bad_input error and spend no
   assert.equal(h.net.count('api.trychannel3.com') + h.net.count('api.tavily.com'), 0);
 });
 
+test('ideas: a catalog that answers with nothing is a step that worked; one that is down is a step that failed', async () => {
+  const productCalls = (ev: any[]) => ev.filter((e) => e.t === 'call' && e.tool === 'find_products' && !e.arg.endsWith('(experiences)'));
+  const empty = makeHarness();
+  empty.net.intercept = (path) => (path === '/v1/search' ? json({ products: [] }) : undefined);
+  const worked = productCalls(await run(empty));
+  assert.ok(worked.length > 0 && worked.every((c) => c.ok === true && /^0 products/.test(c.out)), JSON.stringify(worked));
+  const down = makeHarness();
+  down.net.down.add('api.trychannel3.com');
+  const failed = productCalls(await run(down));
+  assert.ok(failed.length > 0 && failed.every((c) => c.ok === false), JSON.stringify(failed));
+});
+
 test('ideas: Qloo down ends in an upstream error with a plain retry message', async () => {
   const h = makeHarness({}, { mocks: { qloo: async () => json({ message: 'down' }, 503) } });
   const last = (await run(h)).at(-1);

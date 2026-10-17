@@ -162,12 +162,12 @@ class Run {
     this.emit({ t: 'phase', id, label, state, note });
   }
 
-  /** Run one upstream call, report it as a step, and turn any upstream failure into a ToolError the model (or pipeline) can survive. */
-  private async traced<T>(tool: string, arg: string, fn: () => Promise<{ value: T; out: string; via: 'live' | 'mock' | 'cache'; ok?: boolean }>): Promise<T> {
+  /** Run one upstream call, report it as a step (ok means the service answered: an empty answer is a normal result, not a failure), and turn any upstream failure into a ToolError the model (or pipeline) can survive. */
+  private async traced<T>(tool: string, arg: string, fn: () => Promise<{ value: T; out: string; via: 'live' | 'mock' | 'cache' }>): Promise<T> {
     const t0 = Date.now();
     try {
       const r = await fn();
-      this.emit({ t: 'call', tool, arg: clip(arg, 70), ms: Date.now() - t0, ok: r.ok ?? true, out: r.out, via: r.via });
+      this.emit({ t: 'call', tool, arg: clip(arg, 70), ms: Date.now() - t0, ok: true, out: r.out, via: r.via });
       return r.value;
     } catch (e) {
       const limit = e instanceof LimitError;
@@ -189,7 +189,7 @@ class Run {
     this.queried.add(norm(q));
     const seed = await this.traced('qloo_search', q, async () => {
       const x = await searchEntity(this.svc, { query: q, type });
-      return { value: x.seed, via: x.via, out: x.seed ? `${x.seed.name} · ${x.seed.type.replace('_', ' ')}` : 'no match', ok: !!x.seed };
+      return { value: x.seed, via: x.via, out: x.seed ? `${x.seed.name} · ${x.seed.type.replace('_', ' ')}` : 'no match' };
     });
     if (!seed) throw new ToolError('no Qloo match for that query; try a simpler name');
     if (this.seeds.size < 5 || this.seeds.has(seed.id)) this.seeds.set(seed.id, seed);
@@ -205,7 +205,7 @@ class Run {
     this.types.add(type);
     const list = await this.traced('qloo_insights', type.replace('_', ' '), async () => {
       const x = await insights(this.svc, { type, seeds, take: 6 });
-      return { value: x.cands, via: x.via, out: `${x.cands.length} matches`, ok: x.cands.length > 0 };
+      return { value: x.cands, via: x.via, out: `${x.cands.length} matches` };
     });
     // an entity the person already named is not a new idea
     const fresh = list.filter((c) => !seeds.some((s) => s.id === c.id || norm(s.name) === norm(c.name)));
@@ -233,13 +233,12 @@ class Run {
       const found = await this.traced('find_products', experience ? `${cand.name} (experiences)` : q, async () => {
         const x = experience
           ? await experienceCards(this.svc, { name: cand.name, ideaId, max: CARDS_PER_IDEA })
-          : await searchProducts(this.svc, { query: q, ideaId, maxPriceCents: maxCents, limit: CARDS_PER_IDEA, gate: { entity: cand.name, category: CATEGORY_FOR[cand.type] } });
+          : await searchProducts(this.svc, { query: q, ideaId, maxPriceCents: maxCents, limit: CARDS_PER_IDEA, gate: { entity: cand.name, category: CATEGORY_FOR[cand.type], brand: cand.type === 'brand' } });
         const shops = new Set(x.cards.map((c) => c.shop)).size;
         return {
           value: x.cards,
           via: x.hit ? ('cache' as const) : ('live' as const),
           out: experience ? `${x.cards.length} experience links via Tavily` : `${x.cards.length} products, ${shops} shop${shops === 1 ? '' : 's'}, via Channel3`,
-          ok: x.cards.length >= (experience ? 1 : MIN_CARDS),
         };
       });
       const fresh = found.filter((c) => !this.cards.some((x) => x.id === c.id)).slice(0, CARDS_PER_IDEA);
@@ -429,7 +428,7 @@ class Run {
         try {
           const res = await this.traced('tavily_search', `${card.shop} price check`, async () => {
             const v = (await priceCheck(this.svc, card, hint)) ?? { state: 'unknown' as const };
-            return { value: v, via: 'live' as const, out: v.state === 'confirmed' ? 'price matches the shop page' : 'could not confirm on the shop page', ok: true };
+            return { value: v, via: 'live' as const, out: v.state === 'confirmed' ? 'price matches the shop page' : 'could not confirm on the shop page' };
           });
           card.priceCheck = res;
           this.emit({ t: 'check', cardId: card.id, state: res.state, url: res.url });

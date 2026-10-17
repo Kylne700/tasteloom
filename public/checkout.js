@@ -176,8 +176,8 @@ export function mountCheckout(root, { cancelled }) {
     const text = h('span', {}, 'Copy');
     const b = h('button', { type: 'button', class: 'btn small copy', 'aria-label': `Copy ${label.toLowerCase()}`, onclick: async () => {
       const ok = await copyText(value);
-      text.textContent = ok ? 'Copied' : 'Press Ctrl+C';
-      announce(ok ? `${label} copied` : `Could not copy ${label}`);
+      text.textContent = ok ? 'Copied' : 'Ctrl+C'; // as short as "Copied", so the row keeps its size
+      announce(ok ? `${label} copied` : `Could not copy ${label}. Select it and press Ctrl+C.`);
       setTimeout(() => (text.textContent = 'Copy'), 1800);
     } }, icon('copy', 14), text);
     return b;
@@ -211,7 +211,7 @@ export function mountCheckout(root, { cancelled }) {
             h('li', {}, 'Enter this test card. Name, email, phone and address can be made up.'),
           ),
           card,
-          h('p', { class: 'tip' }, icon('info', 16), h('span', {}, 'Turn off ', h('strong', {}, 'Save info & create your PayPal account'), ', then press ', h('strong', {}, 'Pay Now'), '. You come back here to a receipt. If PayPal only offers to create an account, reload its page.')),
+          h('p', { class: 'tip' }, icon('info', 16), h('span', {}, 'Do not create an account: press ', h('strong', {}, 'Pay now as guest'), ', or turn off ', h('strong', {}, 'Save info & create your PayPal account'), ' and press ', h('strong', {}, 'Pay Now'), '. You come back here to a receipt. If neither shows, reload PayPal’s page.')),
           payBtn,
           payStatus,
         ),

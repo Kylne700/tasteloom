@@ -335,12 +335,19 @@ function states(fx) {
     check(`${c.name}/checkout: the sandbox label and the working test card are on screen`, /Sandbox, no real money/.test(await text(page, '.sandbox-note')) && (await text(page, 'dl.testcard')).includes('4005 5192 0000 0004') && (await text(page, 'dl.testcard')).includes('12/30') && (await text(page, 'dl.testcard')).includes('123'));
     check(`${c.name}/checkout: the only filled button on the screen is Pay (the way back is an outline button)`, (await page.$$eval('main .btn.primary, main button.primary', (l) => l.map((e) => e.textContent.trim()))).join('|').startsWith('Pay ') && (await page.$$eval('main .btn.primary', (l) => l.length)) === 1);
     check(`${c.name}/checkout: the pay button names the exact total`, new RegExp(`Pay \\$${(total(c) / 100).toFixed(2).replace('.', '\\.')} with PayPal`).test(await text(page, 'button.pay-btn')), await text(page, 'button.pay-btn'));
+    const payTop = () => page.evaluate(() => Math.round(document.querySelector('button.pay-btn').getBoundingClientRect().top + scrollY));
+    const payBefore = await payTop();
+    await page.click('dl.testcard button.copy');
+    await sleep(250);
+    const payAfter = await payTop();
+    check(`${c.name}/checkout: pressing Copy moves nothing on the page (the label changes, the layout does not)`, payAfter === payBefore, `Pay button at ${payBefore} px, then ${payAfter} px`);
     if (c.clip) {
-      await page.click('dl.testcard button.copy');
-      await sleep(250);
       const clip = await page.evaluate(() => navigator.clipboard.readText()).catch((e) => `ERR ${e.message}`);
       check(`${c.name}/checkout: "Copy card number" puts the test card on the clipboard and says Copied`, clip === '4005519200000004' && /Copied/.test(await text(page, 'dl.testcard .tc-row:first-child button.copy')), clip.length > 20 ? 'unexpected' : clip);
     }
+    const back = await page.waitForFunction(() => document.querySelector('dl.testcard button.copy').textContent.trim() === 'Copy', { timeout: 4000 }).then(() => true, () => false);
+    check(`${c.name}/checkout: the Copied label goes back to Copy by itself`, back);
+    await page.mouse.move(0, 0); // the screenshot shows the resting state, not a hovered button
     await c.audit('checkout');
     if (c.sweep) await overflowSweep(page, `${c.name}/checkout`);
     await tabWalk(page, `${c.name}/checkout`);
@@ -374,12 +381,15 @@ function states(fx) {
   });
   // When paying again can work, the Pay button stays the one filled button and the banner has outline buttons only;
   // when it cannot, Pay is switched off (with a line saying why) and the banner has exactly one filled button.
+  const backLinks = (page) => page.$$eval('.checkout a', (l) => l.filter((a) => /Back to ideas/.test(a.textContent) && a.getClientRects().length).length);
   const payError = (key, spec, title, actions, filled) =>
     pay(key, spec, async (c) => {
       await c.page.waitForSelector('section.panel.bad[role=alert]', { timeout: 5000 });
       const got = await actionsOf(c.page, 'section.panel.bad .panel-actions');
       const body = (await text(c.page, 'section.panel.bad .panel-body p')) || '';
       const payOff = await c.page.$eval('button.pay-btn', (e) => e.disabled);
+      const backs = await backLinks(c.page);
+      check(`${c.name}/checkout: ${key.replace('checkout-error-', '')}: one "Back to ideas" on the screen, not two`, backs === 1, `${backs} visible`);
       check(`${c.name}/checkout: ${key.replace('checkout-error-', '')}: title "${title}" and actions ${actions.join(', ')}`, (await text(c.page, 'section.panel.bad h2')) === title && got.names.join('|') === actions.join('|'), `${await text(c.page, 'section.panel.bad h2')} / ${got.names.join(', ')}`);
       check(`${c.name}/checkout: ${key.replace('checkout-error-', '')}: ${filled ? `one filled button ("${filled}") and Pay is switched off with a reason` : 'Pay stays the one filled button and stays on'}; the message does not repeat the title`, got.filled.join('|') === (filled || '') && payOff === !!filled && (!filled || (await text(c.page, '.pay-status')).startsWith('Paying is off')) && body.length > 10 && !body.toLowerCase().includes(title.toLowerCase()), `${got.filled.join(',')} / pay off ${payOff} / ${body}`);
     });
@@ -393,6 +403,7 @@ function states(fx) {
     await open(c, '#/checkout', { st: withRun(c.done, { budget_cents: sum - 500, selected: three.map((x) => x.id) }) });
     const got = await actionsOf(page, 'section.panel.bad .panel-actions');
     const over = (await text(page, 'dl.totals .row.over')) || '';
+    check(`${c.name}/checkout: over budget: one "Back to ideas" on the screen, not two`, (await backLinks(page)) === 1);
     check(`${c.name}/checkout: over budget (counted on the page): the banner, the "Over budget by" row and the Pay button agree`, (await text(page, 'section.panel.bad h2')) === 'That is over your budget' && over.includes('$5.00') && (await text(page, 'section.panel.bad .panel-body p')).includes('$5.00') && got.names.join('|') === 'Back to ideas' && got.filled.join('|') === 'Back to ideas' && (await page.$eval('button.pay-btn', (e) => e.disabled)) && (await text(page, '.pay-status')) === 'Paying is off until the gift fits your budget.', `${over} / ${got.names.join(', ')}`);
     await c.audit('checkout over budget');
     await c.snap();

@@ -16,6 +16,8 @@ export interface Gate {
   entity: string;
   /** keep only products whose catalog category path contains one of these texts, separated by | (e.g. "books") */
   category?: string;
+  /** the entity is a brand: a brand the catalog lists for the product must share a word with it ("Aesop's Fables" is a book from a publisher, not an Aesop product) */
+  brand?: boolean;
 }
 
 export function parseChannel3(json: unknown, ideaId: string, maxPriceCents: number, limit = 8, gate?: Gate): Card[] {
@@ -31,6 +33,8 @@ export function parseChannel3(json: unknown, ideaId: string, maxPriceCents: numb
       const brands = (Array.isArray(p.brands) ? p.brands : []).map((b) => asObject(b)?.name ?? '').join(' ');
       const hay = ' ' + nameTokens(`${p.title} ${brands}`).join(' ') + ' ';
       if (!need.every((t) => hay.includes(` ${t} `) || hay.includes(` ${t}s `))) continue; // whole words; a plural is fine
+      const listed = nameTokens(brands);
+      if (gate?.brand && listed.length && !need.some((t) => listed.includes(t))) continue; // with no brand listed, the title decides
     }
     if (gate?.category) {
       const cat = asObject(p.category);

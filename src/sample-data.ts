@@ -42,7 +42,7 @@ export const SAMPLE: { asOf: string; budget_cents: number; favorites: { text: st
    "t": "call",
    "tool": "qloo_search",
    "arg": "Hario V60",
-   "ms": 1,
+   "ms": 2,
    "ok": true,
    "out": "Hario · brand",
    "via": "mock"
@@ -78,7 +78,7 @@ export const SAMPLE: { asOf: string; budget_cents: number; favorites: { text: st
    "t": "call",
    "tool": "qloo_search",
    "arg": "Kyoto",
-   "ms": 0,
+   "ms": 1,
    "ok": true,
    "out": "Kyoto · destination",
    "via": "mock"
@@ -187,7 +187,7 @@ export const SAMPLE: { asOf: string; budget_cents: number; favorites: { text: st
    "t": "call",
    "tool": "nemotron",
    "arg": "step 2",
-   "ms": 1,
+   "ms": 0,
    "ok": true,
    "out": "4 tool calls",
    "via": "mock"
@@ -205,7 +205,7 @@ export const SAMPLE: { asOf: string; budget_cents: number; favorites: { text: st
    "t": "call",
    "tool": "qloo_insights",
    "arg": "book",
-   "ms": 2,
+   "ms": 1,
    "ok": true,
    "out": "6 matches",
    "via": "mock"
@@ -232,7 +232,7 @@ export const SAMPLE: { asOf: string; budget_cents: number; favorites: { text: st
    "t": "call",
    "tool": "nemotron",
    "arg": "step 3",
-   "ms": 0,
+   "ms": 1,
    "ok": true,
    "out": "5 tool calls",
    "via": "mock"
@@ -253,7 +253,7 @@ export const SAMPLE: { asOf: string; budget_cents: number; favorites: { text: st
    "t": "call",
    "tool": "find_products",
    "arg": "Muji",
-   "ms": 3,
+   "ms": 2,
    "ok": true,
    "out": "3 products, 2 shops, via Channel3",
    "via": "live"
@@ -324,8 +324,8 @@ export const SAMPLE: { asOf: string; budget_cents: number; favorites: { text: st
    "t": "call",
    "tool": "find_products",
    "arg": "The Housekeeper and the Professor book",
-   "ms": 4,
-   "ok": false,
+   "ms": 3,
+   "ok": true,
    "out": "0 products, 0 shops, via Channel3",
    "via": "live"
   },
@@ -333,7 +333,7 @@ export const SAMPLE: { asOf: string; budget_cents: number; favorites: { text: st
    "t": "call",
    "tool": "find_products",
    "arg": "Ryuichi Sakamoto vinyl",
-   "ms": 5,
+   "ms": 3,
    "ok": true,
    "out": "3 products, 2 shops, via Channel3",
    "via": "live"
@@ -404,7 +404,7 @@ export const SAMPLE: { asOf: string; budget_cents: number; favorites: { text: st
    "t": "call",
    "tool": "find_products",
    "arg": "Kew Gardens (experiences)",
-   "ms": 6,
+   "ms": 5,
    "ok": true,
    "out": "3 experience links via Tavily",
    "via": "live"
@@ -474,7 +474,7 @@ export const SAMPLE: { asOf: string; budget_cents: number; favorites: { text: st
    "t": "call",
    "tool": "find_products",
    "arg": "Lodge",
-   "ms": 7,
+   "ms": 6,
    "ok": true,
    "out": "3 products, 3 shops, via Channel3",
    "via": "live"
@@ -545,7 +545,7 @@ export const SAMPLE: { asOf: string; budget_cents: number; favorites: { text: st
    "t": "call",
    "tool": "nemotron",
    "arg": "step 4",
-   "ms": 1,
+   "ms": 0,
    "ok": true,
    "out": "finished",
    "via": "mock"
@@ -605,7 +605,7 @@ export const SAMPLE: { asOf: string; budget_cents: number; favorites: { text: st
    "t": "call",
    "tool": "tavily_search",
    "arg": "turntablelab.com price check",
-   "ms": 2,
+   "ms": 1,
    "ok": true,
    "out": "could not confirm on the shop page",
    "via": "live"
@@ -619,7 +619,7 @@ export const SAMPLE: { asOf: string; budget_cents: number; favorites: { text: st
    "t": "call",
    "tool": "tavily_search",
    "arg": "farmandfleet.com price check",
-   "ms": 2,
+   "ms": 1,
    "ok": true,
    "out": "could not confirm on the shop page",
    "via": "live"

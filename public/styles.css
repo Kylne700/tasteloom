@@ -148,6 +148,7 @@ select {
 .screen-head > :first-child { flex: 1 1 0; min-width: min(100%, 420px); }
 .screen-head .lead { margin: 10px 0 0; }
 .head-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.checkout:has(.notices a[href='#/ideas']) .head-actions { display: none; } /* the banner already offers the way back: one "Back to ideas", not two */
 .eyebrow { margin: 0 0 10px; color: var(--accent); font-size: 0.8125rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
 .lead { max-width: 58ch; margin: 14px 0 0; color: var(--ink-2); font-size: 1.1875rem; line-height: 1.5; }
 
@@ -313,8 +314,8 @@ html[data-images='off'] .media img, html[data-images='off'] .thumb img { display
 .tc-row:first-child { border-top: 0; }
 .tc-row dt { grid-column: 1; color: var(--ink-2); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
 .tc-row dd { grid-column: 1; margin: 0; }
-.tc-row code { font-size: 1.25rem; font-weight: 700; letter-spacing: 0.02em; }
-.tc-row .copy { grid-column: 2; grid-row: 1 / span 2; min-width: 88px; }
+.tc-row code { font-size: 1.125rem; font-weight: 700; letter-spacing: 0.02em; }
+.tc-row .btn.copy { grid-column: 2; grid-row: 1 / span 2; min-width: 6.25rem; } /* as wide as "Copied" (and above the coarse-pointer .btn.small rule), so the label change moves nothing */
 .tip { display: flex; align-items: flex-start; gap: 8px; margin: 0 0 4px; color: var(--ink-2); font-size: 0.9375rem; }
 .tip svg { flex: none; margin-top: 3px; color: var(--accent); }
 .pay-btn { width: 100%; margin-top: 18px; white-space: normal; line-height: 1.25; padding-block: 8px; }
@@ -415,7 +416,9 @@ html[data-images='off'] .media img, html[data-images='off'] .thumb img { display
   .hero { align-items: flex-start; }
   .hero-icon { width: 48px; height: 48px; }
   .receipt-actions .btn { width: 100%; }
-  .tc-row code { font-size: clamp(0.875rem, 4vw, 1rem); }
+  .testcard { padding: 4px 12px; }
+  .tc-row { column-gap: 10px; }
+  .tc-row code { font-size: clamp(0.75rem, 3.5vw, 1rem); } /* the card number stays on one line down to 360 px */
   .panel-actions .btn { flex: 1 1 100%; }
 }
 @media (max-width: 360px) {
