@@ -34,7 +34,7 @@ interface Row {
 const ROWS: Record<string, Row[]> = {
   brand: [{ id: 'B-AUREL', name: 'Aurel', lead: NUJ }, { id: 'B-BRISK', name: 'Brisk', lead: NUJ }, { id: 'B-CORVO', name: 'Corvo', lead: MUJI }, { id: 'B-DUNMORE', name: 'Dunmore', lead: KAFKA }],
   book: [{ id: 'K-FABLE', name: 'Fable Hill', lead: NUJ }, { id: 'K-GLASS', name: 'Glass Orchard', lead: KAFKA }],
-  artist: [{ id: 'A-HALDEN', name: 'Halden', lead: NUJ }, { id: 'A-IVORY', name: 'Ivory Quill', lead: MUJI }],
+  artist: [{ id: 'A-HALDEN', name: 'Halden', lead: NUJ }, { id: 'A-AMBER', name: 'Amber Quill', lead: MUJI }],
   place: [{ id: 'P-JUNO', name: 'Juno Park', lead: NUJ }, { id: 'P-KESTREL', name: 'Kestrel Cafe', lead: KAFKA }],
 };
 /** The person's own words coming back as results: the matched favourite under another name, the same name under another id, and a favourite Qloo cannot find. */
