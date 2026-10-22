@@ -88,6 +88,8 @@ function fixtures(sample) {
     secondIdea: nth('idea', 2),
     // stops right after the second idea: the later steps never ran, so the step list must not look finished
     partial: [...live.slice(0, nth('idea', 2) + 1), { t: 'error', code: 'upstream', message: UPSTREAM_MSG }],
+    // the model's daily allowance was used up (or it did not answer): the run still finishes, with fixed steps and template reasons
+    noModel: live.map((e) => (e.t === 'done' ? { t: 'done', tier: 'template' } : e)),
     empty: [{ ...live[0], budget_cents: 5000 }, { t: 'phase', id: 'taste', label: 'Reading their taste with Qloo', state: 'running' }, { t: 'done', tier: 'agent' }],
   };
 }
@@ -360,6 +362,15 @@ function states(fx) {
     check(`${c.name}/ideas: no results gives an explanation and two ways forward, one of them filled`, acts.names.join('|') === 'Change favourites|Try an example' && acts.filled.join('|') === 'Change favourites', acts.names.join(', '));
     check(`${c.name}/ideas: the status row says "Finished without ideas" instead of a green Done`, (await text(page, '.agent-status')) === 'Finished without ideas' && (await page.$eval('.agent-status', (e) => e.dataset.state)) === 'empty', await text(page, '.agent-status'));
     await c.snap();
+  });
+
+  add('ideas-no-model', false, async (c) => {
+    const { page } = c;
+    await open(c, '#/', { st: { favorites: fx.FAVS, budget: 120 }, mocks: { 'POST /api/ideas': { events: fx.noModel } } });
+    await tapText(page, /^Find gift ideas$/);
+    await release(page, 'POST /api/ideas', fx.noModel.length);
+    await page.waitForSelector('.tier-note', { timeout: 8000 });
+    check(`${c.name}/ideas: when the model did not take part, a plain note says so and the ideas are still there`, /did not take part/.test((await text(page, '.tier-note')) || '') && (await count(page, '.ideas-list .idea:not(.skeleton)')) >= 1, (await text(page, '.tier-note') || '').slice(0, 80));
   });
 
   const two = (c) => purchasable(c.done).slice(0, 2);

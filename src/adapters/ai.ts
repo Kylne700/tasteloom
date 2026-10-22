@@ -130,9 +130,12 @@ export interface ChatOpts {
  * ran gives its reservation back.
  */
 export async function chat(svc: Svc, o: ChatOpts): Promise<ChatResult> {
+  const messages = o.messages.map((m) => (m.content === null ? { ...m, content: '' } : m)); // Workers AI rejects a null content (an assistant turn that only made tool calls)
+  // Qwen3 writes hundreds of thinking tokens before every answer (about 8 s a call, and output tokens are most of its price); its /no_think switch skips that
+  if (/qwen3/i.test(o.model) && messages[0]?.role === 'system') messages[0] = { ...messages[0], content: `${messages[0].content}\n/no_think` };
   const body: Record<string, unknown> = {
     model: o.model,
-    messages: o.messages,
+    messages,
     temperature: o.temperature ?? 0.2,
     max_tokens: o.maxTokens ?? 1500,
   };

@@ -300,6 +300,19 @@ test('ai: chat runs the model on the binding with tools and a named tool choice,
   assert.deepEqual([u.ai, u.neurons], [1, 3]);
 });
 
+test('ai: an assistant turn with only tool calls goes out with empty text, not null; Qwen3 gets its no-think switch, other models do not', async () => {
+  const ai = fakeAi();
+  const { svc } = await makeSvc({ AI: ai });
+  const turn = [{ role: 'system' as const, content: 'Be brief. [task:ideas]' }, { role: 'user' as const, content: 'hi' }, { role: 'assistant' as const, content: null, tool_calls: [toolCall('qloo_search', { query: 'x' })] }, { role: 'tool' as const, tool_call_id: 'call_1', content: '{}' }];
+  await chat(svc, { model: '@cf/qwen/qwen3-30b-a3b-fp8', messages: turn });
+  await chat(svc, { model: '@cf/mistralai/mistral-small-3.1-24b-instruct', messages: turn });
+  const [qwen, other] = ai.runs.map((r) => r.input.messages as { role: string; content: unknown }[]);
+  assert.deepEqual([qwen![2]!.content, other![2]!.content], ['', '']);
+  assert.equal(qwen![0]!.content, 'Be brief. [task:ideas]\n/no_think');
+  assert.equal(other![0]!.content, 'Be brief. [task:ideas]');
+  assert.equal(turn[2]!.content, null, 'the caller\'s history is not changed');
+});
+
 test('ai: one retry on a refusal or a failure, then the error stands', async () => {
   let n = 0;
   const flaky = fakeAi(() => {

@@ -435,6 +435,7 @@ export function mountIdeas(root) {
     });
     setAgentStatus();
     settleAgent();
+    showHeader();
     save();
     announce(run.ideas.length ?`Done. ${run.ideas.length} gift ideas. Pick the items you like.` : 'Finished without any gift ideas.');
     if (!run.ideas.length) showEmpty();
@@ -472,7 +473,10 @@ export function mountIdeas(root) {
       h('ul', { class: 'pills' }, names.map((n) => h('li', { class: 'pill-soft' }, n))),
       h('span', { class: 'budget' }, `Budget ${money(run.budget_cents)}`),
     );
-    notices.querySelectorAll('.example-note').forEach((n) => n.remove());
+    notices.querySelectorAll('.example-note, .tier-note').forEach((n) => n.remove());
+    if (run.tier === 'template') {
+      notices.prepend(h('p', { class: 'note info tier-note' }, icon('info', 18), h('span', {}, 'The AI model did not take part in this run (its daily allowance is used up, or it did not answer), so the steps were fixed and the reasons are plain templates. Qloo, the catalog and prices were still live.')));
+    }
     if (run.example) {
       notices.prepend(h('p', { class: 'note info example-note' }, icon('info', 18), h('span', {}, `Saved example${run.asOf ? `, recorded ${run.asOf}` : ''}. Prices are from that day. The checkout is a live PayPal sandbox order.`)));
     }
