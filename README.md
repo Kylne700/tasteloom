@@ -4,6 +4,8 @@ Taste + loom: Tasteloom weaves the things someone loves into gifts you can actua
 
 Type three to five things a person loves (a book, a band, a shop, a place) and a budget. Qloo reads their taste, an AI agent finds real products with real prices, every idea says "Because they love X", and you can pay in the PayPal sandbox as a guest. No account, and Tasteloom stores nothing you type.
 
+Try it: https://tasteloom.kylne700.workers.dev (free, no sign-in; "Try an example" costs no API calls).
+
 This is an entry to the Qloo hackathon. It was built by AI agents (Claude Code), with a person setting the goals and owning the accounts the app uses.
 
 ## How Qloo is used
