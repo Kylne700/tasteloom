@@ -48,6 +48,7 @@ async function live(browser) {
   const ctx = await browser.createBrowserContext();
   await ctx.overridePermissions(BASE, ['clipboard-read', 'clipboard-write']);
   const page = await newPage(ctx, DESKTOP, 'live');
+  const USAGE = ['ideas', 'qloo', 'ai', 'neurons', 'tavily', 'channel3', 'orders'];
   const before = (await api('/api/status')).json;
   say(`  modes: ${JSON.stringify(before.modes)}; mocks: ${before.mocks.join(',') || 'none'}`);
 
@@ -80,6 +81,9 @@ async function live(browser) {
   const stored = JSON.parse(await page.evaluate((k) => sessionStorage.getItem(k), KEY));
   out.liveRun = stored;
   fs.writeFileSync(path.join(DEBUG, 'live-run.json'), JSON.stringify(stored)); // third-party product data: stays in the ignored debug folder
+  const mid = (await api('/api/status')).json;
+  out.ideasUsage = Object.fromEntries(USAGE.map((k) => [k, (mid.usage?.[k] ?? 0) - (before.usage?.[k] ?? 0)]));
+  say(`  billed calls for the ideas run alone (counter deltas): ${JSON.stringify(out.ideasUsage)}`);
   const ideas = stored.run.ideas;
   const cards = ideas.flatMap((i) => i.cards);
   const buyable = cards.filter((c) => c.purchasable);
@@ -87,13 +91,18 @@ async function live(browser) {
   say(`  run: ${ideas.length} ideas, ${cards.length} cards (${buyable.length} buyable, ${cards.filter((c) => c.kind === 'link').length} link-only), tier ${stored.run.tier}, ${mode}`);
   check('live/ideas: at least 3 ideas, each with a reason ("Because they love ..." or the overall-taste line)', ideas.length >= 3 && (await page.$$eval('.ideas-list article.idea .because', (l) => l.length > 0 && l.every((e) => /Because they love|overall taste/.test(e.textContent)))), `${ideas.length} ideas`);
   check('live/ideas: real product cards from Channel3 with a title, a price in dollars, a shop and an https link', buyable.length >= 2 && buyable.every((c) => c.title && c.price_cents > 0 && c.shop) && (await page.$$eval('ul.cards li.card[data-kind=product]', (l) => l.length >= 2 && l.every((e) => /\$\d/.test(e.querySelector('.price')?.textContent || '') && /^https:/.test(e.querySelector('a.shop-link')?.href || '')))), `${buyable.length} buyable`);
-  check('live/ideas: the demo-data note and badge show while Qloo/the model run on stand-ins', before.mocks.length === 0 || (/Demo data/.test((await text(page, '.demo-note')) || '') && (await page.$eval('#demo-badge', (e) => !e.hidden))));
+  const badgeOn = await page.$eval('#demo-badge', (e) => !e.hidden);
+  const noteOn = await page.$eval('.demo-note', (e) => !e.hidden).catch(() => false);
+  check('live/ideas: the "Demo data" badge and note are hidden while Qloo and the model are live, and shown while a stand-in runs', before.mocks.length === 0 ? !badgeOn && !noteOn : badgeOn && noteOn && /Demo data/.test((await text(page, '.demo-note')) || ''), `mocks: ${before.mocks.join(',') || 'none'}`);
   await audit(page, 'live/ideas');
   await shot(page, 'live-ideas-done');
 
   // 3. pick items, review
   const picked = [];
-  for (const b of await page.$$('ul.cards li.card[data-kind=product] button.pick')) {
+  const priceOf = new Map(buyable.map((c) => [c.title, c.price_cents]));
+  const titleOf = async (b) => (await b.evaluate((e) => e.getAttribute('aria-label') || '')).replace(/^[^:]*:\s*/, '');
+  const buttons = await Promise.all((await page.$$('ul.cards li.card[data-kind=product] button.pick')).map(async (b) => [b, priceOf.get(await titleOf(b)) ?? Infinity]));
+  for (const [b] of buttons.sort((x, y) => x[1] - y[1])) { // cheapest first: the live catalog decides the prices, and two must fit the $120 budget
     if (picked.length >= 2) break;
     if (!/^Add to gift/.test(await b.evaluate((e) => e.getAttribute('aria-label') || ''))) continue;
     await b.evaluate((e) => e.scrollIntoView({ block: 'center' }));
@@ -189,8 +198,8 @@ async function live(browser) {
   } else say(`  NOT VERIFIED over HTTP: the ${all.length} buyable cards sum to ${money(sum)}, within the $120 cap (the unit tests cover the over-cap refusal)`);
 
   const after = (await api('/api/status')).json;
-  out.usage = Object.fromEntries(['ideas', 'qloo', 'ai', 'neurons', 'tavily', 'channel3', 'orders'].map((k) => [k, (after.usage?.[k] ?? 0) - (before.usage?.[k] ?? 0)]));
-  say(`  billed calls this live phase (counter deltas): ${JSON.stringify(out.usage)}`);
+  out.usage = Object.fromEntries(USAGE.map((k) => [k, (after.usage?.[k] ?? 0) - (before.usage?.[k] ?? 0)]));
+  say(`  billed calls for the whole live phase: the ideas run, 3 order creations and 1 capture (counter deltas): ${JSON.stringify(out.usage)}`);
   check('live: the meter counted the run, and spend stayed inside the stage budget (Channel3 <= 20, Tavily <= 30 for one run)', out.usage.ideas >= 1 && out.usage.channel3 <= 20 && out.usage.tavily <= 30, JSON.stringify(out.usage));
   await ctx.close();
 }
