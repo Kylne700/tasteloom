@@ -27,7 +27,7 @@ An AI model runs a loop in which it chooses tool calls; the server decides wheth
 - **Three tiers, so a model problem never breaks the page.** First the model drives the tools in a loop (up to 6 turns). The server then fills in whatever it skipped by calling the same tools in a fixed order, and the model only fills JSON slots (which entities, which search words, the reasons). If the model is unavailable, template choices and template reasons keep the page working, and the page says that the model did not take part.
 - Every tool validates its arguments against server state, so a model cannot invent an id, a price or a charge. A model outage never blocks or changes a payment: the same guarded server functions run directly.
 
-One live run makes 5 to 6 model calls and uses 85 to 100 neurons (Cloudflare's unit for Workers AI; measured on 2026-10-22). Creating and capturing a sandbox order adds one or two more calls and a few neurons.
+One live run makes 5 to 6 model calls and uses 85 to 100 neurons (Cloudflare's unit for Workers AI; measured on 2026-10-22). The checkout part of the live test (3 order creations and 1 capture) used 5 model calls and 15 neurons.
 
 ## The flow
 
@@ -68,8 +68,8 @@ The demo is free and has no sign-in. Daily caps, counted per UTC day, keep it in
 | --- | --- | --- | --- |
 | Gift-idea runs | 8 | 100 | 1 |
 | Qloo calls | 60 | 600 | about 9 (8 to 10) |
-| Model calls | 80 | 600 | 5 to 6 (a payment adds 1 or 2) |
-| Model neurons | 1,500 | 8,000 | 85 to 100 (a payment adds under 10) |
+| Model calls | 80 | 600 | 5 to 6 (the checkout part of the live test, 3 order creations and 1 capture, used 5 more) |
+| Model neurons | 1,500 | 8,000 | 85 to 100 (that checkout part used 15 more) |
 | Channel3 searches | 10 | 30 | 4 to 6 (1 or 2 when the same search was made in the last 12 hours) |
 | Tavily searches | 10 | 30 | about 4 (1 when repeated within 12 hours) |
 | Sandbox orders | 8 | 100 | 1 per payment |
