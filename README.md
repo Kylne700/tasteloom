@@ -15,7 +15,7 @@ Qloo is the only thing in the app that decides what fits a person's taste.
 3. **"Because they love X".** That explanation is the line on every idea card. The model writes the reason in its own words, but a reason that names none of the favourites Qloo linked is replaced by a template sentence.
 4. **From taste to things to buy.** A suggestion such as a brand or a book becomes a product search at Channel3, which returns real products with prices. A place or destination becomes experience links found with Tavily; those are links, never buyable cards.
 
-One live run makes about 10 Qloo calls with four favourites (4 searches and 4 to 6 insight calls; measured 8 to 10 on 2026-10-22). The raw Qloo answers are used inside the request and not stored. `npm run contract:qloo` checks the real API against the shapes the code expects (5 calls).
+One live run makes about 9 Qloo calls with four favourites (4 searches and 5 insight calls, one per gift category; measured 8 to 10 on 2026-10-22). The raw Qloo answers are used inside the request and not stored. `npm run contract:qloo` checks the real API against the shapes the code expects (5 calls).
 
 ## The agent
 
@@ -27,7 +27,7 @@ An AI model runs a loop in which it chooses tool calls; the server decides wheth
 - **Three tiers, so a model problem never breaks the page.** First the model drives the tools in a loop (up to 6 turns). The server then fills in whatever it skipped by calling the same tools in a fixed order, and the model only fills JSON slots (which entities, which search words, the reasons). If the model is unavailable, template choices and template reasons keep the page working, and the page says that the model did not take part.
 - Every tool validates its arguments against server state, so a model cannot invent an id, a price or a charge. A model outage never blocks or changes a payment: the same guarded server functions run directly.
 
-One live run makes about 6 model calls and uses about 85 neurons (Cloudflare's unit for Workers AI; measured on 2026-10-22).
+One live run makes 5 to 6 model calls and uses 85 to 100 neurons (Cloudflare's unit for Workers AI; measured on 2026-10-22). Creating and capturing a sandbox order adds one or two more calls and a few neurons.
 
 ## The flow
 
@@ -67,10 +67,10 @@ The demo is free and has no sign-in. Daily caps, counted per UTC day, keep it in
 | What is counted | Per visitor (IP, or IPv6 /64) | All visitors | One live run uses (measured) |
 | --- | --- | --- | --- |
 | Gift-idea runs | 8 | 100 | 1 |
-| Qloo calls | 60 | 600 | about 10 |
-| Model calls | 80 | 600 | about 6 (a payment adds about 3) |
-| Model neurons | 1,500 | 8,000 | about 85 |
-| Channel3 searches | 10 | 30 | about 5 (1 or 2 when the same search was made in the last 12 hours) |
+| Qloo calls | 60 | 600 | about 9 (8 to 10) |
+| Model calls | 80 | 600 | 5 to 6 (a payment adds 1 or 2) |
+| Model neurons | 1,500 | 8,000 | 85 to 100 (a payment adds under 10) |
+| Channel3 searches | 10 | 30 | 4 to 6 (1 or 2 when the same search was made in the last 12 hours) |
 | Tavily searches | 10 | 30 | about 4 (1 when repeated within 12 hours) |
 | Sandbox orders | 8 | 100 | 1 per payment |
 | Sandbox spend | | $2,000 | |
