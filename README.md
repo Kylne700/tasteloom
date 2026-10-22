@@ -4,7 +4,7 @@ Taste + loom: Tasteloom weaves the things someone loves into gifts you can actua
 
 Type three to five things a person loves (a book, a band, a shop, a place) and a budget. Qloo reads their taste, an AI agent finds real products with real prices, every idea says "Because they love X", and you can pay in the PayPal sandbox as a guest. No account, and Tasteloom stores nothing you type.
 
-This is an entry to the Qloo hackathon. It was built by AI agents (Claude Code).
+This is an entry to the Qloo hackathon. It was built by AI agents (Claude Code), with a person setting the goals and owning the accounts the app uses.
 
 ## How Qloo is used
 
@@ -116,9 +116,9 @@ Deploying is not part of this repository's checks. A deployment needs the five k
 | `npm test` | unit tests (money rules, adapters on documented fixtures, malformed model JSON, spend counters, contrast of the stylesheet, static checks) |
 | `npm run typecheck` | `tsc --noEmit` on `src/` |
 | `npm run build` | `wrangler deploy --dry-run`: bundles the Worker without deploying |
-| `npm run e2e` | real Chromium against `wrangler dev`: the full flow with a PayPal sandbox guest payment to COMPLETED, then a tour of every screen and error state at 1280 and 390 px (key screens also at 768 and 320 px); writes `evidence/e2e.txt` and `evidence/screens/`. `TOUR_BROWSER=firefox node scripts/e2e.mjs tour` runs the tour alone in Firefox (`/usr/bin/firefox`, no downloads; shots go to `evidence/debug/firefox/`) |
+| `npm run e2e` | real Chromium against `wrangler dev`: the full flow with a PayPal sandbox guest payment to COMPLETED, then a tour of every screen and error state at 1280 and 390 px (key screens also at 768 and 320 px); the screens go to `evidence/screens/` (git-ignored). Everything captured from live services (run data, live screenshots, the dev server's log and state) goes to a folder outside the repository, `tasteloom-live` in the temp folder or `TASTELOOM_LIVE_DIR`. No run rewrites a tracked file: `npm run e2e -- --evidence` (both phases) refreshes `evidence/e2e.txt`. `npm run e2e -- tour` runs the tour alone and makes no billed call. `TOUR_BROWSER=firefox node scripts/e2e.mjs tour` runs it in Firefox (`/usr/bin/firefox`, no downloads; shots go to `evidence/debug/firefox/`) |
 | `npm run contract:qloo` | cheap live check of the Qloo API against the shapes the code expects |
-| `npm run scan` | secret and privacy scan of the tracked files, built assets and git history |
+| `npm run scan` | secret and privacy scan of the tracked files, built assets and git history; it only prints, and `npm run scan -- --write` also saves the report as `evidence/scan.txt` |
 
 ## Rules the server enforces
 
@@ -131,7 +131,7 @@ Deploying is not part of this repository's checks. A deployment needs the five k
 
 ## Privacy
 
-No accounts, no cookies. What you type is sent to the server to build your ideas and is not stored; the section "What is sent where" lists which services receive it. The server keeps only the saved product cards (for server-side pricing, 2 hours), orders (7 days), cached Channel3 and Tavily answers (12 hours, keyed by a hash of the search) and daily counters keyed by a hash of the day and your IP (IPv6: its /64 network), cleared the next UTC day. The browser keeps your inputs, finished run and picks in `sessionStorage` (this tab only) so the return from PayPal's cancel page restores them. The page ships no third-party logos or fonts; product images load from the shops' CDNs only after you turn on the image switch.
+No accounts, no cookies. What you type is sent to the server to build your ideas and is not stored; the section "What is sent where" lists which services receive it. The server keeps only the saved product cards and the budget (for server-side pricing, 2 hours; the saved example is not stored at all), orders (7 days), cached Channel3 and Tavily answers (12 hours, keyed by a hash of the search) and daily counters keyed by a hash of the day and your IP (IPv6: its /64 network), cleared the next UTC day. The browser keeps your inputs, finished run and picks in `sessionStorage` (this tab only) so the return from PayPal's cancel page restores them. The page ships no third-party logos or fonts; product images load from the shops' CDNs only after you turn on the image switch.
 
 ## Design
 
@@ -145,7 +145,7 @@ Plain HTML, CSS and ES modules in `public/` (no framework, no build step). One w
 - The model is small and free: its answers are checked by the server, and a run can finish on the fixed pipeline or on templates.
 - PayPal's hosted sandbox page is outside this app's control and its layout varies. In testing it showed either a "Save info & create your PayPal account" switch with a "Pay Now" button, or two buttons, "Create Account & Pay Now" and "Pay now as guest"; the guest one is the right one (the checkout screen says so). If a load offers only account creation, reload the PayPal page.
 - Workers Free allows 10 ms of CPU per request and 50 subrequests. The Node tests measure about 5 to 8 ms of this app's own work per run, mostly waiting on the network, but that was not measured on Cloudflare. A run makes about 25 outgoing calls (the budget stops at 40).
-- Files in `evidence/` dated 2026-10-16 and 2026-10-17 (the two reviews and the security test runs) describe the earlier build, which used Nebius for the model; the model is now Cloudflare Workers AI.
+- Files in `evidence/` dated 2026-10-16 and 2026-10-17 (the two reviews, the security test runs, and the pictures `evidence/before-after-home.png` and `evidence/before-after-ideas.png`, which still show the Nebius steps) come from the first build, when the model ran on Nebius; the model is now Cloudflare Workers AI.
 
 ## Why "Tasteloom"
 
