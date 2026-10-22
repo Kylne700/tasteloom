@@ -271,6 +271,8 @@ html[data-images='off'] .media img, html[data-images='off'] .thumb img { display
 .price { color: var(--ink); font-size: 1.1875rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .price.none { color: var(--ink-2); font-size: 0.875rem; font-weight: 600; }
 .check { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--ok); font-size: 0.8125rem; font-weight: 600; }
+.check[data-state='paused'] { color: var(--ink-2); }
+.idea .note.paused { margin: 20px 0 0; max-width: 72ch; }
 .snippet { display: -webkit-box; margin: 0; overflow: hidden; color: var(--ink-2); font-size: 0.875rem; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
 .snippet.trail { font-size: 0.8125rem; overflow-wrap: anywhere; } /* a link card without a blurb: where the link goes, from its own address */
 .card-actions { display: flex; flex-direction: column; gap: 10px; margin-top: auto; padding-top: 10px; }

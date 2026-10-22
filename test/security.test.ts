@@ -4,11 +4,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { LIMIT_MESSAGE } from '../src/app.ts';
 import { chat } from '../src/adapters/ai.ts';
+import { runIdeas } from '../src/agent/ideas.ts';
 import { runLoop, toolSpec } from '../src/agent/loop.ts';
 import { loadConfig } from '../src/config.ts';
 import { callJson, HttpError } from '../src/lib/http.ts';
 import { LimitError } from '../src/lib/limits.ts';
-import type { Env } from '../src/types.ts';
+import type { Env, StreamEvent } from '../src/types.ts';
 import { chatBody, chatReply, FAVS, fakeAi, fakeKV, json, makeHarness, makeNet, makeSvc, readEvents, toolCall } from './helpers.ts';
 
 const C3 = 'api.trychannel3.com';
@@ -53,11 +54,19 @@ test('meter: parallel runs of one visitor share one allowance (no lost updates)'
   assert.equal(h.net.count(C3), 2);
 });
 
-test('meter: live Qloo calls have a per-visitor cap', async () => {
+test('meter: live Qloo calls have a per-visitor cap, looked at before the run starts', async () => {
   const h = makeHarness(env({ QLOO_API_KEY: 'q-test', LIMIT_IP_QLOO: '0' }));
-  const ev = (await readEvents(await ideas(h))) as any[];
+  const res = await ideas(h);
+  assert.equal(res.status, 429);
+  assert.equal(((await res.json()) as any).error.code, 'limit');
   assert.equal(h.net.count('hackathon.api.qloo.com'), 0);
-  assert.equal(ev.at(-1).code, 'limit', JSON.stringify(ev.at(-1)));
+});
+
+test('meter: when another visitor takes the last Qloo calls after the look, the run ends with the plain limit error and no Qloo call', async () => {
+  const { svc, net } = await makeSvc({ QLOO_API_KEY: 'q-test', LIMIT_IP_QLOO: '0' });
+  const events: StreamEvent[] = [];
+  await assert.rejects(runIdeas(svc, { favorites: FAVS, budget_cents: 12000 }, (e) => events.push(e)), (e) => e instanceof LimitError && e.counter === 'qloo');
+  assert.equal(net.count('hackathon.api.qloo.com'), 0);
 });
 
 test('meter: live model calls are capped in neurons, and the run falls back to the fixed pipeline', async () => {

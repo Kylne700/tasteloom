@@ -70,21 +70,26 @@ The demo is free and has no sign-in. Daily caps, counted per UTC day, keep it in
 | Qloo calls | 60 | 600 | about 9 (8 to 10) |
 | Model calls | 80 | 600 | 5 to 6 (the checkout part of the live test, 3 order creations and 1 capture, used 5 more) |
 | Model neurons | 1,500 | 8,000 | 85 to 100 (that checkout part used 15 more) |
-| Channel3 searches | 10 | 30 | 4 to 6 (1 or 2 when the same search was made in the last 12 hours) |
-| Tavily searches | 10 | 30 | about 4 (1 when repeated within 12 hours) |
+| Channel3 searches | 24 | 25 | 4 to 6 (1 or 2 when the same search was made in the last 12 hours) |
+| Tavily searches | 16 | 25 | about 4 (1 when repeated within 12 hours) |
 | Sandbox orders | 8 | 100 | 1 per payment |
+| Returns from PayPal that still had work to do | 20 | 150 | 1 or 2 per payment |
 | Sandbox spend | | $2,000 | |
 
-What the page shows when a cap is reached:
+The Channel3 and Tavily numbers are the small ones on purpose: each service gives 1,000 free credits a month (its docs, read 2026-10-22), the demo has to keep working until judging ends on 2026-11-17, and a fifth of the credits is held back. One visitor can still make four full runs a day (6 shop searches and 4 web searches each). The other caps keep a day inside the free plans of Cloudflare (Workers AI neurons, 1,000 KV writes a day: the caps above allow about 850 at the very most; the saved example and an unchanged order write nothing) and give each visitor several runs.
 
-- **Gift-idea runs, Qloo, Channel3 (at the start of a run):** the panel "Live lookups are used up for now" with a plain message ("You have reached today's allowance for live lookups" for one visitor, "The demo has reached its daily budget for live data" for everyone) and a **Try an example** button. The saved example always works.
-- **A cap reached part-way through a run:** the run finishes with what it has, and a note names the service (for example "Today's allowance for Channel3 and Tavily ran out during this run, so some steps were skipped and the result can be smaller than usual").
-- **The model (calls or neurons):** the run goes on without it, with fixed steps and template reasons, and a note says "The AI model did not take part in this run". Qloo, the catalog and prices are still live.
+What the page shows when a cap is reached. The services that only add to a run (shop search, web search, the model) pause on their own and the run goes on; the ones a run cannot do without (a run, Qloo) refuse it before it starts, so a refused run has spent no Qloo or model call.
+
+- **Gift-idea runs and Qloo (looked at before the run starts):** a run needs one Qloo call per favourite and five more (one per gift type), so 8 to 10; if the visitor's or the shared Qloo allowance left cannot cover that, nothing is spent and the page shows the panel "Live lookups are used up for now" with a plain message ("You have reached today's allowance for live lookups" for one visitor, "The demo has reached its daily budget for live data" for everyone) and a **Try an example** button. The saved example always works.
+- **Channel3 (shop search):** the run still gives its Qloo ideas, each with its "Because they love X" reason, but without buy buttons. Every idea that lost its items says "No buy button: shop search is paused until 00:00 UTC", the note at the top of the page says the same, and when no idea has a buy button the Review and pay bar is not shown. If the cap is reached part-way, the ideas found before keep their buy buttons.
+- **Tavily (web search):** the run goes on without it. Each price line says "Price check paused until 00:00 UTC", a place idea says "No links: web search is paused until 00:00 UTC", and the note at the top of the page says prices were not checked and place links are missing. Buy buttons are not affected.
+- **The model (calls or neurons):** the run goes on without it, with fixed steps and template reasons, and a note says "The AI model did not take part in this run". Qloo, the catalog and prices are still live. The model never blocks a run.
 - **Sandbox orders and spend:** the checkout screen says so and asks you to come back tomorrow.
+- **Returns from PayPal:** past the allowance the receipt shows the order as it stands, and PayPal is not asked.
 
 Cloudflare's own limit sits behind ours. The Workers AI pricing page (read 2026-10-22) says: "Our free allocation allows anyone to use a total of 10,000 Neurons per day at no charge" and "If you exceed any one of the above limits, further operations will fail with an error." Our neuron cap (8,000) stops first; if Cloudflare refuses a call anyway, the model tier is skipped in the same way.
 
-The caps can be changed without code: `LIMIT_IP_*` and `LIMIT_GLOBAL_*` (`IDEAS`, `QLOO`, `AI`, `NEURONS`, `TAVILY`, `CHANNEL3`, `ORDERS`).
+The caps are settings, not code: `LIMIT_IP_*` and `LIMIT_GLOBAL_*` (`IDEAS`, `QLOO`, `AI`, `NEURONS`, `TAVILY`, `CHANNEL3`, `ORDERS`, `RETURNS`), `LIMIT_DAILY_CAP_USD`, `LIMIT_MAX_ITEMS` and `LIMIT_MAX_BUDGET_USD`. The deployed values are all written in the `vars` of `wrangler.jsonc` (a test keeps them equal to the defaults in `src/config.ts`), so changing one means editing that file and deploying again.
 
 ## Setup
 
@@ -99,7 +104,7 @@ npm run dev        # http://localhost:8791
 
 `npm run dev` first runs `scripts/dev-vars.mjs`, which copies only those five keys from `../.env.local` into `.dev.vars` (the file `wrangler dev` reads). `.dev.vars` is git-ignored and written with mode 600, and the script prints key names, never values. Keys are used only on the server: they are never sent to the browser, never logged, and error messages are redacted. `npm run dev` also sets `DEV_CACHE=1`, which caches Qloo and model answers while developing (Channel3 and Tavily answers are always cached for 12 hours; Qloo answers are not cached in production).
 
-Optional settings (plain environment variables): `AI_AGENT_MODEL`, `AI_WRITER_MODEL`, `FORCE_MOCK`, the `LIMIT_*` caps above, `LIMIT_DAILY_CAP_USD`, `LIMIT_MAX_ITEMS`, `LIMIT_MAX_BUDGET_USD`, `PUBLIC_BASE_URL`.
+Optional settings (plain environment variables): `AI_AGENT_MODEL`, `AI_WRITER_MODEL`, `FORCE_MOCK`, `PUBLIC_BASE_URL`, and the `LIMIT_*` settings above (already set in `wrangler.jsonc`).
 
 Deploying is not part of this repository's checks. A deployment needs the five keys as Worker secrets (`wrangler secret put NAME` asks for the value at a prompt or reads it from stdin, so it never appears in the command line, shell history or output). `wrangler.jsonc` already holds the `AI` binding and the spend meter, a SQLite-backed Durable Object (migration `v1`; Workers Free runs only this kind). The KV binding has no id: Cloudflare's docs say Wrangler creates a KV namespace without one at deploy time and writes the id back to the config file.
 

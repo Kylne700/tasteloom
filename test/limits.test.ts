@@ -1,6 +1,8 @@
 // Spend and abuse limits, configuration and privacy of the counters.
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
+import { groundedReason } from '../src/agent/ideas.ts';
 import { LIMIT_MESSAGE } from '../src/app.ts';
 import { loadConfig, publicStatus, secretsOf } from '../src/config.ts';
 import { LimitError, Meter, memoryMeterApi, visitorOf, type MeterApi } from '../src/lib/limits.ts';
@@ -72,6 +74,23 @@ test('meter: when the meter cannot be reached every take is refused (fail closed
   }
 });
 
+test('meter: ensure only looks: it refuses what a take would refuse, reserves nothing, and stays quiet when the meter cannot be reached', async () => {
+  const api = memoryMeterApi();
+  const env = { LIMIT_IP_QLOO: '10', LIMIT_GLOBAL_QLOO: '12' };
+  const m = meter(env, api);
+  await m.take({ qloo: 3 });
+  await m.ensure({ qloo: 7 });
+  await assert.rejects(m.ensure({ qloo: 8 }), (e) => e instanceof LimitError && e.counter === 'qloo' && e.scope === 'ip');
+  await meter(env, api, 'ipB').take({ qloo: 8 }); // global 11 of 12
+  await assert.rejects(meter(env, api, 'ipC').ensure({ qloo: 2 }), (e) => e instanceof LimitError && e.counter === 'qloo' && e.scope === 'global');
+  const u = await m.used();
+  assert.deepEqual([u.ip.qloo, u.global.qloo], [3, 11], 'nothing was reserved');
+  const down = async () => {
+    throw new Error('meter unreachable');
+  };
+  await new Meter({ take: down, give: down, used: down }, lim(), 'ip', DAY).ensure({ qloo: 5 }); // the takes that follow still fail closed
+});
+
 test('meter: an IPv6 visitor is its /64; IPv4 is the address', () => {
   assert.equal(visitorOf('2001:db8:1:2::1'), '2001:db8:1:2');
   assert.equal(visitorOf('2001:0DB8:0001:0002:aaaa:bbbb:cccc:dddd'), '2001:db8:1:2');
@@ -86,13 +105,22 @@ test('meter: an IPv6 visitor is its /64; IPv4 is the address', () => {
 test('config: documented defaults', () => {
   const l = lim();
   assert.deepEqual([l.maxItems, l.minBudgetCents, l.maxBudgetCents, l.dailyCapCents], [6, 1000, 50000, 200000]);
-  assert.deepEqual(l.ip, { ideas: 8, qloo: 60, ai: 80, neurons: 1500, tavily: 10, channel3: 10, orders: 8, returns: 20 });
-  assert.deepEqual(l.global, { ideas: 100, qloo: 600, ai: 600, neurons: 8000, tavily: 30, channel3: 30, orders: 100, returns: 150 });
+  assert.deepEqual(l.ip, { ideas: 8, qloo: 60, ai: 80, neurons: 1500, tavily: 16, channel3: 24, orders: 8, returns: 20 });
+  assert.deepEqual(l.global, { ideas: 100, qloo: 600, ai: 600, neurons: 8000, tavily: 25, channel3: 25, orders: 100, returns: 150 });
+});
+
+test('config: every cap is set in wrangler.jsonc (a deploy replaces dashboard vars) and equals the default in code', () => {
+  const vars = JSON.parse(readFileSync(new URL('../wrangler.jsonc', import.meta.url), 'utf8')).vars as Record<string, string>;
+  const d = lim();
+  const names = [...Object.keys(d.ip).map((k) => `LIMIT_IP_${k.toUpperCase()}`), ...Object.keys(d.global).map((k) => `LIMIT_GLOBAL_${k.toUpperCase()}`), 'LIMIT_DAILY_CAP_USD', 'LIMIT_MAX_ITEMS', 'LIMIT_MAX_BUDGET_USD'];
+  for (const n of names) assert.equal(typeof vars[n], 'string', `${n} is missing in wrangler.jsonc vars`);
+  assert.deepEqual(Object.keys(vars).filter((n) => !names.includes(n)), [], 'a var that nothing reads');
+  assert.deepEqual(lim(vars as Partial<Env>), d, 'the file and the defaults in src/config.ts disagree');
 });
 
 test('config: overrides apply, junk falls back to the default', () => {
   const l = lim({ LIMIT_MAX_ITEMS: '3', LIMIT_MAX_BUDGET_USD: '120', LIMIT_DAILY_CAP_USD: '12.5', LIMIT_IP_IDEAS: 'lots', LIMIT_GLOBAL_IDEAS: '-4', LIMIT_IP_TAVILY: '' });
-  assert.deepEqual([l.maxItems, l.maxBudgetCents, l.dailyCapCents, l.ip.ideas, l.global.ideas, l.ip.tavily], [3, 12000, 1250, 8, 100, 10]);
+  assert.deepEqual([l.maxItems, l.maxBudgetCents, l.dailyCapCents, l.ip.ideas, l.global.ideas, l.ip.tavily], [3, 12000, 1250, 8, 100, 16]);
 });
 
 test('config: Qloo and the model switch from mock to live by themselves when the key or the AI binding appears; FORCE_MOCK overrides', () => {
@@ -134,22 +162,59 @@ test('ideas: the per-IP daily limit answers 429, another IP is unaffected until 
   assert.equal(((await global.json()) as any).error.message, LIMIT_MESSAGE.global);
 });
 
-test('ideas: when Channel3 is over its daily limit the run ends with a clear limit error, not a crash', async () => {
+test('ideas: when Channel3 is over its daily limit the run still gives its Qloo ideas with their reasons, no buy buttons, and says shop search is paused', async () => {
   const h = makeHarness({ LIMIT_GLOBAL_CHANNEL3: '0' });
   const ev = await readEvents(await ideas(h));
-  const last = ev.at(-1)!;
-  assert.equal(last.t, 'error');
-  assert.equal((last as any).code, 'limit');
+  const done = ev.at(-1) as any;
+  assert.equal(done.t, 'done', JSON.stringify(done));
+  assert.deepEqual(done.limited, ['channel3']);
+  const shown = ev.filter((e) => e.t === 'idea') as any[];
+  assert.ok(shown.length >= 4, `${shown.length} ideas`);
+  const products = shown.filter((e) => e.idea.kind === 'product');
+  assert.ok(products.length >= 1 && products.every((e) => e.cards.length === 0 && e.idea.cardIds.length === 0 && e.idea.paused === 'channel3'), 'product ideas come without cards, flagged paused');
+  assert.ok(shown.filter((e) => e.idea.kind === 'experience').every((e) => e.cards.length >= 1 && !e.idea.paused), 'place ideas keep their Tavily links');
+  const reasons = (ev.find((e) => e.t === 'reasons') as any).reasons;
+  for (const { idea } of shown) assert.ok(groundedReason(reasons[idea.id], idea), `${idea.title}: ${reasons[idea.id]}`);
   assert.equal(h.net.count('api.trychannel3.com'), 0, 'no billed call was made');
+  assert.ok(!ev.some((e) => e.t === 'error'));
+  const stored = JSON.parse(h.kv._m.get(`s:${(ev[0] as any).session}`)!);
+  assert.ok(stored.cards.every((c: any) => !c.purchasable), 'nothing can be bought, so nothing buyable is stored');
 });
 
-test('ideas: when Tavily is over its daily limit the run still finishes with its ideas, and the done event names what was refused', async () => {
+test('ideas: when Channel3 runs out in the middle of a run, the ideas found so far keep their buy buttons and the rest come without', async () => {
+  const h = makeHarness({ LIMIT_GLOBAL_CHANNEL3: '2' });
+  const ev = await readEvents(await ideas(h));
+  assert.deepEqual([(ev.at(-1) as any).t, (ev.at(-1) as any).limited], ['done', ['channel3']]);
+  const products = (ev.filter((e) => e.t === 'idea') as any[]).filter((e) => e.idea.kind === 'product');
+  assert.ok(products.some((e) => e.cards.some((c: any) => c.purchasable)), 'the searches that were allowed kept their buy buttons');
+  assert.ok(products.some((e) => e.idea.paused === 'channel3' && e.cards.length === 0), 'the ones after the cap came without');
+  assert.equal(h.net.count('api.trychannel3.com'), 2, 'exactly the allowed searches were made');
+});
+
+test('ideas: when Tavily is over its daily limit the run goes on without it: the cards that would have used it say so, and the done event names what was refused', async () => {
   const h = makeHarness({ LIMIT_GLOBAL_TAVILY: '0' });
-  const done = (await readEvents(await ideas(h))).at(-1) as any;
+  const ev = await readEvents(await ideas(h));
+  const done = ev.at(-1) as any;
   assert.equal(done.t, 'done');
   assert.ok(done.ideas >= 1, 'ideas still came out');
   assert.deepEqual(done.limited, ['tavily']);
   assert.equal(h.net.count('api.tavily.com'), 0, 'no billed call was made');
+  const checks = ev.filter((e) => e.t === 'check') as any[];
+  assert.ok(checks.length >= 1 && checks.every((c) => c.state === 'paused'), 'each price check that would have run says it is paused');
+  const places = (ev.filter((e) => e.t === 'idea') as any[]).filter((e) => e.idea.kind === 'experience');
+  assert.ok(places.length >= 1 && places.every((e) => e.cards.length === 0 && e.idea.paused === 'tavily'), 'place ideas come without links, flagged paused');
+  assert.ok((ev.filter((e) => e.t === 'idea') as any[]).some((e) => e.cards.some((c: any) => c.purchasable)), 'the buy buttons are unaffected');
+});
+
+test('ideas: a run the Qloo allowance cannot finish is refused before it starts, with no Qloo call and no run counted; demo data is never blocked', async () => {
+  const h = makeHarness({ QLOO_API_KEY: 'q-test', LIMIT_IP_QLOO: '7' }); // 3 favourites and the 5 gift types need 8 calls
+  const res = await ideas(h);
+  assert.equal(res.status, 429);
+  assert.equal(((await res.json()) as any).error.code, 'limit');
+  assert.equal(h.net.calls.length, 0, 'nothing upstream was called');
+  assert.ok(!((await (await h.req('/api/status')).json()) as any).usage.ideas, 'the refused run was not counted');
+  const demo = makeHarness({ LIMIT_IP_QLOO: '7' }); // Qloo on demo data costs no Qloo call
+  assert.equal(((await readEvents(await ideas(demo))).at(-1) as any).t, 'done');
 });
 
 test('ideas: when the session cannot be saved (KV write quota) the run ends with the plain limit message, not "internal"', async () => {

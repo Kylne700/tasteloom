@@ -7,7 +7,7 @@ import { dayKey, sha256Hex, sleep } from './lib/util.ts';
 import { loadConfig, publicStatus, secretsOf } from './config.ts';
 import { cancelOrder, loadOrder, loadSession, ORDER_MESSAGES, OrderError, publicOrder } from './commerce.ts';
 import { validOrderId } from './adapters/paypal.ts';
-import { InputError, parseIdeasInput, runIdeas } from './agent/ideas.ts';
+import { InputError, parseIdeasInput, qlooCallsNeeded, runIdeas } from './agent/ideas.ts';
 import { agentCheckout, agentReturn } from './agent/orders.ts';
 import { aiBindingFetch } from './adapters/ai.ts';
 import { makeAiFake } from './mocks/ai-fake.ts';
@@ -93,6 +93,9 @@ export function createApp(deps: Deps = {}) {
     const parsed = parseIdeasInput(await readJson(c), svc.cfg.limits);
     if (!parsed.ok) return c.json({ error: { code: 'bad_input', message: parsed.message } }, 400);
     try {
+      // The caps that block are looked at before the run starts: one that cannot finish is refused whole and spends no Qloo call (demo data costs none).
+      // The model never blocks: its cap only switches the run to the fixed pipeline. Shop and web search degrade inside the run.
+      if (!svc.mocks.qloo) await svc.meter.ensure({ qloo: qlooCallsNeeded(parsed.value) });
       await svc.meter.take({ ideas: 1 });
     } catch (e) {
       return fail(c, e);

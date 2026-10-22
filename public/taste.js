@@ -197,7 +197,7 @@ export function mountTaste(root) {
           h('li', {}, h('strong', {}, 'You pay in the PayPal sandbox.'), h('span', {}, 'The server prices the order from its own saved cards. You approve as a guest on PayPal’s page, and the agent captures it. No real money moves.')),
         ),
         h('p', { class: 'sent' }, h('strong', {}, 'What is sent where. '), 'What you type goes to Qloo (to read taste) and to the AI model on Cloudflare Workers AI. Searches built from it go to Channel3 (products) and Tavily (experiences and price checks). PayPal gets only the order, in its sandbox. Tasteloom does not store what you type; the other services keep what they receive under their own terms.'),
-        h('p', { class: 'sent' }, h('strong', {}, 'Daily limits. '), 'The demo is free, with daily caps on live lookups and on the AI model. When one is reached the page says so, and the saved example still works.'),
+        h('p', { class: 'sent' }, h('strong', {}, 'Daily limits. '), 'The demo is free, with daily caps on live lookups, on shop and web search, and on the AI model. When shop search is used up, ideas still come from Qloo but without buy buttons; when web search is, prices are not checked and place links are missing; without the model the steps are fixed. The page says so each time, and the saved example always works.'),
         demo,
       ),
     ),

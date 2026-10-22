@@ -73,7 +73,7 @@ test('wrangler.jsonc: static assets with the API run first, a KV binding, the me
   // Workers Free runs only SQLite-backed Durable Objects, and the dry-run build does not catch `new_classes`
   assert.deepEqual(w.migrations, [{ tag: 'v1', new_sqlite_classes: ['MeterDO'] }]);
   assert.match(read('src/index.ts'), /export class MeterDO extends DurableObject/);
-  assert.deepEqual(w.vars, {});
+  assert.ok(Object.entries(w.vars).every(([k, v]) => /^LIMIT_[A-Z0-9_]+$/.test(k) && /^\d+$/.test(v as string)), 'vars hold only the numeric daily caps');
   assert.doesNotMatch(read('wrangler.jsonc'), /secret|api[_-]?key|token/i);
 });
 

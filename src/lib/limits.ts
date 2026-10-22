@@ -131,6 +131,15 @@ export class Meter {
     if (r) throw new LimitError(r.counter, r.scope);
   }
 
+  /** A look, not a reservation: throws when `want` would pass a cap, so a run that cannot finish is refused before it spends. Quiet when the meter cannot be reached (the takes that follow fail closed). */
+  async ensure(want: Counts): Promise<void> {
+    const u = await this.used();
+    for (const [k, n] of Object.entries(want) as [CounterName, number][]) {
+      if ((u.ip[k] ?? 0) + n > (this.caps.ip[k] ?? Infinity)) throw new LimitError(k, 'ip');
+      if ((u.global[k] ?? 0) + n > (this.caps.global[k] ?? Infinity)) throw new LimitError(k, 'global');
+    }
+  }
+
   /** Best effort: a refund that does not arrive only makes the cap stricter. */
   async give(back: Counts): Promise<void> {
     try {

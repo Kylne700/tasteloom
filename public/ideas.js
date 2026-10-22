@@ -45,6 +45,17 @@ function addressWords(url) {
   }
 }
 const VIA = { live: 'live', mock: 'demo', cache: 'cached' };
+// What an idea says when the search that would fill it was over its daily cap (the idea itself still comes from Qloo).
+const PAUSED_NOTE = {
+  channel3: 'No buy button: shop search is paused until 00:00 UTC.',
+  tavily: 'No links: web search is paused until 00:00 UTC.',
+};
+// What the header says about the services that ran out during a run.
+const LIMITED_NOTE = {
+  qloo: 'Qloo’s allowance for today ran out during this run, so the result can be smaller than usual.',
+  channel3: 'Shop search is paused until 00:00 UTC, so some ideas come from Qloo alone, without a buy button.',
+  tavily: 'Web search is paused until 00:00 UTC, so prices were not checked against shop pages and place links are missing.',
+};
 const wide = window.matchMedia('(min-width: 1000px)');
 
 const ERROR_TITLES = {
@@ -244,6 +255,15 @@ export function mountIdeas(root) {
     return `${n} item${n === 1 ? '' : 's'}, ${money(totalCents())} of ${money(budgetCents())}.`;
   }
 
+  // The price line shows only what is known: a confirmed match, or that the check was paused (an unknown result stays silent).
+  function showCheck(el, c) {
+    if (!c || (c.state !== 'confirmed' && c.state !== 'paused')) return;
+    const paused = c.state === 'paused';
+    el.dataset.state = c.state;
+    el.replaceChildren(icon(paused ? 'info' : 'check', 14), h('span', {}, paused ? 'Price check paused until 00:00 UTC' : 'Price matches the shop’s page'));
+    el.hidden = false;
+  }
+
   function cardEl(card, idea) {
     const shopUrl = safeUrl(card.url);
     const img = card.image && safeUrl(card.image);
@@ -271,8 +291,7 @@ export function mountIdeas(root) {
       const entry = { card, btn, root: el, check };
       cardEls.set(card.id, entry);
       refreshCard(entry);
-      const c = run.checks[card.id];
-      if (c && c.state === 'confirmed') check.hidden = false;
+      showCheck(check, run.checks[card.id]);
     }
     return el;
   }
@@ -287,7 +306,7 @@ export function mountIdeas(root) {
       'article',
       { class: 'idea', 'aria-labelledby': `idea-${idea.id}` },
       h('header', { class: 'idea-head' }, h('p', { class: 'kind' }, idea.kind === 'experience' ? 'Experience' : 'Gift'), h('h2', { id: `idea-${idea.id}` }, idea.title), because, reason),
-      h('ul', { class: 'cards' }, cards.map((c) => cardEl(c, idea))),
+      idea.paused ? h('p', { class: 'note info paused', role: 'status' }, icon('info', 18), h('span', {}, PAUSED_NOTE[idea.paused])) : h('ul', { class: 'cards' }, cards.map((c) => cardEl(c, idea))),
     );
     ideaEls.set(idea.id, { reason, section });
     const sk = list.querySelector('.idea.skeleton');
@@ -307,7 +326,7 @@ export function mountIdeas(root) {
 
   function setCheck(c) {
     const entry = cardEls.get(c.cardId);
-    if (entry && c.state === 'confirmed') entry.check.hidden = false;
+    if (entry) showCheck(entry.check, c);
   }
 
   // ---- bar --------------------------------------------------------------------------------------------------------------
@@ -331,7 +350,7 @@ export function mountIdeas(root) {
         h('button', { type: 'button', class: 'btn primary', disabled: sel.length === 0, onclick: () => (location.hash = '#/checkout') }, 'Review and pay', icon('arrow', 16)),
       ),
     );
-    barRoot.hidden = run.ideas.length === 0;
+    barRoot.hidden = !run.ideas.some(({ cards }) => cards.some((c) => c.purchasable)); // no buy buttons (all shop search paused): nothing to pick
   }
 
   // ---- notices ----------------------------------------------------------------------------------------------------------
@@ -438,7 +457,7 @@ export function mountIdeas(root) {
     settleAgent();
     showHeader();
     save();
-    announce(run.ideas.length ?`Done. ${run.ideas.length} gift ideas. Pick the items you like.` : 'Finished without any gift ideas.');
+    announce(run.ideas.length ? `Done. ${run.ideas.length} gift ideas. ${run.ideas.some(({ cards }) => cards.some((c) => c.purchasable)) ? 'Pick the items you like.' : 'None has a buy button right now.'}` : 'Finished without any gift ideas.');
     if (!run.ideas.length) showEmpty();
   }
 
@@ -478,9 +497,9 @@ export function mountIdeas(root) {
     if (run.tier === 'template') {
       notices.prepend(h('p', { class: 'note info tier-note' }, icon('info', 18), h('span', {}, 'The AI model did not take part in this run (its daily allowance is used up, or it did not answer), so the steps were fixed and the reasons are plain templates. Qloo, the catalog and prices were still live.')));
     }
-    const cut = run.limited.map((k) => ({ qloo: 'Qloo', channel3: 'Channel3', tavily: 'Tavily' })[k]).filter(Boolean);
+    const cut = run.limited.map((k) => LIMITED_NOTE[k]).filter(Boolean);
     if (cut.length) {
-      notices.prepend(h('p', { class: 'note info tier-note' }, icon('info', 18), h('span', {}, `Today’s allowance for ${new Intl.ListFormat('en').format(cut)} ran out during this run, so some steps were skipped and the result can be smaller than usual. The saved example always works.`)));
+      notices.prepend(h('p', { class: 'note info tier-note' }, icon('info', 18), h('span', {}, `${cut.join(' ')} The saved example always works.`)));
     }
     if (run.example) {
       notices.prepend(h('p', { class: 'note info example-note' }, icon('info', 18), h('span', {}, `Saved example${run.asOf ? `, recorded ${run.asOf}` : ''}. Its products and prices were live that day; its taste matches and reasons are stand-ins, not live Qloo or model output. The checkout is a live PayPal sandbox order.`)));

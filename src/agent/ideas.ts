@@ -30,6 +30,15 @@ export type Emit = (e: StreamEvent) => void;
 /** The buyer's input could not be turned into ideas (nothing matched); shown as a friendly 400, not an outage. */
 export class InputError extends Error {}
 
+/** A search was refused because its daily cap is reached: the run goes on without it (the idea comes without cards), the model is told why. */
+class Paused extends ToolError {
+  counter: CounterName;
+  constructor(counter: CounterName, message: string) {
+    super(message);
+    this.counter = counter;
+  }
+}
+
 /** Validate the request body: 3 to 5 favourites (text up to 80 chars, optional type hint) and a budget within the configured bounds. */
 export function parseIdeasInput(body: Record<string, unknown> | undefined, limits: Pick<Limits, 'minBudgetCents' | 'maxBudgetCents'>): { ok: true; value: IdeasInput } | { ok: false; message: string } {
   const out: Favorite[] = [];
@@ -48,6 +57,9 @@ export function parseIdeasInput(body: Record<string, unknown> | undefined, limit
   }
   return { ok: true, value: { favorites: out, budget_cents: cents } };
 }
+
+/** The most Qloo calls one run needs: a search per favourite and one insights call per gift type. Checked before the run starts, so a run the allowance cannot finish spends nothing. */
+export const qlooCallsNeeded = (input: IdeasInput) => input.favorites.length + GIFT_TYPES.length;
 
 const MAX_IDEAS = 6;
 const MIN_IDEAS = 4;
@@ -181,7 +193,7 @@ class Run {
         this.limitedBy.add(e.counter);
       } else this.failed ??= e;
       this.emit({ t: 'call', tool, arg: clip(arg, 70), ms: Date.now() - t0, ok: false, out: limit ? 'daily limit reached' : 'service not answering', via: 'live' });
-      throw new ToolError(limit ? `${tool} is over its daily limit` : `${tool} is not answering right now`);
+      throw limit ? new Paused(e.counter, `${tool} is paused: its daily limit is reached`) : new ToolError(`${tool} is not answering right now`);
     }
   }
 
@@ -238,19 +250,29 @@ class Run {
     this.phase('products', PH.products, 'running');
     try {
       const q = clip(query.replace(/\s+/g, ' ').trim() || (QUERY_FOR[cand.type] ?? QUERY_FOR.brand!)(cand.name), 100);
-      const found = await this.traced('find_products', experience ? `${cand.name} (experiences)` : q, async () => {
-        const x = experience
-          ? await experienceCards(this.svc, { name: cand.name, ideaId, max: CARDS_PER_IDEA })
-          : await searchProducts(this.svc, { query: q, ideaId, maxPriceCents: maxCents, limit: CARDS_PER_IDEA, gate: { entity: cand.name, category: CATEGORY_FOR[cand.type], brand: cand.type === 'brand' } });
-        const shops = new Set(x.cards.map((c) => c.shop)).size;
-        return {
-          value: x.cards,
-          via: x.hit ? ('cache' as const) : ('live' as const),
-          out: experience ? `${x.cards.length} experience links via Tavily` : `${x.cards.length} products, ${shops} shop${shops === 1 ? '' : 's'}, via Channel3`,
-        };
-      });
+      const needs = experience ? 'tavily' : 'channel3'; // the search this idea's cards come from
+      let found: Card[] = [];
+      let paused: Idea['paused'];
+      try {
+        // once the cap refused a call, the rest of the run does not ask again (no more calls, no more red steps)
+        if (this.limitedBy.has(needs)) throw new Paused(needs, 'paused');
+        found = await this.traced('find_products', experience ? `${cand.name} (experiences)` : q, async () => {
+          const x = experience
+            ? await experienceCards(this.svc, { name: cand.name, ideaId, max: CARDS_PER_IDEA })
+            : await searchProducts(this.svc, { query: q, ideaId, maxPriceCents: maxCents, limit: CARDS_PER_IDEA, gate: { entity: cand.name, category: CATEGORY_FOR[cand.type], brand: cand.type === 'brand' } });
+          const shops = new Set(x.cards.map((c) => c.shop)).size;
+          return {
+            value: x.cards,
+            via: x.hit ? ('cache' as const) : ('live' as const),
+            out: experience ? `${x.cards.length} experience links via Tavily` : `${x.cards.length} products, ${shops} shop${shops === 1 ? '' : 's'}, via Channel3`,
+          };
+        });
+      } catch (e) {
+        if (!(e instanceof Paused && e.counter === needs)) throw e;
+        paused = needs; // degrade, do not block: Qloo's idea is still worth showing, just without cards
+      }
       const fresh = found.filter((c) => !this.cards.some((x) => x.id === c.id)).slice(0, CARDS_PER_IDEA);
-      if (fresh.length < (experience ? 1 : MIN_CARDS)) {
+      if (!paused && fresh.length < (experience ? 1 : MIN_CARDS)) {
         this.used.delete(cand.id);
         throw new ToolError('too few matching results within the budget; put the exact entity name in the query, or choose another entity');
       }
@@ -262,6 +284,7 @@ class Run {
         because: this.becauseNames(cand),
         reason: '',
         cardIds: fresh.map((c) => c.id),
+        ...(paused ? { paused } : {}),
       };
       this.ideas.push(idea);
       this.cards.push(...fresh);
@@ -305,7 +328,12 @@ class Run {
         ),
         run: async (a) => {
           const { idea, cards } = await this.products(String(a.entity_id ?? ''), String(a.query ?? ''), Number(a.max_price_usd));
-          return { idea_id: idea.id, entity: idea.entity.name, items: cards.map((c) => (c.purchasable ? `${c.title}: $${fmtCents(c.price_cents)} at ${c.shop}` : `${c.title} (link)`)) };
+          return {
+            idea_id: idea.id,
+            entity: idea.entity.name,
+            items: cards.map((c) => (c.purchasable ? `${c.title}: $${fmtCents(c.price_cents)} at ${c.shop}` : `${c.title} (link)`)),
+            ...(idea.paused ? { note: 'shop and web search are paused today; the idea was kept without items. Do not search again for it.' } : {}),
+          };
         },
       },
     ];
@@ -433,7 +461,9 @@ class Run {
       .filter((t): t is { card: Card; hint: string } => !!t.card && t.card.purchasable);
     await Promise.allSettled(
       targets.map(async ({ card, hint }) => {
+        const pause = () => this.emit({ t: 'check', cardId: card.id, state: 'paused' }); // not stored on the card: it says something about today, not about the price
         try {
+          if (this.limitedBy.has('tavily')) return pause();
           const res = await this.traced('tavily_search', `${card.shop} price check`, async () => {
             const v = (await priceCheck(this.svc, card, hint)) ?? { state: 'unknown' as const };
             return { value: v, via: 'live' as const, out: v.state === 'confirmed' ? 'price matches the shop page' : 'could not confirm on the shop page' };
@@ -441,7 +471,8 @@ class Run {
           card.priceCheck = res;
           this.emit({ t: 'check', cardId: card.id, state: res.state, url: res.url });
         } catch (e) {
-          if (!(e instanceof ToolError)) throw e; // upstream failure is already reported as a failed step
+          if (e instanceof Paused) pause();
+          else if (!(e instanceof ToolError)) throw e; // upstream failure is already reported as a failed step
         }
       }),
     );
@@ -479,7 +510,8 @@ export async function runIdeas(svc: Svc, input: IdeasInput, emit: Emit): Promise
   run.phase('taste', PH.taste, 'done');
   run.phase('products', PH.products, 'running');
   const added = await run.ensureIdeas();
-  if (!run.cards.some((c) => c.purchasable)) { // experience links alone leave nothing to buy, so this is a failure, not a result
+  // Experience links alone leave nothing to buy, so that is a failure, not a result, unless shop search is paused: then Qloo's ideas still go out, without buy buttons.
+  if (!run.ideas.length || (!run.cards.some((c) => c.purchasable) && !run.limitedBy.has('channel3'))) {
     if (run.limited) throw run.limited;
     if (run.failed) throw run.failed;
     throw new InputError('Nothing we found fits that budget. Try a higher budget or different favourites.');
@@ -491,7 +523,7 @@ export async function runIdeas(svc: Svc, input: IdeasInput, emit: Emit): Promise
   run.phase('prices', PH.prices, svc.cfg.tavily === 'live' ? 'running' : 'skipped', svc.cfg.tavily === 'live' ? undefined : 'Tavily is not configured');
   const [, checked] = await Promise.all([run.writeReasons(), run.checkPrices()]);
   run.phase('write', PH.write, 'done');
-  if (checked) run.phase('prices', PH.prices, 'done');
+  if (checked) run.phase('prices', PH.prices, run.limitedBy.has('tavily') ? 'skipped' : 'done', run.limitedBy.has('tavily') ? 'paused until 00:00 UTC' : undefined);
 
   try {
     await saveSession(svc, { ...session, cards: run.cards });

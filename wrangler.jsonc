@@ -13,5 +13,25 @@
   "kv_namespaces": [{ "binding": "KV" }],
   "durable_objects": { "bindings": [{ "name": "METER", "class_name": "MeterDO" }] },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["MeterDO"] }],
-  "vars": {}
+  "vars": {
+    "LIMIT_IP_IDEAS": "8",
+    "LIMIT_IP_QLOO": "60",
+    "LIMIT_IP_AI": "80",
+    "LIMIT_IP_NEURONS": "1500",
+    "LIMIT_IP_TAVILY": "16",
+    "LIMIT_IP_CHANNEL3": "24",
+    "LIMIT_IP_ORDERS": "8",
+    "LIMIT_IP_RETURNS": "20",
+    "LIMIT_GLOBAL_IDEAS": "100",
+    "LIMIT_GLOBAL_QLOO": "600",
+    "LIMIT_GLOBAL_AI": "600",
+    "LIMIT_GLOBAL_NEURONS": "8000",
+    "LIMIT_GLOBAL_TAVILY": "25",
+    "LIMIT_GLOBAL_CHANNEL3": "25",
+    "LIMIT_GLOBAL_ORDERS": "100",
+    "LIMIT_GLOBAL_RETURNS": "150",
+    "LIMIT_DAILY_CAP_USD": "2000",
+    "LIMIT_MAX_ITEMS": "6",
+    "LIMIT_MAX_BUDGET_USD": "500"
+  }
 }

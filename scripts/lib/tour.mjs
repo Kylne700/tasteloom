@@ -85,6 +85,22 @@ function fixtures(sample) {
   // the same events as a live run would send: not flagged as the saved example, Qloo and the model on demo data
   const live = sample.map((e) => (e.t === 'meta' ? { ...e, example: false, mocks: ['qloo', 'ai'] } : e.t === 'done' ? { t: 'done', tier: 'agent' } : e));
   const nth = (t, n) => { let k = 0; return live.findIndex((e) => e.t === t && ++k === n); };
+  // What the server sends when the shop search (channel3) or the web search (tavily) is over its daily cap (src/agent/ideas.ts): the idea stays,
+  // flagged, with no cards. `shopFrom` = how many product ideas still found their items before the shop cap; `web` = place ideas lose their links.
+  const capped = (events, { shopFrom = Infinity, web = false }) => {
+    let products = 0;
+    const gone = new Set();
+    return events
+      .map((e) => {
+        if (e.t !== 'idea') return e;
+        const counter = e.idea.kind === 'experience' ? (web ? 'tavily' : null) : ++products > shopFrom ? 'channel3' : null;
+        if (!counter) return e;
+        e.cards.forEach((card) => gone.add(card.id));
+        return { ...e, idea: { ...e.idea, cardIds: [], paused: counter }, cards: [] };
+      })
+      .filter((e) => e.t !== 'check' || !gone.has(e.cardId));
+  };
+  const ended = (limited) => (e) => (e.t === 'done' ? { t: 'done', tier: 'agent', limited } : e);
   return {
     FAVS,
     live,
@@ -94,8 +110,12 @@ function fixtures(sample) {
     partial: [...live.slice(0, nth('idea', 2) + 1), { t: 'error', code: 'upstream', message: UPSTREAM_MSG }],
     // the model's daily allowance was used up (or it did not answer): the run still finishes, with fixed steps and template reasons
     noModel: live.map((e) => (e.t === 'done' ? { t: 'done', tier: 'template' } : e)),
-    // a service's daily cap was reached during the run: it finishes with what it has and the page names the service
-    limited: live.map((e) => (e.t === 'done' ? { t: 'done', tier: 'agent', limited: ['channel3', 'tavily'] } : e)),
+    // shop search ran out after the first product idea: the later product ideas come from Qloo alone, without buy buttons
+    limited: capped(live, { shopFrom: 1 }).map(ended(['channel3'])),
+    // both searches were over their cap from the start: every idea is kept, nothing can be bought, so there is no Review and pay bar
+    limitedAll: capped(live, { shopFrom: 0, web: true }).map(ended(['channel3', 'tavily'])),
+    // web search was over its cap: the buy buttons stay, their price checks say they were paused, the place idea has no links
+    limitedWeb: capped(live, { web: true }).map((e) => (e.t === 'check' ? { t: 'check', cardId: e.cardId, state: 'paused' } : ended(['tavily'])(e))),
     empty: [{ ...live[0], budget_cents: 5000 }, { t: 'phase', id: 'taste', label: 'Reading their taste with Qloo', state: 'running' }, { t: 'done', tier: 'agent' }],
   };
 }
@@ -379,14 +399,41 @@ function states(fx) {
     check(`${c.name}/ideas: when the model did not take part, a plain note says so and the ideas are still there`, /did not take part/.test((await text(page, '.tier-note')) || '') && (await count(page, '.ideas-list .idea:not(.skeleton)')) >= 1, (await text(page, '.tier-note') || '').slice(0, 80));
   });
 
+  /** Plays one scripted run to its end and returns the header note. */
+  const playLimited = async (c, events) => {
+    const { page } = c;
+    await open(c, '#/', { st: { favorites: fx.FAVS, budget: 120 }, mocks: { 'POST /api/ideas': { events } } });
+    await tapText(page, /^Find gift ideas$/);
+    await release(page, 'POST /api/ideas', events.length);
+    await page.waitForSelector('.tier-note', { timeout: 8000 });
+    return (await text(page, '.tier-note')) || '';
+  };
+  const readyReasons = (page) => count(page, '.reason[data-state=ready]');
+
   add('ideas-limited', false, async (c) => {
     const { page } = c;
-    await open(c, '#/', { st: { favorites: fx.FAVS, budget: 120 }, mocks: { 'POST /api/ideas': { events: fx.limited } } });
-    await tapText(page, /^Find gift ideas$/);
-    await release(page, 'POST /api/ideas', fx.limited.length);
-    await page.waitForSelector('.tier-note', { timeout: 8000 });
-    const t = (await text(page, '.tier-note')) || '';
-    check(`${c.name}/ideas: when a service refused calls because its daily cap was reached, a plain note names it and the ideas are still there`, /Channel3 and Tavily ran out/.test(t) && (await count(page, '.ideas-list .idea:not(.skeleton)')) >= 1, t.slice(0, 90));
+    const t = await playLimited(c, fx.limited);
+    check(`${c.name}/ideas: when shop search ran out mid-run, a plain note says it is paused until 00:00 UTC and the example still works`, /Shop search is paused until 00:00 UTC/.test(t) && /saved example always works/.test(t) && !/Web search/.test(t), t.slice(0, 120));
+    check(`${c.name}/ideas: the product ideas after the cap say "No buy button", keep their reasons, and the first idea keeps its buy buttons and the Review and pay bar`, (await count(page, '.idea .note.paused')) === 2 && /No buy button: shop search is paused until 00:00 UTC/.test((await text(page, '.idea .note.paused')) || '') && (await count(page, 'ul.cards li.card button.pick')) === 3 && (await shown(page, '.bar')) && (await readyReasons(page)) === (await count(page, '.ideas-list .idea:not(.skeleton)')), `${await count(page, '.idea .note.paused')} paused, ${await count(page, 'button.pick')} buy buttons`);
+    await c.snap();
+  });
+
+  add('ideas-limited-all', true, async (c) => {
+    const { page } = c;
+    const t = await playLimited(c, fx.limitedAll);
+    check(`${c.name}/ideas: with both searches over their cap, the note says so for each and the example still works`, /Shop search is paused until 00:00 UTC/.test(t) && /Web search is paused until 00:00 UTC/.test(t) && /saved example always works/.test(t), t.slice(0, 120));
+    const notes = await page.$$eval('.idea .note.paused', (l) => l.map((e) => e.textContent.trim()));
+    check(`${c.name}/ideas: every idea stays with its reason and says what is paused (three "No buy button", one "No links"); nothing can be bought, so no buy buttons and no Review and pay bar`, notes.filter((n) => /^No buy button: shop search is paused until 00:00 UTC\.$/.test(n)).length === 3 && notes.filter((n) => /^No links: web search is paused until 00:00 UTC\.$/.test(n)).length === 1 && (await readyReasons(page)) === 4 && (await count(page, 'button.pick')) === 0 && !(await shown(page, '.bar')), `${notes.length} notes, ${await count(page, 'button.pick')} buy buttons`);
+    await c.audit('ideas limited');
+    await c.snap();
+  });
+
+  add('ideas-limited-prices', false, async (c) => {
+    const { page } = c;
+    const t = await playLimited(c, fx.limitedWeb);
+    check(`${c.name}/ideas: when web search ran out, the note says prices were not checked and place links are missing`, /Web search is paused until 00:00 UTC/.test(t) && /prices were not checked/.test(t) && !/Shop search/.test(t), t.slice(0, 120));
+    check(`${c.name}/ideas: the buy buttons stay and each price line says its check was paused, not that the price matches`, (await count(page, 'button.pick')) === 9 && (await count(page, '.check[data-state=paused]')) === 3 && (await count(page, '.check[data-state=confirmed]')) === 0 && /^Price check paused until 00:00 UTC$/.test((await text(page, '.check[data-state=paused]')) || '') && (await count(page, '.idea .note.paused')) === 1, `${await count(page, 'button.pick')} buy buttons, ${await count(page, '.check[data-state=paused]')} paused lines`);
+    await c.snap();
   });
 
   const two = (c) => purchasable(c.done).slice(0, 2);

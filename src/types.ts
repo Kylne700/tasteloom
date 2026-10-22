@@ -72,6 +72,8 @@ export interface Idea {
   because: string[];
   reason: string;
   cardIds: string[];
+  /** set when the search that fills this idea's cards (shops: channel3, place links: tavily) was over its daily cap: the idea comes without cards */
+  paused?: 'channel3' | 'tavily';
 }
 
 export interface Session {
@@ -131,6 +133,6 @@ export type StreamEvent =
   | { t: 'taste'; seeds: { id: string; name: string; type: string }[] }
   | { t: 'idea'; idea: Idea; cards: Card[] }
   | { t: 'reasons'; reasons: Record<string, string> }
-  | { t: 'check'; cardId: string; state: 'confirmed' | 'unknown'; url?: string }
+  | { t: 'check'; cardId: string; state: 'confirmed' | 'unknown' | 'paused'; url?: string } // paused: the Tavily cap was reached, so this card was not checked
   | { t: 'done'; ideas: number; cards: number; tier: 'tools' | 'pipeline' | 'template' | 'example'; limited?: CounterName[] } // limited: services that refused a call during the run because their daily cap was reached
   | { t: 'error'; code: 'limit' | 'upstream' | 'bad_input' | 'internal'; message: string };

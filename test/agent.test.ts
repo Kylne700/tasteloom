@@ -140,6 +140,34 @@ test('ideas: a catalog that answers with nothing is a step that worked; one that
   assert.ok(failed.length > 0 && failed.every((c) => c.ok === false), JSON.stringify(failed));
 });
 
+test('ideas: a model that asks for products while Channel3 is over its limit is told shop search is paused, and the idea still comes out, without cards', async () => {
+  let answer: any;
+  const h = makeHarness(
+    { LIMIT_GLOBAL_CHANNEL3: '0' },
+    {
+      mocks: {
+        ai: model({
+          ideas: (n, body) => {
+            const results = body.messages.filter((m: any) => m.role === 'tool').map((m: any) => JSON.parse(m.content));
+            if (n === 1) return calls(toolCall('qloo_search', { query: 'Muji' }, 'a'), toolCall('qloo_search', { query: 'Nujabes', type: 'artist' }, 'b'), toolCall('qloo_search', { query: 'Kafka on the Shore', type: 'book' }, 'c'));
+            if (n === 2) return calls(toolCall('qloo_insights', { target_type: 'brand' }, 'd'));
+            if (n === 3) return calls(toolCall('find_products', { entity_id: results.find((v: any) => Array.isArray(v.candidates)).candidates[0].id, query: 'a good notebook' }, 'e'));
+            answer = results.find((v: any) => v.idea_id);
+            return DONE();
+          },
+        }),
+      },
+    },
+  );
+  const ev = await run(h);
+  assert.equal(ev.at(-1).t, 'done', JSON.stringify(ev.at(-1)));
+  assert.deepEqual(answer.items, [], 'no items came back');
+  assert.match(answer.note, /paused/i);
+  const paused = ev.filter((e) => e.t === 'idea' && e.idea.id === answer.idea_id);
+  assert.deepEqual(paused.map((e) => [e.cards.length, e.idea.paused]), [[0, 'channel3']]);
+  assert.equal(h.net.count('api.trychannel3.com'), 0);
+});
+
 test('ideas: when the first picks match nothing in the catalog, the top-up moves on to other entities instead of repeating them', async () => {
   const h = makeHarness({}, { mocks: { ai: async () => json({ error: 'overloaded' }, 503) } });
   const empty = new Set<string>(); // the first five different product searches find nothing, as niche real entities often do
