@@ -87,9 +87,10 @@ test('repository hygiene: keys and local state are ignored, one runtime dependen
   assert.match(read('LICENSE'), /^MIT License/);
 });
 
-test('README: says what it does, how each sponsor technology is used, setup, live versus demo data, and the name', () => {
+test('README: says what it does, how Qloo and the model are used, what is sent where, the limits, setup, live versus demo data, and the name', () => {
   const readme = read('README.md');
-  for (const word of ['Qloo', 'Nebius', 'Nemotron', 'Tavily', 'Channel3', 'PayPal', 'sandbox', 'Demo data', 'MIT', 'Tasteloom', 'npm run dev', '.env.local', 'Why "Tasteloom"']) assert.ok(readme.includes(word), word);
+  for (const word of ['Qloo', 'Workers AI', 'feature.explainability=true', 'Because they love', 'What is sent where', '## Limits', 'built by AI agents (Claude Code)', 'Tavily', 'Channel3', 'PayPal', 'sandbox', 'Demo data', 'MIT', 'Tasteloom', 'npm run dev', '.env.local', 'Why "Tasteloom"']) assert.ok(readme.includes(word), word);
+  assert.doesNotMatch(readme, /Nemotron|Nebius x|three Devpost contests|contract:nebius|NEBIUS_/, 'no leftovers from the Nebius and PayPal contest framing');
   for (const tool of ['qloo_search', 'qloo_insights', 'find_products', 'create_order', 'get_order', 'capture_order']) assert.ok(readme.includes(tool), tool);
   for (const s of Object.keys(JSON.parse(read('package.json')).scripts)) assert.ok(readme.includes(`npm run ${s}`) || readme.includes(`npm ${s}`) || s === 'test', `README does not mention npm run ${s}`);
   assert.doesNotMatch(readme, /sk-[A-Za-z0-9]{10,}|Bearer\s+[A-Za-z0-9]{10,}/, 'no key-like text');

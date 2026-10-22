@@ -143,6 +143,15 @@ test('ideas: when Channel3 is over its daily limit the run ends with a clear lim
   assert.equal(h.net.count('api.trychannel3.com'), 0, 'no billed call was made');
 });
 
+test('ideas: when Tavily is over its daily limit the run still finishes with its ideas, and the done event names what was refused', async () => {
+  const h = makeHarness({ LIMIT_GLOBAL_TAVILY: '0' });
+  const done = (await readEvents(await ideas(h))).at(-1) as any;
+  assert.equal(done.t, 'done');
+  assert.ok(done.ideas >= 1, 'ideas still came out');
+  assert.deepEqual(done.limited, ['tavily']);
+  assert.equal(h.net.count('api.tavily.com'), 0, 'no billed call was made');
+});
+
 test('status: usage counts live Channel3 and Tavily calls only; the Qloo and model demo data cost nothing', async () => {
   const h = makeHarness();
   await readEvents(await ideas(h));

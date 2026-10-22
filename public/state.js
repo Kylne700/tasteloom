@@ -39,6 +39,7 @@ export function newRun({ favorites, budget_cents, example }) {
     reasons: {},
     checks: {},
     tier: '',
+    limited: [],
     error: null,
     startedAt: Date.now(),
     ms: 0,

@@ -132,5 +132,5 @@ export type StreamEvent =
   | { t: 'idea'; idea: Idea; cards: Card[] }
   | { t: 'reasons'; reasons: Record<string, string> }
   | { t: 'check'; cardId: string; state: 'confirmed' | 'unknown'; url?: string }
-  | { t: 'done'; ideas: number; cards: number; tier: 'tools' | 'pipeline' | 'template' | 'example' }
+  | { t: 'done'; ideas: number; cards: number; tier: 'tools' | 'pipeline' | 'template' | 'example'; limited?: CounterName[] } // limited: services that refused a call during the run because their daily cap was reached
   | { t: 'error'; code: 'limit' | 'upstream' | 'bad_input' | 'internal'; message: string };

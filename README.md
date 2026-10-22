@@ -2,9 +2,32 @@
 
 Taste + loom: Tasteloom weaves the things someone loves into gifts you can actually buy, and says why each one fits.
 
-Type three to five things a person loves (a book, a band, a shop, a place) and a budget. An agent reads their taste, finds real products with real prices, explains every idea with "Because they love X", and lets you pay in the PayPal sandbox as a guest. No account, nothing stored about what you type.
+Type three to five things a person loves (a book, a band, a shop, a place) and a budget. Qloo reads their taste, an AI agent finds real products with real prices, every idea says "Because they love X", and you can pay in the PayPal sandbox as a guest. No account, and Tasteloom stores nothing you type.
 
-Built for three Devpost contests: the Qloo agentic contest, the Nebius x NVIDIA contest (with the Tavily prize), and the PayPal AI contest (Agentic Commerce, with the Channel3 prize). The whole flow takes about a minute.
+This is an entry to the Qloo hackathon. It was built by AI agents (Claude Code).
+
+## How Qloo is used
+
+Qloo is the only thing in the app that decides what fits a person's taste.
+
+1. **Search.** `GET /search` turns each favourite into a Qloo entity. A type hint (book, artist, brand, place and so on) is sent as `types=urn:entity:<type>`.
+2. **Insights with explainability.** `GET /v2/insights` is called once per gift category (brand, book, artist, place, destination) with `signal.interests.entities` (the entity ids from step 1), `filter.type` and `feature.explainability=true`. It returns entities the person is likely to like and, for each one, which of the favourites drove it (`query.explainability`).
+3. **"Because they love X".** That explanation is the line on every idea card. The model writes the reason in its own words, but a reason that names none of the favourites Qloo linked is replaced by a template sentence.
+4. **From taste to things to buy.** A suggestion such as a brand or a book becomes a product search at Channel3, which returns real products with prices. A place or destination becomes experience links found with Tavily; those are links, never buyable cards.
+
+One live run makes about 10 Qloo calls with four favourites (4 searches and 4 to 6 insight calls; measured 8 to 10 on 2026-10-22). The raw Qloo answers are used inside the request and not stored. `npm run contract:qloo` checks the real API against the shapes the code expects (5 calls).
+
+## The agent
+
+An AI model runs a loop in which it chooses tool calls; the server decides whether each call is allowed.
+
+- **Model:** `@cf/qwen/qwen3-30b-a3b-fp8` on Cloudflare Workers AI, reached through a Worker binding (no API key). Set `AI_AGENT_MODEL` and `AI_WRITER_MODEL` to try another.
+- **Tools while finding ideas:** `qloo_search`, `qloo_insights`, `find_products`.
+- **Tools at checkout:** `create_order`, `get_order`, `capture_order`.
+- **Three tiers, so a model problem never breaks the page.** First the model drives the tools in a loop (up to 6 turns). The server then fills in whatever it skipped by calling the same tools in a fixed order, and the model only fills JSON slots (which entities, which search words, the reasons). If the model is unavailable, template choices and template reasons keep the page working, and the page says that the model did not take part.
+- Every tool validates its arguments against server state, so a model cannot invent an id, a price or a charge. A model outage never blocks or changes a payment: the same guarded server functions run directly.
+
+One live run makes about 6 model calls and uses about 85 neurons (Cloudflare's unit for Workers AI; measured on 2026-10-22).
 
 ## The flow
 
@@ -13,46 +36,72 @@ Built for three Devpost contests: the Qloo agentic contest, the Nebius x NVIDIA 
 3. **Pick and pay.** Pick up to 6 items within the budget, review, and press **Pay with PayPal**. The page shows PayPal's documented sandbox test card with copy buttons; you pay as a guest on PayPal's own page, no PayPal account needed.
 4. **Receipt.** After PayPal approves, the server captures once and shows the order id, the final status and the items. The receipt carries the sandbox badge and one "Mode: PayPal sandbox, no real money" row.
 
-## How each sponsor technology is used
+## What is sent where
 
-| Technology | What it does here | Where |
+| Service | What it receives | Why |
 | --- | --- | --- |
-| **Qloo** | Taste graph. Favourites become entity seeds (`/search`), then `/v2/insights` with `feature.explainability=true` returns gift candidates and which seeds drove each one. That explanation is the "Because they love X" line; a reason that names nobody Qloo linked is thrown away. | `src/adapters/qloo.ts`, `src/agent/ideas.ts` |
-| **Nebius Token Factory + NVIDIA Nemotron** | The agent. Nemotron (OpenAI-compatible API) runs a tool-calling loop with six tools: `qloo_search`, `qloo_insights`, `find_products`, `create_order`, `get_order`, `capture_order`. If tool calling fails, a fixed pipeline calls the same tools in order and the model only fills JSON-only slots (which entities, which queries, the reasons); with no model at all, template picks and reasons keep the page working. | `src/adapters/nebius.ts`, `src/agent/loop.ts`, `src/agent/ideas.ts`, `src/agent/orders.ts` |
-| **Tavily** | Live web search at runtime: experience ideas (places, destinations) as link cards, and an informational price check of a product on its shop page. It never creates a buyable card. | `src/adapters/tavily.ts` |
-| **Channel3** | The product catalog: structured titles, brands, images and prices (`offers[].price`) with shop links. Only Channel3 results become buyable cards. | `src/adapters/channel3.ts` |
-| **PayPal (sandbox)** | Orders v2: create with a `PayPal-Request-Id` and `GUEST_CHECKOUT`, the buyer approves on PayPal's page, then a fresh read must show `APPROVED` with the same amount before one capture. The host is a constant: this code cannot reach live PayPal. | `src/adapters/paypal.ts`, `src/commerce.ts` |
+| **Qloo** | the favourites as typed (and the type hint), then Qloo's own entity ids | to read taste |
+| **Cloudflare Workers AI** | the favourites and budget, the entities Qloo returned, product titles and prices, and at checkout the ids of the picked items and the order's id, status and total | the model that drives the tools and writes the reasons |
+| **Channel3** | product searches built from Qloo's suggestions and the model's wording, with a price ceiling | real products and prices |
+| **Tavily** | searches for an experience idea (a place or destination Qloo suggested) and price checks of a product on its shop's domain | experience links, informational price checks |
+| **PayPal sandbox** | the order (items, total) and the buyer's return | the test payment; no real money moves |
 
-The model chooses which tool to call; the server decides whether a call is allowed. Every tool validates its arguments against server state, so a manipulated model cannot invent an id, a price or a charge. A model outage can never block or change a payment: the same guarded server functions run directly.
+Tasteloom does not store what you type. The other services keep what they receive under their own terms, which this project does not control.
 
 ## Live versus demo data
 
-| Service | Mode in this build | Switches to live |
+| Service | Live when | Otherwise |
 | --- | --- | --- |
-| Qloo | **demo data**: a stand-in that returns the documented response shape through the same parser | automatically when `QLOO_API_KEY` is set |
-| Nebius / Nemotron | **demo data**: a stand-in speaking the OpenAI-compatible tool-calling format | automatically when `NEBIUS_API_KEY` is set |
-| Tavily | live (needs `TAVILY_API_KEY`) | |
-| Channel3 | live (needs `CHANNEL3_API_KEY`) | |
-| PayPal | live, sandbox only (needs `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`) | |
+| Qloo | `QLOO_API_KEY` is set | **demo data**: a stand-in that returns the documented response shape through the same parser |
+| AI model | the `AI` binding exists (Cloudflare Workers) | **demo data**: a stand-in speaking the same tool-calling format (unit tests, plain Node) |
+| Tavily | `TAVILY_API_KEY` is set | off: the experience and price-check steps are skipped |
+| Channel3 | `CHANNEL3_API_KEY` is set | off: no products |
+| PayPal | `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET` are set | off: no checkout (sandbox only either way) |
 
-While any stand-in is active the page shows a **Demo data** badge and a note naming it. Products, prices and PayPal are live either way. `FORCE_MOCK=qloo,nebius` forces the stand-ins even with keys. `npm run contract:qloo` and `npm run contract:nebius` check the real APIs against the shapes the code expects (at most 5 calls each); with no key they stop with "KEY MISSING" and exit code 2.
+While a stand-in is active the page shows a **Demo data** badge and a note naming it. With the Qloo key set and the AI binding present, as in the deployed demo, both are live and no badge shows. `FORCE_MOCK=qloo,ai` forces the stand-ins. With no Qloo key `npm run contract:qloo` stops with "KEY MISSING" and exit code 2.
+
+## Limits
+
+The demo is free and has no sign-in. Daily caps, counted per UTC day, keep it inside free plans. They are kept in one Durable Object so parallel requests cannot pass a cap; every billed call is reserved before it is made, and when the counters cannot be reached the call is refused.
+
+| What is counted | Per visitor (IP, or IPv6 /64) | All visitors | One live run uses (measured) |
+| --- | --- | --- | --- |
+| Gift-idea runs | 8 | 100 | 1 |
+| Qloo calls | 60 | 600 | about 10 |
+| Model calls | 80 | 600 | about 6 (a payment adds about 3) |
+| Model neurons | 1,500 | 8,000 | about 85 |
+| Channel3 searches | 10 | 30 | about 5 (1 or 2 when the same search was made in the last 12 hours) |
+| Tavily searches | 10 | 30 | about 4 (1 when repeated within 12 hours) |
+| Sandbox orders | 8 | 100 | 1 per payment |
+| Sandbox spend | | $2,000 | |
+
+What the page shows when a cap is reached:
+
+- **Gift-idea runs, Qloo, Channel3 (at the start of a run):** the panel "Live lookups are used up for now" with a plain message ("You have reached today's allowance for live lookups" for one visitor, "The demo has reached its daily budget for live data" for everyone) and a **Try an example** button. The saved example always works.
+- **A cap reached part-way through a run:** the run finishes with what it has, and a note names the service (for example "Today's allowance for Channel3 and Tavily ran out during this run, so some steps were skipped and the result can be smaller than usual").
+- **The model (calls or neurons):** the run goes on without it, with fixed steps and template reasons, and a note says "The AI model did not take part in this run". Qloo, the catalog and prices are still live.
+- **Sandbox orders and spend:** the checkout screen says so and asks you to come back tomorrow.
+
+Cloudflare's own limit sits behind ours. The Workers AI pricing page (read 2026-10-22) says: "Our free allocation allows anyone to use a total of 10,000 Neurons per day at no charge" and "If you exceed any one of the above limits, further operations will fail with an error." Our neuron cap (8,000) stops first; if Cloudflare refuses a call anyway, the model tier is skipped in the same way.
+
+The caps can be changed without code: `LIMIT_IP_*` and `LIMIT_GLOBAL_*` (`IDEAS`, `QLOO`, `AI`, `NEURONS`, `TAVILY`, `CHANNEL3`, `ORDERS`).
 
 ## Setup
 
-Needs Node 22.18 or newer.
+Needs Node 22.18 or newer and a Cloudflare login (`npx wrangler login`): the Workers AI binding runs on Cloudflare even in local development. Cloudflare's configuration docs say: "Using Workers AI always accesses your Cloudflare account in order to run AI models and will incur usage charges even in local development."
 
 ```sh
 npm install
 # keys go in ../.env.local (tasteagent/.env.local), one KEY=value per line:
-#   QLOO_API_KEY  NEBIUS_API_KEY  TAVILY_API_KEY  CHANNEL3_API_KEY  PAYPAL_CLIENT_ID  PAYPAL_CLIENT_SECRET
+#   QLOO_API_KEY  TAVILY_API_KEY  CHANNEL3_API_KEY  PAYPAL_CLIENT_ID  PAYPAL_CLIENT_SECRET
 npm run dev        # http://localhost:8791
 ```
 
-`npm run dev` first runs `scripts/dev-vars.mjs`, which copies only those six keys from `../.env.local` into `.dev.vars` (the file `wrangler dev` reads). `.dev.vars` is git-ignored and written with mode 600, and the script prints key names, never values. Keys are used only on the server: they are never sent to the browser, never logged, and error messages are redacted. `npm run dev` also sets `DEV_CACHE=1`, which caches Qloo and Nebius answers while developing (Channel3 and Tavily answers are always cached for 12 hours).
+`npm run dev` first runs `scripts/dev-vars.mjs`, which copies only those five keys from `../.env.local` into `.dev.vars` (the file `wrangler dev` reads). `.dev.vars` is git-ignored and written with mode 600, and the script prints key names, never values. Keys are used only on the server: they are never sent to the browser, never logged, and error messages are redacted. `npm run dev` also sets `DEV_CACHE=1`, which caches Qloo and model answers while developing (Channel3 and Tavily answers are always cached for 12 hours; Qloo answers are not cached in production).
 
-Optional settings (plain environment variables): `NEBIUS_AGENT_MODEL`, `NEBIUS_WRITER_MODEL`, `FORCE_MOCK`, `LIMIT_IP_*` / `LIMIT_GLOBAL_*` (`IDEAS`, `QLOO`, `NEBIUS`, `TOKENS`, `TAVILY`, `CHANNEL3`, `ORDERS`), `LIMIT_DAILY_CAP_USD`, `LIMIT_MAX_ITEMS`, `LIMIT_MAX_BUDGET_USD`, `PUBLIC_BASE_URL`.
+Optional settings (plain environment variables): `AI_AGENT_MODEL`, `AI_WRITER_MODEL`, `FORCE_MOCK`, the `LIMIT_*` caps above, `LIMIT_DAILY_CAP_USD`, `LIMIT_MAX_ITEMS`, `LIMIT_MAX_BUDGET_USD`, `PUBLIC_BASE_URL`.
 
-Deploying is not part of this repository's checks. A deployment would need the keys as Worker secrets (`wrangler secret put NAME` asks for the value at a prompt or reads it from stdin, so it never appears in the command line, shell history or output) and a real KV namespace id in `wrangler.jsonc`. The first deploy also creates the spend meter, a SQLite-backed Durable Object (migration `v1` in `wrangler.jsonc`; Workers Free runs only this kind).
+Deploying is not part of this repository's checks. A deployment needs the five keys as Worker secrets (`wrangler secret put NAME` asks for the value at a prompt or reads it from stdin, so it never appears in the command line, shell history or output). `wrangler.jsonc` already holds the `AI` binding and the spend meter, a SQLite-backed Durable Object (migration `v1`; Workers Free runs only this kind). The KV binding has no id: Cloudflare's docs say Wrangler creates a KV namespace without one at deploy time and writes the id back to the config file.
 
 ## Commands
 
@@ -63,7 +112,7 @@ Deploying is not part of this repository's checks. A deployment would need the k
 | `npm run typecheck` | `tsc --noEmit` on `src/` |
 | `npm run build` | `wrangler deploy --dry-run`: bundles the Worker without deploying |
 | `npm run e2e` | real Chromium against `wrangler dev`: the full flow with a PayPal sandbox guest payment to COMPLETED, then a tour of every screen and error state at 1280 and 390 px (key screens also at 768 and 320 px); writes `evidence/e2e.txt` and `evidence/screens/`. `TOUR_BROWSER=firefox node scripts/e2e.mjs tour` runs the tour alone in Firefox (`/usr/bin/firefox`, no downloads; shots go to `evidence/debug/firefox/`) |
-| `npm run contract:qloo`, `npm run contract:nebius` | cheap live checks of the two APIs that still run on stand-ins |
+| `npm run contract:qloo` | cheap live check of the Qloo API against the shapes the code expects |
 | `npm run scan` | secret and privacy scan of the tracked files, built assets and git history |
 
 ## Rules the server enforces
@@ -72,12 +121,12 @@ Deploying is not part of this repository's checks. A deployment would need the k
 - **Caps.** A total above the buyer's budget, or above the global daily cap, is refused before PayPal is called.
 - **One capture, only after approval.** Capture needs a fresh PayPal read showing `APPROVED` with the same amount and currency; the request id makes a repeat harmless, and opening the return link twice does not capture twice.
 - **Sandbox only.** The PayPal host is a constant; the UI says "sandbox, no real money" next to every payment step.
-- **Spend limits.** Per-visitor (IP, or IPv6 /64) and global daily caps for Qloo, Nebius (requests and estimated tokens), Tavily, Channel3 and sandbox orders, kept in one Durable Object so parallel requests cannot pass a cap; every billed call is reserved before it is made, and when the meter cannot be reached the call is refused. A per-request subrequest budget, hard timeouts and a 2 MB cap on upstream answers. When a limit is reached the page says so and offers the example.
+- **Spend limits.** The caps in the Limits section, plus a per-request subrequest budget (the model calls count too), hard timeouts and a 2 MB cap on upstream answers. When a limit is reached the page says so and offers the example.
 - **Untrusted text.** Model output is parsed tolerantly and then checked; shop text is clipped, links must be https, and the page has no HTML-injection sinks and a strict Content Security Policy.
 
 ## Privacy
 
-No accounts, no cookies. What you type is sent to the server to build your ideas and is not stored; the server keeps only the saved product cards (for server-side pricing, 2 hours), orders (7 days) and daily spend counters keyed by a hash of the day and your IP (IPv6: its /64 network), cleared the next UTC day. The browser keeps your inputs, finished run and picks in `sessionStorage` (this tab only) so the return from PayPal's cancel page restores them. The page ships no third-party logos or fonts; product images load from the shops' CDNs only after you turn on the image switch.
+No accounts, no cookies. What you type is sent to the server to build your ideas and is not stored; the section "What is sent where" lists which services receive it. The server keeps only the saved product cards (for server-side pricing, 2 hours), orders (7 days), cached Channel3 and Tavily answers (12 hours, keyed by a hash of the search) and daily counters keyed by a hash of the day and your IP (IPv6: its /64 network), cleared the next UTC day. The browser keeps your inputs, finished run and picks in `sessionStorage` (this tab only) so the return from PayPal's cancel page restores them. The page ships no third-party logos or fonts; product images load from the shops' CDNs only after you turn on the image switch.
 
 ## Design
 
@@ -85,11 +134,13 @@ Plain HTML, CSS and ES modules in `public/` (no framework, no build step). One w
 
 ## Known limits
 
-- Qloo's real response (especially the explainability fields) and Nemotron's real tool-calling behaviour are not verified until keys exist; the contract scripts do that check.
-- Channel3's catalog is thin for niche items (a specific book may return nothing buyable); such ideas show as links or are skipped.
+- Qloo's quota for this key is not known to this project; the Qloo caps above are our own, sized from measured use. The live API was checked on 2026-10-22 (`npm run contract:qloo`).
+- Channel3's catalog is thin for niche items: many Qloo suggestions return nothing buyable, so a run often shows few product ideas and some experience links.
 - Tavily price checks rarely confirm a price; they are informational.
+- The model is small and free: its answers are checked by the server, and a run can finish on the fixed pipeline or on templates.
 - PayPal's hosted sandbox page is outside this app's control and its layout varies. In testing it showed either a "Save info & create your PayPal account" switch with a "Pay Now" button, or two buttons, "Create Account & Pay Now" and "Pay now as guest"; the guest one is the right one (the checkout screen says so). If a load offers only account creation, reload the PayPal page.
-- Workers Free CPU limits were not measured; the request pipeline stays under the 50-subrequest limit by design (stops at 40).
+- Workers Free allows 10 ms of CPU per request and 50 subrequests. The Node tests measure about 5 to 8 ms of this app's own work per run, mostly waiting on the network, but that was not measured on Cloudflare. A run makes about 25 outgoing calls (the budget stops at 40).
+- Files in `evidence/` dated 2026-10-16 and 2026-10-17 (the two reviews and the security test runs) describe the earlier build, which used Nebius for the model; the model is now Cloudflare Workers AI.
 
 ## Why "Tasteloom"
 

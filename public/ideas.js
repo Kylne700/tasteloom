@@ -410,6 +410,7 @@ export function mountIdeas(root) {
         break;
       case 'done':
         run.tier = e.tier;
+        run.limited = e.limited || [];
         finish();
         break;
       case 'error':
@@ -477,8 +478,12 @@ export function mountIdeas(root) {
     if (run.tier === 'template') {
       notices.prepend(h('p', { class: 'note info tier-note' }, icon('info', 18), h('span', {}, 'The AI model did not take part in this run (its daily allowance is used up, or it did not answer), so the steps were fixed and the reasons are plain templates. Qloo, the catalog and prices were still live.')));
     }
+    const cut = run.limited.map((k) => ({ qloo: 'Qloo', channel3: 'Channel3', tavily: 'Tavily' })[k]).filter(Boolean);
+    if (cut.length) {
+      notices.prepend(h('p', { class: 'note info tier-note' }, icon('info', 18), h('span', {}, `Today’s allowance for ${new Intl.ListFormat('en').format(cut)} ran out during this run, so some steps were skipped and the result can be smaller than usual. The saved example always works.`)));
+    }
     if (run.example) {
-      notices.prepend(h('p', { class: 'note info example-note' }, icon('info', 18), h('span', {}, `Saved example${run.asOf ? `, recorded ${run.asOf}` : ''}. Prices are from that day. The checkout is a live PayPal sandbox order.`)));
+      notices.prepend(h('p', { class: 'note info example-note' }, icon('info', 18), h('span', {}, `Saved example${run.asOf ? `, recorded ${run.asOf}` : ''}. Its products and prices were live that day; its taste matches and reasons are stand-ins, not live Qloo or model output. The checkout is a live PayPal sandbox order.`)));
     }
     if (run.mocks.length) {
       demoNote.hidden = false;

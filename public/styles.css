@@ -184,6 +184,8 @@ select {
 .how li { display: grid; grid-template-columns: 34px minmax(0, 1fr); column-gap: 14px; counter-increment: s; }
 .how li::before { content: counter(s); grid-row: 1 / span 2; display: grid; place-items: center; width: 34px; height: 34px; border: 1.5px solid var(--accent); border-radius: 50%; background: var(--surface); color: var(--accent-strong); font-weight: 700; }
 .how li span { color: var(--ink-2); font-size: 0.9375rem; }
+.how .sent { margin: 20px 0 0; padding-top: 16px; border-top: 1px solid var(--line); color: var(--ink-2); font-size: 0.9375rem; }
+.how .sent + .sent { margin-top: 12px; padding-top: 0; border-top: 0; }
 .how .demo-note { margin-top: 20px; }
 
 /* ---- screen 2: gift ideas ----------------------------------------------------------------------------------------------- */

@@ -14,7 +14,7 @@ import { BudgetError, HttpError, type Svc } from '../lib/http.ts';
 import { asObject, asString, parseLooseJson } from '../lib/json.ts';
 import { LimitError } from '../lib/limits.ts';
 import { clip, fmtCents } from '../lib/util.ts';
-import type { Candidate, Card, Idea, Limits, Seed, StreamEvent } from '../types.ts';
+import type { Candidate, Card, CounterName, Idea, Limits, Seed, StreamEvent } from '../types.ts';
 import { runLoop, ToolError, toolSpec, type Tool } from './loop.ts';
 
 export interface Favorite {
@@ -149,6 +149,7 @@ class Run {
   pending = 0;
   seq = 0;
   limited?: LimitError;
+  limitedBy = new Set<CounterName>();
   failed?: unknown;
   aiUp = true;
   private phases = new Map<string, string>();
@@ -175,8 +176,10 @@ class Run {
     } catch (e) {
       const limit = e instanceof LimitError;
       if (!limit && !(e instanceof HttpError) && !(e instanceof BudgetError)) throw e;
-      if (limit) this.limited ??= e;
-      else this.failed ??= e;
+      if (limit) {
+        this.limited ??= e;
+        this.limitedBy.add(e.counter);
+      } else this.failed ??= e;
       this.emit({ t: 'call', tool, arg: clip(arg, 70), ms: Date.now() - t0, ok: false, out: limit ? 'daily limit reached' : 'service not answering', via: 'live' });
       throw new ToolError(limit ? `${tool} is over its daily limit` : `${tool} is not answering right now`);
     }
@@ -491,5 +494,5 @@ export async function runIdeas(svc: Svc, input: IdeasInput, emit: Emit): Promise
   if (checked) run.phase('prices', PH.prices, 'done');
 
   await saveSession(svc, { ...session, cards: run.cards });
-  emit({ t: 'done', ideas: run.ideas.length, cards: run.cards.length, tier: !run.aiUp ? 'template' : loopDone && added === 0 ? 'tools' : 'pipeline' });
+  emit({ t: 'done', ideas: run.ideas.length, cards: run.cards.length, tier: !run.aiUp ? 'template' : loopDone && added === 0 ? 'tools' : 'pipeline', ...(run.limitedBy.size ? { limited: [...run.limitedBy] } : {}) });
 }
