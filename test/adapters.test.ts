@@ -168,6 +168,10 @@ test('tavily: a price is "confirmed" only by an exact match on a page of the sam
   assert.deepEqual((await run('tours-0.example', 2400, page('$24.00')))?.state, 'confirmed');
   assert.deepEqual(await run('tours-0.example', 2500, page('$24.00')), { state: 'unknown' }, 'a different price is not a mismatch claim, just unknown');
   assert.deepEqual(await run('other.example', 2400, page('$24.00')), { state: 'unknown' }, 'a page from another site never counts');
+  const at = (url: string) => ({ results: [{ title: 'Hario V60 Ceramic Dripper', url, content: 'text', raw_content: 'Buy now $24.00 free shipping' }] });
+  assert.deepEqual(await run('tours-0.example', 2400, at('https://nottours-0.example/hario-v60-ceramic-dripper')), { state: 'unknown' }, 'a host that only ends with the shop name is another site');
+  assert.deepEqual((await run('tours-0.example', 2400, at('https://www.tours-0.example/hario-v60-ceramic-dripper')))?.state, 'confirmed');
+  assert.deepEqual((await run('tours-0.example', 2400, at('https://store.tours-0.example/hario-v60-ceramic-dripper')))?.state, 'confirmed', 'a subdomain of the shop counts');
   assert.deepEqual(await run('tours-0.example', 2400, { results: [{ title: 'Unrelated garden tools', url: 'https://tours-0.example/garden', content: '$24.00', raw_content: '$24.00' }] }), { state: 'unknown' });
   assert.ok(svc);
 });
@@ -208,7 +212,7 @@ test('qloo: /v2/insights entities carry their explainability', () => {
 });
 
 test('qloo: the shapes seen live parse (synthetic stand-ins): kind in subtype, scores in an array under the signal key, no success flag on search', () => {
-  const hit = { name: 'Nujabes', entity_id: 'E11125AF-0000-0000-0000-000000000001', types: ['urn:entity:artist'], properties: { short_description: 'x' }, popularity: 0.9, disambiguation: 'd', tags: [{ name: 't', tag_id: 'u', type: 'v', value: 'w' }] };
+  const hit = { name: 'Nujabes', entity_id: '00000000-0000-0000-0000-000000000001', types: ['urn:entity:artist'], properties: { short_description: 'x' }, popularity: 0.9, disambiguation: 'd', tags: [{ name: 't', tag_id: 'u', type: 'v', value: 'w' }] };
   assert.deepEqual(parseSearch({ results: [hit] }, 'artist'), [{ id: hit.entity_id, name: 'Nujabes', type: 'artist' }]);
   const live = {
     success: true,

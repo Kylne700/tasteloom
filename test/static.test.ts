@@ -79,7 +79,7 @@ test('wrangler.jsonc: static assets with the API run first, a KV binding, the me
 
 test('repository hygiene: keys and local state are ignored, one runtime dependency, MIT licence', () => {
   const ignore = read('.gitignore').split('\n');
-  for (const line of ['.env*', '.dev.vars', 'node_modules/', '.wrangler/', '.build/', 'evidence/debug/', 'evidence/screens/']) assert.ok(ignore.includes(line), line);
+  for (const line of ['.env*', '.dev.vars*', 'node_modules/', '.wrangler/', '.build/', 'evidence/debug/', 'evidence/screens/']) assert.ok(ignore.includes(line), line);
   const pkg = JSON.parse(read('package.json'));
   assert.deepEqual(Object.keys(pkg.dependencies), ['hono']);
   assert.equal(pkg.license, 'MIT');

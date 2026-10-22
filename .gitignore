@@ -1,6 +1,6 @@
 # secrets and local state
 .env*
-.dev.vars
+.dev.vars*
 node_modules/
 .wrangler/
 .build/

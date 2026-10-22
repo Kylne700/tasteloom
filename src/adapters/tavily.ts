@@ -154,7 +154,8 @@ export async function priceCheck(svc: Svc, card: Card, hint = ''): Promise<Card[
   const { results } = await searchWeb(svc, { query: clip(`${card.title} ${hint}`.trim(), 160), domains: [card.shop], max: 3, raw: true });
   const want = new Set(tokens(card.title));
   for (const r of results) {
-    if (!hostOf(r.url).endsWith(card.shop)) continue; // include_domains should guarantee this; never trust a price from another site
+    const h = hostOf(r.url);
+    if (h !== card.shop && !h.endsWith('.' + card.shop)) continue; // include_domains should guarantee this; never trust a price from another site
     const have = tokens(r.title + ' ' + r.url);
     const overlap = have.filter((t) => want.has(t)).length;
     if (want.size === 0 || overlap / Math.min(want.size, 6) < 0.5) continue;
