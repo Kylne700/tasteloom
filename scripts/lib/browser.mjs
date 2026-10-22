@@ -1,7 +1,9 @@
 // Browser helpers for scripts/e2e.mjs: report, viewports, in-page fetch scripting, screenshots, accessibility and layout probes.
 import fs from 'node:fs';
 import path from 'node:path';
+import { LIVE_SHOTS } from './live.mjs';
 
+export { LIVE_SHOTS };
 export const APP = path.resolve(new URL('../..', import.meta.url).pathname);
 export const EVIDENCE = path.join(APP, 'evidence');
 export const FIREFOX = process.env.TOUR_BROWSER === 'firefox'; // the tour also runs in Firefox over WebDriver BiDi; its shots go to an ignored folder
@@ -104,8 +106,8 @@ export async function fresh(page) {
 // ---- screenshots --------------------------------------------------------------------------------------------------------
 export const shots = [];
 export const strayText = []; // screens that print a JavaScript leftover such as "null" or "NaN" as text
-/** Scrolls through the page so lazy images load, waits for fonts and images (bounded), then takes a full-page screenshot. */
-export async function shot(page, name) {
+/** Scrolls through the page so lazy images load, waits for fonts and images (bounded), then takes a full-page screenshot (live ones: dir = LIVE_SHOTS). */
+export async function shot(page, name, dir = SHOTS) {
   await page.evaluate(async () => {
     const step = Math.max(300, innerHeight - 100);
     for (let y = 0; y < document.documentElement.scrollHeight; y += step) {
@@ -137,12 +139,12 @@ export async function shot(page, name) {
     return a.left < c.right && c.left < a.right && a.top < c.bottom && c.top < a.bottom;
   });
   check(`${file}: the brand and the badges do not overlap`, !crowded);
-  fs.mkdirSync(SHOTS, { recursive: true });
+  fs.mkdirSync(dir, { recursive: true });
   // As tall as the page, so the sticky bar and the agent panel show in their natural place instead of floating mid-page.
   const tall = await page.evaluate(() => document.documentElement.scrollHeight);
   await page.setViewport({ ...vp, height: Math.min(Math.max(tall, vp.height), 14000) });
   await sleep(250);
-  await page.screenshot({ path: path.join(SHOTS, file), fullPage: true });
+  await page.screenshot({ path: path.join(dir, file), fullPage: true });
   await page.setViewport(vp);
   shots.push(file);
   const stray = await page.evaluate(() => (document.body.innerText.match(/\b(null|undefined|NaN|\[object \w+\])/g) || []).slice(0, 3));

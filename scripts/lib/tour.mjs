@@ -1,7 +1,11 @@
 // The state tour: every screen and every error, empty and rare state of the app at 1280 and 390 px (key screens also at 768 px),
-// as screenshots in evidence/screens/ plus accessibility, focus, layout-shift and overflow checks.
+// as screenshots in evidence/screens/ plus accessibility, focus, layout-shift and overflow checks. The two states drawn from a live run
+// (ideas-live, checkout-live) and any crash picture go to the capture folder outside the repo (scripts/lib/live.mjs), never into evidence/.
 // The happy path and the example run use the real server. Rare states (API down, over budget, PayPal cancelled, capture failed, ...)
 // are produced by answering the app's own fetch calls inside the page (see pagePatch in browser.mjs), so no real service is touched.
+import fs from 'node:fs';
+import path from 'node:path';
+import { LIVE_DIR, LIVE_SHOTS } from './live.mjs';
 import { BASE, FIREFOX, audit, check, cls, fresh, mock, newPage, overflowSweep, release, sandboxMentions, say, shot, sleep, tabWalk } from './browser.mjs';
 
 const KEY = 'tasteloom.v1';
@@ -616,14 +620,14 @@ export async function tourRound(browser, round, sample, liveRun) {
     if ((!round.full && !s.tablet) || (s.live && !liveRun)) continue;
     if (process.env.TOUR_STATES && !process.env.TOUR_STATES.split(',').includes(s.key)) continue; // debugging aid: run only these states
     c.audit = (label) => audit(page, `${round.name}/${label}`);
-    c.snap = () => shot(page, `${String(i + 1).padStart(2, '0')}-${s.key}`);
+    c.snap = () => shot(page, `${String(i + 1).padStart(2, '0')}-${s.key}`, s.live ? LIVE_SHOTS : undefined);
     const step = s.build ? s.build(c) : s;
     try {
       if (!c.done && !['home-empty', 'home-filled', 'home-error-favs', 'home-error-budget', 'ideas-running-early', 'ideas-running-mid', 'ideas-error-partial', 'ideas-example'].includes(s.key)) throw new Error('needs the example run first');
       await step.run(c);
     } catch (e) {
       check(`${round.name}/${s.key}: state completed without an unexpected error`, false, String(e.message).slice(0, 160));
-      try { await page.screenshot({ path: new URL(`../../evidence/debug/crash-${round.name}-${s.key}.png`, import.meta.url).pathname }); } catch {}
+      try { fs.mkdirSync(LIVE_DIR, { recursive: true }); await page.screenshot({ path: path.join(LIVE_DIR, `crash-${round.name}-${s.key}.png`) }); } catch {}
     }
   }
   if (round.full && c.done) {

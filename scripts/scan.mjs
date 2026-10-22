@@ -3,10 +3,12 @@
 //  2. No line of ../../tools/privacy-denylist.txt may appear there either (case-insensitive fixed strings, i.e. `grep -c -i -F -f`),
 //     in commit metadata or in file names. The list itself is never printed.
 // Exit code: 0 clean, 1 hits found, 2 could not run (no .env.local or no denylist: NOT VERIFIED).
+// Prints only. `--write` also saves the report as evidence/scan.txt: the test suite runs this script too, and no check may rewrite a tracked file.
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { loadEnvLocal } from './lib/env.mjs';
+import { LIVE_DIR } from './lib/live.mjs';
 
 const APP = new URL('..', import.meta.url).pathname;
 const DENY = path.resolve(APP, '../../tools/privacy-denylist.txt');
@@ -53,7 +55,7 @@ if (import.meta.main) {
     'git tree (tracked + untracked, not ignored)': tree.map((f) => path.join(APP, f)).filter((f) => fs.existsSync(f)),
     'built assets (.build/)': walk(path.join(APP, '.build')),
     'ignored local output (evidence/debug/, evidence/screens/)': [...walk(path.join(APP, 'evidence/debug')), ...walk(path.join(APP, 'evidence/screens'))],
-    'logs (/tmp/ta-wrangler.log)': ['/tmp/ta-wrangler.log'].filter((f) => fs.existsSync(f)),
+    'capture folder outside the repo (dev server log and state)': walk(LIVE_DIR),
   };
   let secretHits = 0;
   let denyHits = 0;
@@ -96,7 +98,9 @@ if (import.meta.main) {
 
   const clean = secretHits === 0 && denyHits === 0 && bad === 0 && Object.values(hygiene).every(Boolean);
   say(`scan: ${clean ? 'PASS' : 'FAIL'} (secret hits ${secretHits}, denylist lines ${denyHits}, unusable patterns ${bad})`);
-  fs.mkdirSync(path.join(APP, 'evidence'), { recursive: true });
-  fs.writeFileSync(path.join(APP, 'evidence/scan.txt'), out.join('\n') + '\n');
+  if (process.argv.includes('--write')) {
+    fs.mkdirSync(path.join(APP, 'evidence'), { recursive: true });
+    fs.writeFileSync(path.join(APP, 'evidence/scan.txt'), out.join('\n') + '\n');
+  }
   process.exit(clean ? 0 : 1);
 }

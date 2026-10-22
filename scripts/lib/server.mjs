@@ -3,11 +3,14 @@
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { LIVE_DIR } from './live.mjs';
 
 const APP = path.resolve(new URL('../..', import.meta.url).pathname);
 
-export async function startDev({ port = 8791, persist = '.wrangler/e2e-state', vars = {}, fresh = false, log = '/tmp/ta-wrangler.log' } = {}) {
-  if (fresh) fs.rmSync(path.join(APP, persist), { recursive: true, force: true });
+// State and log default to the capture folder, outside the repo: the dev server's KV holds live answers.
+export async function startDev({ port = 8791, persist = path.join(LIVE_DIR, 'wrangler-state'), vars = {}, fresh = false, log = path.join(LIVE_DIR, 'wrangler.log') } = {}) {
+  fs.mkdirSync(path.dirname(log), { recursive: true });
+  if (fresh) fs.rmSync(path.resolve(APP, persist), { recursive: true, force: true });
   const args = ['wrangler', 'dev', '--port', String(port), '--persist-to', persist, '--show-interactive-dev-session=false'];
   for (const [k, v] of Object.entries(vars)) args.push('--var', `${k}:${v}`);
   const out = fs.openSync(log, 'w');

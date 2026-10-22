@@ -95,3 +95,16 @@ test('README: says what it does, how Qloo and the model are used, what is sent w
   for (const s of Object.keys(JSON.parse(read('package.json')).scripts)) assert.ok(readme.includes(`npm run ${s}`) || readme.includes(`npm ${s}`) || s === 'test', `README does not mention npm run ${s}`);
   assert.doesNotMatch(readme, /sk-[A-Za-z0-9]{10,}|Bearer\s+[A-Za-z0-9]{10,}/, 'no key-like text');
 });
+
+test('live captures: the e2e, the tour and the dev server keep everything captured from live services outside the repository', () => {
+  const e2e = read('scripts/e2e.mjs');
+  const tour = read('scripts/lib/tour.mjs');
+  const server = read('scripts/lib/server.mjs');
+  assert.match(e2e, /const DEBUG = LIVE_DIR;/, 'the run JSON and the debug files go to the capture folder');
+  assert.doesNotMatch(e2e, /shot\(\w+, 'live-[\w-]+'\)/, 'every live screenshot names the capture folder');
+  assert.doesNotMatch(e2e, /EVIDENCE, 'debug'|\.wrangler\//, 'no live file or dev state under the repo');
+  assert.match(e2e, /evidence && full \? path\.join\(EVIDENCE, 'e2e\.txt'\)/, 'evidence/e2e.txt is written only on request');
+  assert.match(tour, /s\.live \? LIVE_SHOTS : undefined/, 'the states drawn from a live run are saved outside the repo');
+  assert.doesNotMatch(tour, /evidence\/debug/);
+  assert.doesNotMatch(server, /\.wrangler\/e2e-state|\/tmp\/ta-wrangler/, 'the dev server keeps its state and log in the capture folder');
+});

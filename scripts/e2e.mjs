@@ -3,22 +3,27 @@
 // live: the full judge flow with the real Tavily, Channel3 and PayPal sandbox (guest card -> capture COMPLETED); Qloo and the model run on their
 //       documented-shape stand-ins unless the Qloo key and the AI binding exist. Costs about 6 Channel3 and 7 Tavily calls per run on a fresh state.
 // tour: every screen and error/empty state at 1280, 390 and 768 px, with accessibility, focus, layout-shift and overflow checks. No billed calls.
-// --keep reuses .wrangler/e2e-state (and with it the cached Channel3/Tavily answers) so a debugging re-run costs nothing.
-// Only a run of both phases writes evidence/e2e.txt; partial runs write evidence/debug/e2e-<phases>.txt. Exit 0 = every check passed.
+// --keep reuses the dev server's state (and with it the cached Channel3/Tavily answers) so a debugging re-run costs nothing.
+// Everything captured from live services (run JSON, live screenshots, dev server state and log) goes to the capture folder outside the repo
+// (TASTELOOM_LIVE_DIR, default <system temp>/tasteloom-live; see scripts/lib/live.mjs). Nothing live is written inside the repository.
+// No run rewrites a tracked file. --evidence (with both phases) is the one way to refresh evidence/e2e.txt; otherwise the report goes to the
+// capture folder as e2e-<phases>.txt. Exit 0 = every check passed.
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import puppeteer from 'puppeteer-core';
 import { startDev } from './lib/server.mjs';
+import { LIVE_DIR, LIVE_SHOTS } from './lib/live.mjs';
 import { payAsGuest } from './lib/paypal-guest.mjs';
 import { APP, BASE, DESKTOP, EVIDENCE, FIREFOX, MOBILE, PORT, SHOTS, TABLET, audit, check, consoleErrors, fresh, newPage, overflowSweep, report, sandboxMentions, say, shot, shots, sleep, strayText, tabWalk, thirdParty, waitUrl } from './lib/browser.mjs';
 import { tourRound } from './lib/tour.mjs';
 
 const args = process.argv.slice(2);
 const keep = args.includes('--keep');
+const evidence = args.includes('--evidence');
 const phases = args.filter((a) => !a.startsWith('--'));
 if (!phases.length) phases.push('live', 'tour');
-const DEBUG = path.join(EVIDENCE, 'debug');
+const DEBUG = LIVE_DIR;
 fs.mkdirSync(DEBUG, { recursive: true });
 
 const api = async (p, init) => {
@@ -70,7 +75,7 @@ async function live(browser) {
   // 2. the agent works: first idea appears, then the run finishes (or fails visibly)
   const first = await page.waitForSelector('.ideas-list article.idea:not(.skeleton), section.panel.bad', { timeout: 150000 }).catch(() => null);
   check('live/ideas: the first idea card arrived (or the run failed visibly)', !!first && !(await first.evaluate((e) => e.matches('section.panel.bad'))), first ? '' : 'timeout after 150 s');
-  await shot(page, 'live-ideas-running');
+  await shot(page, 'live-ideas-running', LIVE_SHOTS);
   const end = await page.waitForFunction(() => /Done in/.test(document.querySelector('.agent-status')?.textContent || '') ? 'done' : document.querySelector('section.panel.bad[role=alert] h2')?.textContent || false, { timeout: 150000, polling: 500 }).then((h) => h.jsonValue(), () => 'timeout');
   if (end !== 'done') {
     check('live/ideas: the run finished', false, `ended with: ${end}`);
@@ -80,7 +85,7 @@ async function live(browser) {
   await sleep(500);
   const stored = JSON.parse(await page.evaluate((k) => sessionStorage.getItem(k), KEY));
   out.liveRun = stored;
-  fs.writeFileSync(path.join(DEBUG, 'live-run.json'), JSON.stringify(stored)); // third-party product data: stays in the ignored debug folder
+  fs.writeFileSync(path.join(DEBUG, 'live-run.json'), JSON.stringify(stored)); // Qloo and third-party product data: capture folder only, never the repo
   const mid = (await api('/api/status')).json;
   out.ideasUsage = Object.fromEntries(USAGE.map((k) => [k, (mid.usage?.[k] ?? 0) - (before.usage?.[k] ?? 0)]));
   say(`  billed calls for the ideas run alone (counter deltas): ${JSON.stringify(out.ideasUsage)}`);
@@ -95,7 +100,7 @@ async function live(browser) {
   const noteOn = await page.$eval('.demo-note', (e) => !e.hidden).catch(() => false);
   check('live/ideas: the "Demo data" badge and note are hidden while Qloo and the model are live, and shown while a stand-in runs', before.mocks.length === 0 ? !badgeOn && !noteOn : badgeOn && noteOn && /Demo data/.test((await text(page, '.demo-note')) || ''), `mocks: ${before.mocks.join(',') || 'none'}`);
   await audit(page, 'live/ideas');
-  await shot(page, 'live-ideas-done');
+  await shot(page, 'live-ideas-done', LIVE_SHOTS);
 
   // 3. pick items, review
   const picked = [];
@@ -122,7 +127,7 @@ async function live(browser) {
   await sleep(250);
   check('live/checkout: copy button puts the test card number on the clipboard', (await page.evaluate(() => navigator.clipboard.readText()).catch(() => '')) === '4005519200000004');
   await audit(page, 'live/checkout');
-  await shot(page, 'live-checkout');
+  await shot(page, 'live-checkout', LIVE_SHOTS);
 
   // 4. pay, then cancel on PayPal's side: the order is cancelled and the gift is still there
   await tap(page, 'button.pay-btn');
@@ -133,7 +138,7 @@ async function live(browser) {
   await page.waitForFunction(() => location.hash.startsWith('#/checkout') && document.querySelector('.note.info'), { timeout: 8000 });
   const o1 = (await api(`/api/orders/${token1}`)).json;
   check('live/cancel: cancelling on PayPal returns to checkout with the note, the gift kept, and the order marked CANCELLED', /nothing was charged/.test((await text(page, '.note.info')) || '') && (await count(page, '.summary li.line')) === 2 && o1?.status === 'CANCELLED', `order ${token1} -> ${o1?.status}`);
-  await shot(page, 'live-checkout-cancelled');
+  await shot(page, 'live-checkout-cancelled', LIVE_SHOTS);
 
   // 5. pay again: a new order, guest card on PayPal's page, back to the receipt
   await tap(page, 'button.pay-btn');
@@ -165,7 +170,7 @@ async function live(browser) {
   await audit(page, 'live/receipt');
   await tabWalk(page, 'live/receipt');
   await page.evaluate(() => scrollTo(0, 0));
-  await shot(page, 'live-receipt');
+  await shot(page, 'live-receipt', LIVE_SHOTS);
   const again = await api(`/api/return?token=${id}`);
   const o3 = (await api(`/api/orders/${id}`)).json;
   check('live/receipt: opening the return link again does not capture twice (same status and payment id)', again.status === 302 && /#\/receipt\//.test(again.location || '') && o3?.status === 'COMPLETED' && o3.captureId === out.captureId);
@@ -177,7 +182,7 @@ async function live(browser) {
     await p2.goto(`${BASE}/#/receipt/${id}`, { waitUntil: 'load' });
     await p2.waitForSelector('.status-pill', { timeout: 15000 });
     check(`live/receipt at ${vp.width}px: confirmed, no horizontal scrolling`, (await p2.$eval('.status-pill', (e) => e.dataset.status)) === 'COMPLETED' && (await p2.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)));
-    await shot(p2, 'live-receipt');
+    await shot(p2, 'live-receipt', LIVE_SHOTS);
     await c2.close();
   }
 
@@ -233,7 +238,7 @@ let browser;
 try {
   spawnSync('node', ['scripts/dev-vars.mjs'], { cwd: APP, stdio: 'inherit' }); // writes .dev.vars from ../.env.local, prints key names only
   say(`e2e ${new Date().toISOString()} phases: ${phases.join(', ')}${keep ? ' (kept state)' : ''}`);
-  srv = await startDev({ port: PORT, persist: '.wrangler/e2e-state', fresh: !keep });
+  srv = await startDev({ port: PORT, fresh: !keep });
   browser = FIREFOX
     ? await puppeteer.launch({ browser: 'firefox', executablePath: '/usr/bin/firefox', headless: true, protocol: 'webDriverBiDi' })
     : await puppeteer.launch({ executablePath: '/usr/bin/chromium', headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
@@ -261,10 +266,11 @@ try {
 }
 
 say('');
-say(`SCREENSHOTS ${shots.length} in evidence/screens/`);
+say(`SCREENSHOTS ${shots.length} (evidence/screens/; the live ones in the capture folder outside the repo)`);
 if (out.orderId) say(`SANDBOX ORDER ${out.orderId} ${out.status} (payment id ${out.captureId})`);
 const pass = report.lines.filter((l) => /^ {2}PASS /.test(l)).length;
 say(`RESULT ${report.failed === 0 ? 'PASS' : 'FAIL'}: ${pass} checks passed, ${report.failed} failed, ${Math.round((Date.now() - t0) / 1000)} s`);
 const full = phases.includes('live') && phases.includes('tour');
-fs.writeFileSync(full ? path.join(EVIDENCE, 'e2e.txt') : path.join(DEBUG, `e2e-${phases.join('-')}.txt`), report.lines.join('\n') + '\n');
+if (evidence && !full) say('  --evidence needs both phases: the report was not written to evidence/');
+fs.writeFileSync(evidence && full ? path.join(EVIDENCE, 'e2e.txt') : path.join(DEBUG, `e2e-${phases.join('-')}.txt`), report.lines.join('\n') + '\n');
 process.exit(report.failed === 0 ? 0 : 1);

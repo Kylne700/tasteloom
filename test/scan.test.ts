@@ -1,7 +1,7 @@
 // The scanner finds planted secrets and denylist terms, and never prints either.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -26,8 +26,12 @@ test('denyCount counts matching lines case-insensitively, as fixed strings, and 
   assert.equal(denyCount(Buffer.from('nothing to see\n'), deny), 0);
 });
 
-test('the scan script exits 0, 1 or 2 and prints no secret (runs against the real tree)', () => {
-  const r = spawnSync('node', ['scripts/scan.mjs'], { cwd: new URL('..', import.meta.url).pathname, encoding: 'utf8' });
+test('the scan script exits 0, 1 or 2, prints no secret and leaves evidence/scan.txt alone unless --write is given (runs against the real tree)', () => {
+  const cwd = new URL('..', import.meta.url).pathname;
+  const saved = join(cwd, 'evidence/scan.txt');
+  const before = statSync(saved).mtimeMs;
+  const r = spawnSync('node', ['scripts/scan.mjs'], { cwd, encoding: 'utf8' });
   assert.ok([0, 1, 2].includes(r.status ?? -1), String(r.status));
   assert.match(r.stdout, /^scan: /m);
+  assert.equal(statSync(saved).mtimeMs, before, 'a plain run must not rewrite the tracked report');
 });
