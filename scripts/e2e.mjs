@@ -189,7 +189,7 @@ async function live(browser) {
   } else say(`  NOT VERIFIED over HTTP: the ${all.length} buyable cards sum to ${money(sum)}, within the $120 cap (the unit tests cover the over-cap refusal)`);
 
   const after = (await api('/api/status')).json;
-  out.usage = Object.fromEntries(['ideas', 'qloo', 'ai', 'tokens', 'tavily', 'channel3', 'orders'].map((k) => [k, (after.usage?.[k] ?? 0) - (before.usage?.[k] ?? 0)]));
+  out.usage = Object.fromEntries(['ideas', 'qloo', 'ai', 'neurons', 'tavily', 'channel3', 'orders'].map((k) => [k, (after.usage?.[k] ?? 0) - (before.usage?.[k] ?? 0)]));
   say(`  billed calls this live phase (counter deltas): ${JSON.stringify(out.usage)}`);
   check('live: the meter counted the run, and spend stayed inside the stage budget (Channel3 <= 20, Tavily <= 30 for one run)', out.usage.ideas >= 1 && out.usage.channel3 <= 20 && out.usage.tavily <= 30, JSON.stringify(out.usage));
   await ctx.close();

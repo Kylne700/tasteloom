@@ -119,9 +119,9 @@ test('meter: IPv6 visitors are counted per /64, so new addresses in the same net
 
 test('meter: a count that is not a finite number of 0 or more is refused, so it cannot switch a cap off', async () => {
   const { svc } = await makeSvc();
-  for (const n of [NaN, -5]) await assert.rejects(svc.meter.take({ tokens: n }), LimitError, String(n));
-  await svc.meter.take({ tokens: 1 });
-  assert.equal((await svc.meter.used()).global.tokens, 1);
+  for (const n of [NaN, -5]) await assert.rejects(svc.meter.take({ neurons: n }), LimitError, String(n));
+  await svc.meter.take({ neurons: 1 });
+  assert.equal((await svc.meter.used()).global.neurons, 1);
 });
 
 // ---- bounded work ---------------------------------------------------------------------------------------------------

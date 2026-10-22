@@ -74,10 +74,11 @@ export async function payAsGuest(page, approveUrl, returnPrefix, { log = console
   if (!clicked) return { ok: false, url: page.url(), note: 'no guest pay button (only account creation offered); stopped' };
   // synthetic address can trigger a "We can't verify your address" modal: accept as entered
   const modal = await Promise.race([nav.then(() => 'nav'), sleep(9000).then(() => 'wait')]);
-  if (modal === 'wait' && !page.url().startsWith(returnPrefix)) await clickByText(page, /^\s*Continue\s*$/i);
+  // the order is already paid here, so a page that leaves for the shop while we look at it ("Execution context was destroyed") is not a failure
+  if (modal === 'wait' && !page.url().startsWith(returnPrefix)) await clickByText(page, /^\s*Continue\s*$/i).catch(() => null);
   await nav;
   const ok = page.url().startsWith(returnPrefix);
   let note = ok ? 'returned to the merchant' : 'did not return';
-  if (!ok) note += ': ' + (await page.evaluate(() => document.body.innerText)).replace(/\s+/g, ' ').slice(0, 200);
+  if (!ok) note += ': ' + (await page.evaluate(() => document.body.innerText).catch(() => '')).replace(/\s+/g, ' ').slice(0, 200);
   return { ok, url: page.url(), note };
 }
