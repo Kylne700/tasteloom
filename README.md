@@ -76,7 +76,7 @@ The demo is free and has no sign-in. Daily caps, counted per UTC day, keep it in
 | Returns from PayPal that still had work to do | 20 | 150 | 1 or 2 per payment |
 | Sandbox spend | | $2,000 | |
 
-The Channel3 and Tavily numbers are the small ones on purpose: each service gives 1,000 free credits a month (its docs, read 2026-10-22), the demo has to keep working until judging ends on 2026-11-17, and a fifth of the credits is held back. One visitor can still make four full runs a day (6 shop searches and 4 web searches each). The other caps keep a day inside the free plans of Cloudflare (Workers AI neurons, 1,000 KV writes a day: the caps above allow about 850 at the very most; the saved example and an unchanged order write nothing) and give each visitor several runs.
+The Channel3 and Tavily numbers are the small ones on purpose: each service gives 1,000 free credits a month (its docs, read 2026-10-22), the demo has to keep working until judging ends (Nov 16, 2026, 11:45 pm ET, which is Nov 17, 04:45 UTC), and a fifth of the credits is held back. One visitor can still make four full runs a day (6 shop searches and 4 web searches each). The other caps keep a day inside the free plans of Cloudflare (Workers AI neurons, 1,000 KV writes a day: the caps above allow about 850 at the very most; the saved example and an unchanged order write nothing) and give each visitor several runs.
 
 What the page shows when a cap is reached. The services that only add to a run (shop search, web search, the model) pause on their own and the run goes on; the ones a run cannot do without (a run, Qloo) refuse it before it starts, so a refused run has spent no Qloo or model call.
 
