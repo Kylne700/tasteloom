@@ -1,11 +1,13 @@
-// Qloo Taste AI (hackathon API). Calls follow the public docs (docs.qloo.com), parsed defensively:
-//   GET /search?query=<text>&types=urn:entity:<type>            -> { success, duration, results: [ { entity_id, name, types, ... } ] }
-//   GET /v2/insights?filter.type=urn:entity:<type>
-//       &signal.interests.entities=<id,id>&feature.explainability=true&take=<n>
-//                                                               -> { success, results: { entities: [ { entity_id, name, types, query: { affinity, explainability } } ], duration } }
-// NOT VERIFIED without a key: exact entity field names and the explainability shape (docs say "which seed entities contributed, normalized 0-1").
-// `npm run contract:qloo` prints the real shape once QLOO_API_KEY exists. While the key is missing, src/mocks/qloo-fake.ts answers with
-// the same shapes and the UI shows a "demo data" badge. Qloo response data is never stored in this repository.
+// Qloo Taste AI (hackathon API, https://hackathon.api.qloo.com). Calls follow the public docs (docs.qloo.com). Shapes seen live on 2026-10-22:
+//   GET /search?query=<text>&types=urn:entity:<type>&take=3
+//       -> { results: [ { name, entity_id, types: ['urn:entity:<type>'], properties, popularity, disambiguation, tags } ] }   (no success flag)
+//   GET /v2/insights?filter.type=urn:entity:<type>&signal.interests.entities=<id,id>&feature.explainability=true&take=<n>
+//       -> { success, results: { entities: [ { name, entity_id, type: 'urn:entity', subtype: 'urn:entity:<type>', properties, popularity, tags,
+//            query: { affinity, measurements, explainability: { 'signal.interests.entities': [ { entity_id, score } ] } } } ] },
+//            query: { explainability: { 'signal.interests.entities': { effect_on_top3_recs, ... } } } }
+// Answers are large (8-15 KB for 3 search hits, about 70 KB for 4 insight entities); only ids, names, types and the per-entity scores are read.
+// `npm run contract:qloo` re-checks this against the live API. src/mocks/qloo-fake.ts answers in the same shapes with invented data.
+// Qloo output is never committed; a parsed result may sit in KV for at most 24 hours (Qloo's terms).
 import { QLOO_BASE } from '../config.ts';
 import { cached, callJson, type Svc } from '../lib/http.ts';
 import { asObject } from '../lib/json.ts';
@@ -29,8 +31,9 @@ function entityId(e: Record<string, unknown>): string {
   return String(e.entity_id ?? e.id ?? '');
 }
 
+/** Search hits list `types: ['urn:entity:artist']`; insight entities say `type: 'urn:entity'` and name the kind in `subtype`. */
 function entityType(e: Record<string, unknown>, prefer?: string): string {
-  const types = Array.isArray(e.types) ? e.types.map(shortType) : e.type ? [shortType(e.type)] : [];
+  const types = [...(Array.isArray(e.types) ? e.types : []), e.subtype, e.type].map(shortType).filter((t) => t && !t.startsWith('urn:'));
   return prefer && types.includes(prefer) ? prefer : (types[0] ?? prefer ?? 'unknown');
 }
 
@@ -44,7 +47,10 @@ export function parseSearch(json: unknown, wantedType?: string): Seed[] {
   return out;
 }
 
-/** Explainability can be a map {seedId: score}, an array of {entity_id|id|name, score|weight}, or nested in either. Unknown ids are dropped. */
+/**
+ * Live shape: `{ 'signal.interests.entities': [ { entity_id, score } ] }` (scores add up to about 1 over the seeds). A map {seedId: score}
+ * and other nestings are accepted too. Ids that are not one of our seeds are dropped.
+ */
 export function parseExplainability(x: unknown, seeds: Seed[]): { seedId: string; score: number }[] {
   const byId = new Map(seeds.map((s) => [s.id, s]));
   const byName = new Map(seeds.map((s) => [s.name.toLowerCase(), s]));

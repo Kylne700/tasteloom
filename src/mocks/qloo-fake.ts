@@ -1,7 +1,9 @@
-// Fake Qloo server for demos and tests while QLOO_API_KEY is missing. It answers with the documented response shapes
-// ({success, duration, results} for /search; {success, results:{entities, duration}} for /v2/insights, each entity with
-// query.explainability as a map seed-id -> score), so the real parser in adapters/qloo.ts runs unchanged.
-// The data is invented demo data: well-known works and places, each with a few theme tags. Entities that share tags with the
+// Fake Qloo server for demos and tests while QLOO_API_KEY is missing. It answers in the shapes the live API was seen to use on
+// 2026-10-22 (see the header of adapters/qloo.ts; `npm run contract:qloo` re-checks them), so the real parser runs unchanged:
+// /search -> { results: [ { name, entity_id, types, properties, popularity, disambiguation, tags } ] } and /v2/insights ->
+// { success, results: { entities: [ { type: 'urn:entity', subtype, query: { affinity, measurements, explainability: { 'signal.interests.entities':
+// [ { entity_id, score } ] } } } ] }, query: { explainability: { 'signal.interests.entities': { effect_on_top3_recs, ... } } } }.
+// The data is invented demo data, not Qloo output: well-known works and places, each with a few theme tags. Entities that share tags with the
 // favourites rank higher and the explainability weights follow the shared tags, so "because they love X" reads plausibly.
 import { fnv, sleep, titleCase } from '../lib/util.ts';
 
@@ -63,7 +65,7 @@ function answer(input: string): Response {
   const url = new URL(input);
   if (url.pathname === '/search') {
     const query = (url.searchParams.get('query') ?? '').trim();
-    if (!query) return json({ success: true, duration: 3, results: [] });
+    if (!query) return json({ results: [] });
     const asked = shortType(url.searchParams.get('types'));
     const q = query.toLowerCase();
     // a typed name resolves to the catalog entity it equals or contains ("Hario V60" -> Hario), like Qloo's entity matching
@@ -73,9 +75,7 @@ function answer(input: string): Response {
     const type = known?.t ?? (asked || 'brand');
     const name = known?.n ?? titleCase(query);
     return json({
-      success: true,
-      duration: 7,
-      results: [{ entity_id: idOf(name, type), name, types: [`urn:entity:${type}`], popularity: 0.5, disambiguation: 'demo data' }],
+      results: [{ name, entity_id: idOf(name, type), types: [`urn:entity:${type}`], properties: { short_description: 'demo data' }, popularity: 0.5, disambiguation: 'demo data', tags: [] }],
     });
   }
   if (url.pathname === '/v2/insights') {
@@ -98,11 +98,24 @@ function answer(input: string): Response {
       // explainability: weights over the favourites that share the most themes with this entity, normalized to sum 1
       const use = shared.length ? shared.slice(0, 3) : seeds.slice(k % Math.max(seeds.length, 1)).slice(0, 1).map((s) => ({ s, n: 1 }));
       const sum = use.reduce((a, b) => a + b.n, 0) || 1;
-      const explainability: Record<string, number> = {};
-      for (const u of use) explainability[u.s] = Math.round((u.n / sum) * 100) / 100;
-      return { entity_id: id, name, types: [`urn:entity:${type}`], query: { affinity: Math.min(0.97, Math.round((0.5 + 0.06 * total) * 100) / 100), explainability } };
+      const links = use.map((u) => ({ entity_id: u.s, score: Math.round((u.n / sum) * 100) / 100 }));
+      return {
+        name,
+        entity_id: id,
+        type: 'urn:entity',
+        subtype: `urn:entity:${type}`,
+        properties: { short_description: 'demo data' },
+        popularity: 0.5,
+        tags: [],
+        query: { affinity: Math.min(0.97, Math.round((0.5 + 0.06 * total) * 100) / 100), measurements: { audience_growth: 0 }, explainability: { 'signal.interests.entities': links } },
+        disambiguation: 'demo data',
+        external: {},
+      };
     });
-    return json({ success: true, results: { entities, duration: 12 } });
+    // the live answer also sums the seeds' effect over the top results; the parser ignores it, so the fake keeps it to prove that
+    const effect = seeds.map((s) => ({ entity_id: s, avg_score: Math.round(100 / seeds.length) / 100 }));
+    const overall = { effect_on_top3_recs: effect, effect_on_top5_recs: effect, effect_on_top10_recs: effect, effect_on_all_recs: effect };
+    return json({ success: true, results: { entities }, query: { explainability: { 'signal.interests.entities': overall } } });
   }
   return json({ success: false, message: 'not found' }, 404);
 }

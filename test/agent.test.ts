@@ -140,6 +140,21 @@ test('ideas: a catalog that answers with nothing is a step that worked; one that
   assert.ok(failed.length > 0 && failed.every((c) => c.ok === false), JSON.stringify(failed));
 });
 
+test('ideas: when the first picks match nothing in the catalog, the top-up moves on to other entities instead of repeating them', async () => {
+  const h = makeHarness({}, { mocks: { nebius: async () => json({ error: 'overloaded' }, 503) } });
+  const empty = new Set<string>(); // the first five different product searches find nothing, as niche real entities often do
+  h.net.intercept = (path, init) => {
+    if (path !== '/v1/search') return undefined;
+    const q = String(JSON.parse(String(init?.body)).query);
+    if (empty.size < 5) empty.add(q);
+    return empty.has(q) ? json({ products: [] }) : undefined;
+  };
+  const ev = await run(h);
+  const searched = ev.filter((e) => e.t === 'call' && e.tool === 'find_products').map((c) => c.arg);
+  assert.equal(new Set(searched).size, searched.length, 'an entity was searched twice: ' + searched.join(' | '));
+  assert.ok(searched.length > 5 && searched.length <= 8, 'it should go past the first five entities but stop at 8: ' + searched.join(' | '));
+});
+
 test('ideas: Qloo down ends in an upstream error with a plain retry message', async () => {
   const h = makeHarness({}, { mocks: { qloo: async () => json({ message: 'down' }, 503) } });
   const last = (await run(h)).at(-1);

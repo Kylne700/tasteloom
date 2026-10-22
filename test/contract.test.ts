@@ -14,7 +14,7 @@ test('contract:qloo passes on doc-shaped answers, within 5 calls, and fails on a
   const svc = await makeSvc({ QLOO_API_KEY: 'k' }, (u, i) => (calls++, fake(u, i)));
   const good = await qlooContract(svc);
   assert.equal(good.failure, '');
-  assert.ok(good.checks.length >= 7 && ok(good.checks), JSON.stringify(good.checks.filter(([, p]) => !p)));
+  assert.ok(good.checks.length >= 9 && ok(good.checks), JSON.stringify(good.checks.filter(([, p]) => !p)));
   assert.ok(calls <= 5 && svc.sub.left === 5 - calls, `${calls} calls`);
 
   const wrong = await qlooContract(await makeSvc({ QLOO_API_KEY: 'k' }, async () => Response.json({ results: [] })));

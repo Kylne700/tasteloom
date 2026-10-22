@@ -52,6 +52,7 @@ export function parseIdeasInput(body: Record<string, unknown> | undefined, limit
 const MAX_IDEAS = 6;
 const MIN_IDEAS = 4;
 const CARDS_PER_IDEA = 3;
+const MAX_SEARCHES = 8; // entities that get a product search in one run, found or not: the keys of the catalog and web search have small daily allowances
 const MIN_CARDS = 2; // a product idea with a single card looks thin and is usually a weak match
 const TYPE_ORDER = ['brand', 'book', 'artist', 'place'];
 const DEFAULT_TYPES = ['brand', 'book', 'artist', 'place'];
@@ -141,6 +142,8 @@ class Run {
   queried = new Set<string>();
   types = new Set<string>();
   used = new Set<string>();
+  /** entities that got a product search (even one that found nothing), so the top-up moves on to others instead of repeating them */
+  tried = new Set<string>();
   ideas: Idea[] = [];
   cards: Card[] = [];
   pending = 0;
@@ -219,12 +222,14 @@ class Run {
     if (!cand) throw new ToolError('entity_id must be an id returned by qloo_insights');
     if (this.used.has(cand.id)) throw new ToolError('that entity already has an idea; choose another entity');
     if (this.ideas.length + this.pending >= MAX_IDEAS) throw new ToolError('enough ideas already; reply DONE');
+    if (!this.tried.has(cand.id) && this.tried.size >= MAX_SEARCHES) throw new ToolError('enough searches for one run; reply DONE');
     const budget = this.input.budget_cents;
     const wanted = Number.isFinite(maxUsd) && Number(maxUsd) > 0 ? Math.round(Number(maxUsd) * 100) : Math.round(budget * 0.7);
     const maxCents = Math.min(budget, Math.max(500, wanted)); // the model can lower the cap but never exceed the buyer's budget
     const ideaId = `i${++this.seq}`;
     const experience = EXPERIENCE.has(cand.type);
     this.used.add(cand.id);
+    this.tried.add(cand.id);
     this.pending++;
     this.phase('taste', PH.taste, 'done');
     this.phase('products', PH.products, 'running');
@@ -323,7 +328,7 @@ class Run {
   async ensureIdeas(): Promise<number> {
     const start = this.ideas.length;
     for (let round = 0; round < 3 && this.ideas.length < MIN_IDEAS; round++) {
-      const available = [...this.cands.values()].filter((c) => !this.used.has(c.id));
+      const available = [...this.cands.values()].filter((c) => !this.used.has(c.id) && !this.tried.has(c.id));
       if (!available.length) break;
       const need = Math.min(MAX_IDEAS - this.ideas.length, MIN_IDEAS - this.ideas.length + 1);
       const picks = await this.choose(available, need);

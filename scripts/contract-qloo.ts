@@ -30,6 +30,7 @@ export async function qlooContract(svc: Svc): Promise<{ checks: [string, boolean
       for (const type of ['brand', 'book', 'place']) found[type] = (await insights(svc, { type, seeds, take: 4 })).cands;
       for (const [type, cands] of Object.entries(found)) checks.push([`insights returns ${type} candidates`, cands.length > 0]);
       const all = Object.values(found).flat();
+      checks.push(['every candidate has the type that was asked for', Object.entries(found).every(([type, cands]) => cands.every((c) => c.type === type))]);
       checks.push(['explainability links at least one candidate to a loved thing', all.some((c) => c.because.length > 0)]);
       checks.push(['every explainability link names a seed we sent', all.every((c) => c.because.every((b) => seeds.some((s) => s.id === b.seedId)))]);
     }
@@ -52,7 +53,7 @@ if (import.meta.main) {
   for (const s of seen) console.log('  ' + s);
   for (const [name, ok] of checks) console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${name}`);
   if (failure) console.log('  ERROR  ' + failure.slice(0, 300));
-  const pass = !failure && checks.length >= 7 && checks.every(([, ok]) => ok);
+  const pass = !failure && checks.length >= 9 && checks.every(([, ok]) => ok);
   console.log(`contract:qloo: ${pass ? 'PASS' : 'FAIL'}`);
   process.exit(pass ? 0 : 1);
 }

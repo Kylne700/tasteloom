@@ -5,6 +5,7 @@ import { parseChannel3, searchProducts } from '../src/adapters/channel3.ts';
 import { chat, parseChat } from '../src/adapters/nebius.ts';
 import { humanPayPalError, parseOrder, validOrderId } from '../src/adapters/paypal.ts';
 import { GIFT_TYPES, INSIGHT_TYPES, insights, parseExplainability, parseInsights, parseSearch, searchEntity } from '../src/adapters/qloo.ts';
+import { qlooFake } from '../src/mocks/qloo-fake.ts';
 import { blurb, cleanSnippet, cleanTitle, experienceCards, extractUsdPrices, parseTavily, priceCheck } from '../src/adapters/tavily.ts';
 import { HttpError, callJson, BudgetError } from '../src/lib/http.ts';
 import { LimitError } from '../src/lib/limits.ts';
@@ -204,6 +205,33 @@ test('qloo: /v2/insights entities carry their explainability', () => {
     'brand',
   );
   assert.deepEqual(c.map((x) => [x.id, x.type, x.explained, x.because]), [['B1', 'brand', true, [{ seedId: 'S1', score: 0.7 }]], ['B2', 'brand', false, []]]);
+});
+
+test('qloo: the shapes seen live parse (synthetic stand-ins): kind in subtype, scores in an array under the signal key, no success flag on search', () => {
+  const hit = { name: 'Nujabes', entity_id: 'E11125AF-0000-0000-0000-000000000001', types: ['urn:entity:artist'], properties: { short_description: 'x' }, popularity: 0.9, disambiguation: 'd', tags: [{ name: 't', tag_id: 'u', type: 'v', value: 'w' }] };
+  assert.deepEqual(parseSearch({ results: [hit] }, 'artist'), [{ id: hit.entity_id, name: 'Nujabes', type: 'artist' }]);
+  const live = {
+    success: true,
+    results: { entities: [{ name: 'Hario', entity_id: 'B1', type: 'urn:entity', subtype: 'urn:entity:brand', query: { affinity: 0.8, measurements: { audience_growth: 0 }, explainability: { 'signal.interests.entities': [{ entity_id: 'S2', score: 0.4 }, { entity_id: 'S1', score: 0.6 }, { entity_id: 'GHOST', score: 0.9 }] } } }] },
+    query: { explainability: { 'signal.interests.entities': { effect_on_top3_recs: [{ entity_id: 'S1', avg_score: 0.5 }], effect_on_all_recs: [{ entity_id: 'S2', avg_score: 0.5 }] } } },
+  };
+  const [c] = parseInsights(live, seeds, 'brand');
+  assert.deepEqual([c!.type, c!.because], ['brand', [{ seedId: 'S1', score: 0.6 }, { seedId: 'S2', score: 0.4 }]]);
+  assert.equal(parseInsights(live, seeds, 'book')[0]!.type, 'brand', 'the entity’s own kind wins over the asked-for type');
+});
+
+test('qloo fake: answers in the shapes seen live, so the parser is tested on them', async () => {
+  const s = (await (await qlooFake('https://hackathon.api.qloo.com/search?query=Nujabes&types=urn:entity:artist')).json()) as { results: Record<string, unknown>[] };
+  assert.deepEqual(Object.keys(s), ['results'], 'search has no success flag');
+  assert.deepEqual(s.results[0]!.types, ['urn:entity:artist']);
+  const i = (await (await qlooFake('https://hackathon.api.qloo.com/v2/insights?filter.type=urn:entity:brand&signal.interests.entities=A,B&feature.explainability=true&take=3')).json()) as {
+    results: { entities: { type: string; subtype: string; query: { explainability: Record<string, { entity_id: string; score: number }[]> } }[] };
+    query: { explainability: Record<string, Record<string, unknown>> };
+  };
+  const e = i.results.entities[0]!;
+  assert.deepEqual([e.type, e.subtype], ['urn:entity', 'urn:entity:brand']);
+  assert.ok(Array.isArray(e.query.explainability['signal.interests.entities']) && e.query.explainability['signal.interests.entities']![0]!.entity_id);
+  assert.ok(i.query.explainability['signal.interests.entities']!.effect_on_top3_recs, 'the overall block is present');
 });
 
 test('qloo: documented insight types are all lowercase and gift types are a subset', () => {

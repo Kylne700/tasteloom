@@ -1,4 +1,18 @@
-# npm run contract:qloo (2026-10-16T22:34Z)
-contract:qloo: KEY MISSING. QLOO_API_KEY is not set in tasteagent/.env.local, so no request was made.
-The app runs on documented-shape demo data until the key appears; add the key and run this again.
-exit code: 2
+# npm run contract:qloo (2026-10-22T13:01Z), live API, structure only
+contract:qloo: 5 request(s) of at most 5
+  GET /search -> 200 {results:[3 x {name:string,entity_id:string,types:[1],properties:{...},popularity:number,disambiguation:string,tags:[50]}]}
+  GET /search -> 200 {results:[1 x {name:string,entity_id:string,types:[1],properties:{...},popularity:number,disambiguation:string,tags:[111]}]}
+  GET /v2/insights -> 200 {success:boolean,results:{entities:[4 x {...}]},query:{explainability:{signal.interests.entities:{...}}}}
+  GET /v2/insights -> 200 {success:boolean,results:{entities:[4 x {...}]},query:{explainability:{signal.interests.entities:{...}}}}
+  GET /v2/insights -> 200 {success:boolean,results:{entities:[4 x {...}]},query:{explainability:{signal.interests.entities:{...}}}}
+  PASS  search resolves an artist
+  PASS  search resolves a brand
+  PASS  answers come from the live API
+  PASS  insights returns brand candidates
+  PASS  insights returns book candidates
+  PASS  insights returns place candidates
+  PASS  every candidate has the type that was asked for
+  PASS  explainability links at least one candidate to a loved thing
+  PASS  every explainability link names a seed we sent
+contract:qloo: PASS
+exit code: 0
