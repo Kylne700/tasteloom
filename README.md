@@ -69,14 +69,14 @@ The demo is free and has no sign-in. Daily caps, counted per UTC day, keep it in
 | Gift-idea runs | 8 | 100 | 1 |
 | Qloo calls | 60 | 600 | about 9 (8 to 10) |
 | Model calls | 80 | 600 | 5 to 6 (the checkout part of the live test, 3 order creations and 1 capture, used 5 more) |
-| Model neurons | 1,500 | 8,000 | 85 to 100 (that checkout part used 15 more) |
+| Model neurons | 1,500 | 8,000 | 85 to 110 (that checkout part used 15 more) |
 | Channel3 searches | 24 | 25 | 4 to 6 (1 or 2 when the same search was made in the last 12 hours) |
-| Tavily searches | 16 | 25 | about 4 (1 when repeated within 12 hours) |
+| Tavily searches | 20 | 25 | 4 to 5 (1 when repeated within 12 hours) |
 | Sandbox orders | 8 | 100 | 1 per payment |
 | Returns from PayPal that still had work to do | 20 | 150 | 1 or 2 per payment |
 | Sandbox spend | | $2,000 | |
 
-The Channel3 and Tavily numbers are the small ones on purpose: each service gives 1,000 free credits a month (its docs, read 2026-10-22), the demo has to keep working until judging ends (Nov 16, 2026, 11:45 pm ET, which is Nov 17, 04:45 UTC), and a fifth of the credits is held back. One visitor can still make four full runs a day (6 shop searches and 4 web searches each). The other caps keep a day inside the free plans of Cloudflare (Workers AI neurons, 1,000 KV writes a day: the caps above allow about 850 at the very most; the saved example and an unchanged order write nothing) and give each visitor several runs.
+The Channel3 and Tavily numbers are the small ones on purpose: each service gives 1,000 free credits a month (its docs, read 2026-10-22), the demo has to keep working until judging ends (Nov 16, 2026, 11:45 pm ET, which is Nov 17, 04:45 UTC), and a fifth of the credits is held back. One visitor can still make about four ordinary runs a day (4 to 6 shop searches and 4 to 5 web searches each, as measured). A run that tries more suggestions uses more: the caps then pause shop or web search for the rest of the day and the run still returns its Qloo ideas. The other caps keep a day inside the free plans of Cloudflare (Workers AI neurons, 1,000 KV writes a day: the caps above allow about 850 at the very most; the saved example and an unchanged order write nothing) and give each visitor several runs.
 
 What the page shows when a cap is reached. The services that only add to a run (shop search, web search, the model) pause on their own and the run goes on; the ones a run cannot do without (a run, Qloo) refuse it before it starts, so a refused run has spent no Qloo or model call.
 
@@ -131,7 +131,7 @@ Deploying is not part of this repository's checks. A deployment needs the five k
 
 ## Privacy
 
-No accounts, no cookies. What you type is sent to the server to build your ideas and is not stored; the section "What is sent where" lists which services receive it. The server keeps only the saved product cards and the budget (for server-side pricing, 2 hours; the saved example is not stored at all), orders (7 days), cached Channel3 and Tavily answers (12 hours, keyed by a hash of the search) and daily counters keyed by a hash of the day and your IP (IPv6: its /64 network), cleared the next UTC day. The browser keeps your inputs, finished run and picks in `sessionStorage` (this tab only) so the return from PayPal's cancel page restores them. The page ships no third-party logos or fonts; product images load from the shops' CDNs only after you turn on the image switch.
+No accounts, no cookies. What you type is sent to the server to build your ideas, and the favourites are not stored; the section "What is sent where" lists which services receive it. The server keeps only the saved product cards and the budget (for server-side pricing, 2 hours; the saved example is not stored at all), orders (7 days), cached Channel3 and Tavily answers (12 hours, keyed by a hash of the search) and daily counters keyed by a hash of the day and your IP (IPv6: its /64 network), cleared the next UTC day. The browser keeps your inputs, finished run and picks in `sessionStorage` (this tab only) so the return from PayPal's cancel page restores them. The page ships no third-party logos or fonts; product images load from the shops' CDNs only after you turn on the image switch.
 
 ## Design
 

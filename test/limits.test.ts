@@ -105,7 +105,7 @@ test('meter: an IPv6 visitor is its /64; IPv4 is the address', () => {
 test('config: documented defaults', () => {
   const l = lim();
   assert.deepEqual([l.maxItems, l.minBudgetCents, l.maxBudgetCents, l.dailyCapCents], [6, 1000, 50000, 200000]);
-  assert.deepEqual(l.ip, { ideas: 8, qloo: 60, ai: 80, neurons: 1500, tavily: 16, channel3: 24, orders: 8, returns: 20 });
+  assert.deepEqual(l.ip, { ideas: 8, qloo: 60, ai: 80, neurons: 1500, tavily: 20, channel3: 24, orders: 8, returns: 20 });
   assert.deepEqual(l.global, { ideas: 100, qloo: 600, ai: 600, neurons: 8000, tavily: 25, channel3: 25, orders: 100, returns: 150 });
 });
 
@@ -120,7 +120,7 @@ test('config: every cap is set in wrangler.jsonc (a deploy replaces dashboard va
 
 test('config: overrides apply, junk falls back to the default', () => {
   const l = lim({ LIMIT_MAX_ITEMS: '3', LIMIT_MAX_BUDGET_USD: '120', LIMIT_DAILY_CAP_USD: '12.5', LIMIT_IP_IDEAS: 'lots', LIMIT_GLOBAL_IDEAS: '-4', LIMIT_IP_TAVILY: '' });
-  assert.deepEqual([l.maxItems, l.maxBudgetCents, l.dailyCapCents, l.ip.ideas, l.global.ideas, l.ip.tavily], [3, 12000, 1250, 8, 100, 16]);
+  assert.deepEqual([l.maxItems, l.maxBudgetCents, l.dailyCapCents, l.ip.ideas, l.global.ideas, l.ip.tavily], [3, 12000, 1250, 8, 100, 20]);
 });
 
 test('config: Qloo and the model switch from mock to live by themselves when the key or the AI binding appears; FORCE_MOCK overrides', () => {

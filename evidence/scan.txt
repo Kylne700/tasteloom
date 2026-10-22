@@ -2,8 +2,8 @@ scan: 6 secret value(s) from .env.local checked (entries shorter than 8 characte
   git tree (tracked + untracked, not ignored): 79 file(s), secret hits 0, denylist lines 0
   built assets (.build/): 3 file(s), secret hits 0, denylist lines 0
   ignored local output (evidence/debug/, evidence/screens/): 184 file(s), secret hits 0, denylist lines 0
-  capture folder outside the repo (dev server log and state): 0 file(s), secret hits 0, denylist lines 0
-  git history and commit metadata (1592726 bytes of log): secret hits 0, denylist lines 0
+  capture folder outside the repo (dev server log and state): 26 file(s), secret hits 0, denylist lines 0
+  git history and commit metadata (1688609 bytes of log): secret hits 0, denylist lines 0
   file names (79): denylist lines 0
   PASS  no .env* or .dev.vars file is tracked
   PASS  .dev.vars is git-ignored

@@ -18,7 +18,7 @@
     "LIMIT_IP_QLOO": "60",
     "LIMIT_IP_AI": "80",
     "LIMIT_IP_NEURONS": "1500",
-    "LIMIT_IP_TAVILY": "16",
+    "LIMIT_IP_TAVILY": "20",
     "LIMIT_IP_CHANNEL3": "24",
     "LIMIT_IP_ORDERS": "8",
     "LIMIT_IP_RETURNS": "20",
