@@ -159,7 +159,7 @@ export function mountIdeas(root) {
   function callPhase(c) {
     if (c.tool === 'tavily_search') return 'prices';
     if (c.tool === 'find_products') return 'products';
-    if (c.tool === 'nemotron') return /write/i.test(c.arg) ? 'write' : /choose/i.test(c.arg) ? 'products' : phaseNow();
+    if (c.tool === 'model') return /write/i.test(c.arg) ? 'write' : /choose/i.test(c.arg) ? 'products' : phaseNow();
     return 'taste';
   }
   const phaseNow = () => (run.phases.find((p) => p.state === 'running' && (p.id === 'taste' || p.id === 'products')) || run.phases[0]).id;

@@ -3,13 +3,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { LIMIT_MESSAGE } from '../src/app.ts';
-import { chat } from '../src/adapters/nebius.ts';
+import { chat } from '../src/adapters/ai.ts';
 import { runLoop, toolSpec } from '../src/agent/loop.ts';
 import { loadConfig } from '../src/config.ts';
 import { callJson, HttpError } from '../src/lib/http.ts';
 import { LimitError } from '../src/lib/limits.ts';
 import type { Env } from '../src/types.ts';
-import { chatReply, FAVS, fakeKV, json, makeHarness, makeNet, makeSvc, readEvents, toolCall } from './helpers.ts';
+import { chatBody, chatReply, FAVS, fakeAi, fakeKV, json, makeHarness, makeNet, makeSvc, readEvents, toolCall } from './helpers.ts';
 
 const C3 = 'api.trychannel3.com';
 const ideas = (h: ReturnType<typeof makeHarness>, ip?: string, body: unknown = { favorites: FAVS, budget_usd: 120 }) =>
@@ -60,33 +60,50 @@ test('meter: live Qloo calls have a per-visitor cap', async () => {
   assert.equal(ev.at(-1).code, 'limit', JSON.stringify(ev.at(-1)));
 });
 
-test('meter: live Nemotron calls are capped in estimated tokens, and the run falls back to the fixed pipeline', async () => {
-  const h = makeHarness(env({ NEBIUS_API_KEY: 'n-test', LIMIT_IP_TOKENS: '1000' }));
+test('meter: live model calls are capped in neurons, and the run falls back to the fixed pipeline', async () => {
+  const ai = fakeAi();
+  const h = makeHarness(env({ AI: ai, LIMIT_IP_NEURONS: '2' }));
   const ev = (await readEvents(await ideas(h))) as any[];
-  assert.equal(h.net.count('api.tokenfactory.nebius.com'), 0);
-  assert.ok(ev.some((e) => e.t === 'call' && e.tool === 'nemotron' && /daily limit/.test(e.out)), JSON.stringify(ev.filter((e) => e.tool === 'nemotron')));
+  assert.equal(ai.runs.length, 0, 'the cap is checked before the model is called');
+  assert.ok(ev.some((e) => e.t === 'call' && e.tool === 'model' && /daily limit/.test(e.out)), JSON.stringify(ev.filter((e) => e.tool === 'model')));
   assert.equal(ev.at(-1).t, 'done');
 });
 
-test('meter: a Nemotron call charges one request plus prompt/3 + max_tokens tokens', async () => {
-  const { svc, net } = await makeSvc(env({ NEBIUS_API_KEY: 'n-test' }));
-  net.intercept = () => chatReply({ content: 'ok' });
-  await chat(svc, { model: 'm', messages: [{ role: 'user', content: 'x'.repeat(300) }], maxTokens: 100 });
-  const u = (await svc.meter.used()).ip as Record<string, number>;
-  assert.equal(u.nebius, 1);
-  assert.ok(u.tokens! >= 200 && u.tokens! <= 400, String(u.tokens));
+test('meter: a model call reserves neurons from the prompt size and max_tokens, then settles to what the answer says it cost', async () => {
+  const ai = fakeAi((_m, _i, n) => chatBody({ content: 'ok' }, 'stop', n === 1 ? 3.2 : undefined));
+  const { svc } = await makeSvc(env({ AI: ai }));
+  const used = async () => (await svc.meter.used()).ip as Record<string, number>;
+  await chat(svc, { model: '@cf/qwen/qwen3-30b-a3b-fp8', messages: [{ role: 'user', content: 'x'.repeat(300) }], maxTokens: 100 });
+  assert.deepEqual([(await used()).ai, (await used()).neurons], [1, 4], 'ceil(3.2) neurons, not the reservation');
+  await chat(svc, { model: '@cf/qwen/qwen3-30b-a3b-fp8', messages: [{ role: 'user', content: 'x'.repeat(300) }], maxTokens: 100 });
+  const reserved = (await used()).neurons! - 4;
+  assert.ok(reserved >= 4 && reserved <= 6, `an answer without usage keeps the reservation (prompt/3 at 4,625 plus 100 tokens at 30,475 per million): ${reserved}`);
 });
 
-test('config: every billed counter has both caps, per-visitor below global, inside the free quotas and the Nebius credit', () => {
+test('meter: a model that was refused or never ran gives its neurons back; a timeout keeps them', async () => {
+  const refuse = fakeAi(() => {
+    throw new Error('4006: you have used up your daily free allocation of 10,000 neurons');
+  });
+  const { svc } = await makeSvc(env({ AI: refuse }));
+  await assert.rejects(chat(svc, { model: 'm', messages: [{ role: 'user', content: 'hi' }] }), (e) => e instanceof HttpError && e.status === 429);
+  assert.equal(refuse.runs.length, 2, 'one retry');
+  const u = (await svc.meter.used()).ip as Record<string, number>;
+  assert.deepEqual([u.ai, u.neurons], [2, 0]);
+  const slow = fakeAi(() => new Promise(() => {}));
+  const t = await makeSvc(env({ AI: slow }));
+  await assert.rejects(chat(t.svc, { model: 'm', messages: [{ role: 'user', content: 'hi' }], timeoutMs: 30 }), (e) => e instanceof HttpError && e.status === 0);
+  assert.ok(((await t.svc.meter.used()).ip as Record<string, number>).neurons! > 0, 'we cannot know what an abandoned call used');
+});
+
+test('config: every billed counter has both caps, per-visitor below global, inside the free quotas', () => {
   const l = loadConfig({} as Env).limits as any;
-  for (const k of ['ideas', 'qloo', 'nebius', 'tokens', 'tavily', 'channel3', 'orders']) {
+  for (const k of ['ideas', 'qloo', 'ai', 'neurons', 'tavily', 'channel3', 'orders']) {
     assert.ok(Number.isFinite(l.ip[k]) && Number.isFinite(l.global[k]), k);
     assert.ok(l.ip[k] < l.global[k], `${k}: per-visitor ${l.ip[k]} is not below global ${l.global[k]}`);
   }
   assert.ok(l.global.channel3 * 31 <= 1000, 'Channel3 free plan: 1,000 searches a month');
   assert.ok(l.global.tavily * 31 <= 1000, 'Tavily free plan: 1,000 credits a month, 1 per search');
-  // worst case: every estimated token billed at the dearest Nebius price we use ($0.90 per 1M output tokens), Oct 17 to Dec 15
-  assert.ok((l.global.tokens / 1e6) * 0.9 * 60 <= 25, 'the $25 Nebius credit lasts until the demo goes offline');
+  assert.ok(l.global.neurons < 10_000, 'Workers AI free allocation: 10,000 neurons a day, so our cap stops first');
 });
 
 test('meter: IPv6 visitors are counted per /64, so new addresses in the same network do not reset the allowance', async () => {
@@ -117,11 +134,11 @@ test('http: an oversized upstream answer is refused, not parsed', async () => {
 
 test('runLoop: at most 8 tool calls of one model turn run, and the model sees a result for each of them', async () => {
   const bodies: any[] = [];
-  const nebius = async (_u: string, init?: RequestInit) => {
+  const ai = async (_u: string, init?: RequestInit) => {
     bodies.push(JSON.parse(String(init?.body)));
     return bodies.length === 1 ? chatReply({ content: null, tool_calls: Array.from({ length: 20 }, (_, k) => toolCall('t', {}, `c${k}`)) }, 'tool_calls') : chatReply({ content: 'DONE' });
   };
-  const { svc } = await makeSvc({}, makeNet(), { nebius });
+  const { svc } = await makeSvc({}, makeNet(), { ai });
   let ran = 0;
   await runLoop(svc, { model: 'm', system: '[task:x]', user: {}, tools: [{ spec: toolSpec('t', 'd', {}, []), run: async () => ++ran }], maxTurns: 2 });
   assert.equal(ran, 8);

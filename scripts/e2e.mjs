@@ -1,7 +1,7 @@
 // End-to-end check in a real browser (puppeteer-core + /usr/bin/chromium) against `wrangler dev` on port 8791.
 //   node scripts/e2e.mjs [live] [tour] [--keep]
-// live: the full judge flow with the real Tavily, Channel3 and PayPal sandbox (guest card -> capture COMPLETED); Qloo and Nebius run on their
-//       documented-shape stand-ins until their keys exist. Costs about 6 Channel3 and 7 Tavily calls per run on a fresh state.
+// live: the full judge flow with the real Tavily, Channel3 and PayPal sandbox (guest card -> capture COMPLETED); Qloo and the model run on their
+//       documented-shape stand-ins unless the Qloo key and the AI binding exist. Costs about 6 Channel3 and 7 Tavily calls per run on a fresh state.
 // tour: every screen and error/empty state at 1280, 390 and 768 px, with accessibility, focus, layout-shift and overflow checks. No billed calls.
 // --keep reuses .wrangler/e2e-state (and with it the cached Channel3/Tavily answers) so a debugging re-run costs nothing.
 // Only a run of both phases writes evidence/e2e.txt; partial runs write evidence/debug/e2e-<phases>.txt. Exit 0 = every check passed.
@@ -44,7 +44,7 @@ async function tap(page, sel) {
 
 // ---- live ---------------------------------------------------------------------------------------------------------------
 async function live(browser) {
-  say('LIVE FLOW (desktop 1280x800): real Channel3, Tavily and PayPal sandbox; Qloo and Nebius on stand-ins unless their keys exist');
+  say('LIVE FLOW (desktop 1280x800): real Channel3, Tavily and PayPal sandbox; Qloo and the model on stand-ins unless the Qloo key and the AI binding exist');
   const ctx = await browser.createBrowserContext();
   await ctx.overridePermissions(BASE, ['clipboard-read', 'clipboard-write']);
   const page = await newPage(ctx, DESKTOP, 'live');
@@ -87,7 +87,7 @@ async function live(browser) {
   say(`  run: ${ideas.length} ideas, ${cards.length} cards (${buyable.length} buyable, ${cards.filter((c) => c.kind === 'link').length} link-only), tier ${stored.run.tier}, ${mode}`);
   check('live/ideas: at least 3 ideas, each with a reason ("Because they love ..." or the overall-taste line)', ideas.length >= 3 && (await page.$$eval('.ideas-list article.idea .because', (l) => l.length > 0 && l.every((e) => /Because they love|overall taste/.test(e.textContent)))), `${ideas.length} ideas`);
   check('live/ideas: real product cards from Channel3 with a title, a price in dollars, a shop and an https link', buyable.length >= 2 && buyable.every((c) => c.title && c.price_cents > 0 && c.shop) && (await page.$$eval('ul.cards li.card[data-kind=product]', (l) => l.length >= 2 && l.every((e) => /\$\d/.test(e.querySelector('.price')?.textContent || '') && /^https:/.test(e.querySelector('a.shop-link')?.href || '')))), `${buyable.length} buyable`);
-  check('live/ideas: the demo-data note and badge show while Qloo/Nebius run on stand-ins', before.mocks.length === 0 || (/Demo data/.test((await text(page, '.demo-note')) || '') && (await page.$eval('#demo-badge', (e) => !e.hidden))));
+  check('live/ideas: the demo-data note and badge show while Qloo/the model run on stand-ins', before.mocks.length === 0 || (/Demo data/.test((await text(page, '.demo-note')) || '') && (await page.$eval('#demo-badge', (e) => !e.hidden))));
   await audit(page, 'live/ideas');
   await shot(page, 'live-ideas-done');
 
@@ -189,7 +189,7 @@ async function live(browser) {
   } else say(`  NOT VERIFIED over HTTP: the ${all.length} buyable cards sum to ${money(sum)}, within the $120 cap (the unit tests cover the over-cap refusal)`);
 
   const after = (await api('/api/status')).json;
-  out.usage = Object.fromEntries(['ideas', 'qloo', 'nebius', 'tokens', 'tavily', 'channel3', 'orders'].map((k) => [k, (after.usage?.[k] ?? 0) - (before.usage?.[k] ?? 0)]));
+  out.usage = Object.fromEntries(['ideas', 'qloo', 'ai', 'tokens', 'tavily', 'channel3', 'orders'].map((k) => [k, (after.usage?.[k] ?? 0) - (before.usage?.[k] ?? 0)]));
   say(`  billed calls this live phase (counter deltas): ${JSON.stringify(out.usage)}`);
   check('live: the meter counted the run, and spend stayed inside the stage budget (Channel3 <= 20, Tavily <= 30 for one run)', out.usage.ideas >= 1 && out.usage.channel3 <= 20 && out.usage.tavily <= 30, JSON.stringify(out.usage));
   await ctx.close();
@@ -213,8 +213,8 @@ async function tour(browser) {
   ];
   for (const r of rounds) if (!process.env.TOUR_ROUNDS || process.env.TOUR_ROUNDS.split(',').includes(r.name)) await tourRound(browser, r, sample, liveRun); // TOUR_ROUNDS, TOUR_STATES: debugging aids
   const after = (await api('/api/status')).json.usage || {};
-  const spent = ['qloo', 'nebius', 'tavily', 'channel3'].map((k) => (after[k] ?? 0) - (before[k] ?? 0));
-  check('tour: no billed call (Qloo, Nebius, Tavily, Channel3) was made by the tour', spent.every((n) => n === 0), `deltas ${spent.join('/')}`);
+  const spent = ['qloo', 'ai', 'tavily', 'channel3'].map((k) => (after[k] ?? 0) - (before[k] ?? 0));
+  check('tour: no billed call (Qloo, the model, Tavily, Channel3) was made by the tour', spent.every((n) => n === 0), `deltas ${spent.join('/')}`);
 }
 
 // ---- main ---------------------------------------------------------------------------------------------------------------

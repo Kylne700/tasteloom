@@ -1,4 +1,4 @@
-// The agent: Nemotron proposes, the server disposes. The real app with a fake network and scripted (also hostile) models.
+// The agent: the model proposes, the server disposes. The real app with a fake network and scripted (also hostile) models.
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { groundedReason, templateReason } from '../src/agent/ideas.ts';
@@ -8,7 +8,7 @@ import { card, chatReply, FAVS, json, makeHarness, makeSvc, readEvents, seedSess
 
 const DONE = () => chatReply({ content: 'DONE' });
 const calls = (...c: ReturnType<typeof toolCall>[]) => chatReply({ content: null, tool_calls: c }, 'tool_calls');
-/** A scripted Nebius: one handler per [task:...] marker; n is the turn of the tool loop (1 for single-shot tasks). Unscripted tasks answer DONE. */
+/** A scripted model: one handler per [task:...] marker; n is the turn of the tool loop (1 for single-shot tasks). Unscripted tasks answer DONE. */
 const model =
   (tasks: Record<string, (n: number, body: any) => Response>): FetchFn =>
   async (_url, init) => {
@@ -25,7 +25,7 @@ test('ideas: a full run streams its steps, ties each idea to the favourites and 
   const h = makeHarness();
   const ev = await run(h);
   assert.equal(ev[0].t, 'meta');
-  assert.deepEqual([ev[0].mocks, ev[0].example, ev[0].budget_cents], [['qloo', 'nebius'], false, 12000]);
+  assert.deepEqual([ev[0].mocks, ev[0].example, ev[0].budget_cents], [['qloo', 'ai'], false, 12000]);
   assert.equal(ev.at(-1).t, 'done');
   const ideas = ev.filter((e) => e.t === 'idea');
   assert.ok(ideas.length >= 3 && ideas.length <= 6, `${ideas.length} ideas`);
@@ -45,11 +45,11 @@ test('ideas: a full run streams its steps, ties each idea to the favourites and 
   const stored = JSON.parse(h.kv._m.get(`s:${ev[0].session}`)!);
   assert.equal(stored.budget_cents, 12000);
   assert.deepEqual(stored.cards.map((c: any) => c.id).sort(), ideas.flatMap((i) => i.cards.map((c: any) => c.id)).sort());
-  assert.deepEqual([...new Set(h.net.calls.map((c) => c.host))].sort(), ['api.tavily.com', 'api.trychannel3.com'], 'Qloo and Nebius were fake servers, not the internet');
+  assert.deepEqual([...new Set(h.net.calls.map((c) => c.host))].sort(), ['api.tavily.com', 'api.trychannel3.com'], 'Qloo and the model were fake servers, not the internet');
 });
 
-test('ideas: with Nebius down the fixed pipeline still delivers ideas with template reasons', async () => {
-  const h = makeHarness({}, { mocks: { nebius: async () => json({ error: 'overloaded' }, 503) } });
+test('ideas: with the model down the fixed pipeline still delivers ideas with template reasons', async () => {
+  const h = makeHarness({}, { mocks: { ai: async () => json({ error: 'overloaded' }, 503) } });
   const ev = await run(h);
   assert.deepEqual([ev.at(-1).t, ev.at(-1).tier], ['done', 'template']);
   const ideas = ev.filter((e) => e.t === 'idea');
@@ -59,7 +59,7 @@ test('ideas: with Nebius down the fixed pipeline still delivers ideas with templ
 });
 
 test('ideas: a model that never calls a tool and answers in prose is replaced by the fixed pipeline', async () => {
-  const h = makeHarness({}, { mocks: { nebius: model({ ideas: () => chatReply({ content: 'I think they would like tea.' }), picks: () => chatReply({ content: 'no idea' }), reasons: () => chatReply({ content: '```json\n{"reasons": nope}\n```' }) }) } });
+  const h = makeHarness({}, { mocks: { ai: model({ ideas: () => chatReply({ content: 'I think they would like tea.' }), picks: () => chatReply({ content: 'no idea' }), reasons: () => chatReply({ content: '```json\n{"reasons": nope}\n```' }) }) } });
   const ev = await run(h);
   assert.deepEqual([ev.at(-1).t, ev.at(-1).tier], ['done', 'pipeline']);
   const ideas = ev.filter((e) => e.t === 'idea');
@@ -77,7 +77,7 @@ test('ideas: a hostile model cannot invent ids, lift the price cap or plant pric
     {},
     {
       mocks: {
-        nebius: model({
+        ai: model({
           ideas: (n, body) => {
             if (n === 1) return calls(toolCall('qloo_search', { query: 'Muji' }, 'a'), toolCall('qloo_search', { query: 'Nujabes', type: 'artist' }, 'b'), toolCall('qloo_search', { query: 'Kafka on the Shore', type: 'book' }, 'c'));
             if (n === 2) return calls(toolCall('qloo_insights', { target_type: 'brand' }, 'd'), toolCall('qloo_insights', { target_type: 'weapon' }, 'e'));
@@ -141,7 +141,7 @@ test('ideas: a catalog that answers with nothing is a step that worked; one that
 });
 
 test('ideas: when the first picks match nothing in the catalog, the top-up moves on to other entities instead of repeating them', async () => {
-  const h = makeHarness({}, { mocks: { nebius: async () => json({ error: 'overloaded' }, 503) } });
+  const h = makeHarness({}, { mocks: { ai: async () => json({ error: 'overloaded' }, 503) } });
   const empty = new Set<string>(); // the first five different product searches find nothing, as niche real entities often do
   h.net.intercept = (path, init) => {
     if (path !== '/v1/search') return undefined;
@@ -213,27 +213,27 @@ async function checkout(h: ReturnType<typeof makeHarness>) {
   return (await res.json()) as any;
 }
 
-test('checkout: Nemotron creates the order when it asks for exactly the selection', async () => {
+test('checkout: the model creates the order when it asks for exactly the selection', async () => {
   const h = makeHarness();
   const j = await checkout(h);
   assert.equal(j.total_cents, 5000);
   assert.equal(orderPosts(h).length, 1);
-  assert.ok((await order(h, j.orderId)).trace.some((l: string) => /^Nemotron called create_order: CREATED, total \$50\.00/.test(l)));
+  assert.ok((await order(h, j.orderId)).trace.some((l: string) => /^The model called create_order: CREATED, total \$50\.00/.test(l)));
 });
 
 test('checkout: a model that asks for other items still gets exactly the buyer\'s selection, created by the server', async () => {
-  const h = makeHarness({}, { mocks: { nebius: model({ checkout: () => calls(toolCall('create_order', { item_ids: ['pa', 'pb', 'px'] })) }) } });
+  const h = makeHarness({}, { mocks: { ai: model({ checkout: () => calls(toolCall('create_order', { item_ids: ['pa', 'pb', 'px'] })) }) } });
   const j = await checkout(h);
   assert.equal(j.total_cents, 5000);
   assert.equal(orderPosts(h).length, 1, 'one order, not one per attempt');
   assert.equal(orderPosts(h)[0]!.body.purchase_units[0].amount.value, '50.00');
   const trace = (await order(h, j.orderId)).trace as string[];
   assert.ok(trace.some((l) => /^Server created the order directly/.test(l)));
-  assert.ok(!trace.some((l) => /Nemotron called create_order/.test(l)));
+  assert.ok(!trace.some((l) => /The model called create_order/.test(l)));
 });
 
 test('checkout: a model outage never blocks the payment', async () => {
-  const h = makeHarness({}, { mocks: { nebius: async () => json({ error: 'down' }, 503) } });
+  const h = makeHarness({}, { mocks: { ai: async () => json({ error: 'down' }, 503) } });
   const j = await checkout(h);
   assert.equal(j.total_cents, 5000);
   assert.equal(orderPosts(h).length, 1);
@@ -241,19 +241,19 @@ test('checkout: a model outage never blocks the payment', async () => {
 
 test('return: a model that calls capture_order at once cannot capture an order PayPal has not approved', async () => {
   let id = '';
-  const h = makeHarness({}, { mocks: { nebius: model({ return: (n) => (n === 1 ? calls(toolCall('capture_order', { order_id: id })) : DONE()) }) } });
+  const h = makeHarness({}, { mocks: { ai: model({ return: (n) => (n === 1 ? calls(toolCall('capture_order', { order_id: id })) : DONE()) }) } });
   id = (await checkout(h)).orderId;
   await h.req(`/api/return?token=${id}`);
   assert.equal(captures(h).length, 0);
   const o = await order(h, id);
   assert.equal(o.status, 'NOT_APPROVED');
-  assert.ok(o.trace.some((l: string) => /^Nemotron called capture_order: NOT_APPROVED/.test(l)), o.trace.join(' | '));
+  assert.ok(o.trace.some((l: string) => /^The model called capture_order: NOT_APPROVED/.test(l)), o.trace.join(' | '));
 });
 
 test('return: get_order and capture_order for another order id are refused; the server finishes only the real, approved order', async () => {
   let id = '';
   const other = 'OTHERORDER123456';
-  const h = makeHarness({}, { mocks: { nebius: model({ return: (n) => (n === 1 ? calls(toolCall('get_order', { order_id: other }, 'a'), toolCall('capture_order', { order_id: other }, 'b')) : DONE()) }) } });
+  const h = makeHarness({}, { mocks: { ai: model({ return: (n) => (n === 1 ? calls(toolCall('get_order', { order_id: other }, 'a'), toolCall('capture_order', { order_id: other }, 'b')) : DONE()) }) } });
   id = (await checkout(h)).orderId;
   h.net.orders.get(id)!.status = 'APPROVED';
   await h.req(`/api/return?token=${id}`);
@@ -273,8 +273,8 @@ const echo: Tool = {
     return { v: a.v };
   },
 };
-const loop = async (nebius: FetchFn, o: Partial<Parameters<typeof runLoop>[1]> = {}) => {
-  const { svc } = await makeSvc({}, undefined, { nebius });
+const loop = async (ai: FetchFn, o: Partial<Parameters<typeof runLoop>[1]> = {}) => {
+  const { svc } = await makeSvc({}, undefined, { ai });
   return runLoop(svc, { model: 'm', system: '[task:t]', user: {}, tools: [echo], maxTurns: 5, ...o });
 };
 

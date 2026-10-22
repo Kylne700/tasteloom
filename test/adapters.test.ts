@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { parseChannel3, searchProducts } from '../src/adapters/channel3.ts';
-import { chat, parseChat } from '../src/adapters/nebius.ts';
+import { chat, parseChat } from '../src/adapters/ai.ts';
 import { humanPayPalError, parseOrder, validOrderId } from '../src/adapters/paypal.ts';
 import { GIFT_TYPES, INSIGHT_TYPES, insights, parseExplainability, parseInsights, parseSearch, searchEntity } from '../src/adapters/qloo.ts';
 import { qlooFake } from '../src/mocks/qloo-fake.ts';
@@ -11,7 +11,7 @@ import { HttpError, callJson, BudgetError } from '../src/lib/http.ts';
 import { LimitError } from '../src/lib/limits.ts';
 import { clip, httpsUrl, redact, toCents } from '../src/lib/util.ts';
 import type { Card, Seed } from '../src/types.ts';
-import { chatReply, json, makeNet, makeSvc, toolCall } from './helpers.ts';
+import { chatBody, chatReply, fakeAi, json, makeNet, makeSvc, toolCall } from './helpers.ts';
 
 // ---- Channel3 ------------------------------------------------------------------------------------------------------
 
@@ -260,15 +260,15 @@ test('qloo: requests follow the documented URLs and parameters', async () => {
   assert.ok(seen.every((x) => x.key === 'qloo-test-key'));
 });
 
-// ---- Nebius --------------------------------------------------------------------------------------------------------
+// ---- the model (Workers AI) --------------------------------------------------------------------------------------------------------
 
-test('nebius: OpenAI-style tool calls are parsed, with arguments as a JSON string', () => {
+test('ai: OpenAI-style tool calls are parsed, with arguments as a JSON string', () => {
   const r = parseChat({ choices: [{ finish_reason: 'tool_calls', message: { content: null, tool_calls: [toolCall('qloo_search', { query: 'Nujabes' }, 'c1'), toolCall('qloo_search', '{not json', 'c2'), { id: 'c3', function: { name: 'find_products', arguments: { query: 'x' } } }, { function: {} }] } }], usage: { prompt_tokens: 12, completion_tokens: 3 } });
   assert.deepEqual(r.calls.map((c) => [c.id, c.name, c.args]), [['c1', 'qloo_search', { query: 'Nujabes' }], ['c2', 'qloo_search', undefined], ['c3', 'find_products', { query: 'x' }]]);
   assert.deepEqual([r.finish, r.usage, r.content], ['tool_calls', { prompt: 12, completion: 3 }, '']);
 });
 
-test('nebius: think blocks are dropped and tool calls written as text are still found', () => {
+test('ai: think blocks are dropped and tool calls written as text are still found', () => {
   const a = parseChat({ choices: [{ message: { content: '<think>I should look this up</think>\nChecking.\n<tool_call>{"name":"qloo_search","arguments":{"query":"Muji"}}</tool_call>' } }] });
   assert.deepEqual(a.calls.map((c) => [c.name, c.args]), [['qloo_search', { query: 'Muji' }]]);
   assert.equal(a.content, 'Checking.');
@@ -276,7 +276,7 @@ test('nebius: think blocks are dropped and tool calls written as text are still 
   assert.deepEqual(b.calls.map((c) => [c.name, c.args]), [['find_products', { query: 'a' }], ['qloo_search', { query: 'b' }]]);
 });
 
-test('nebius: content in parts, empty and garbage answers do not throw', () => {
+test('ai: content in parts, empty and garbage answers do not throw', () => {
   assert.equal(parseChat({ choices: [{ message: { content: [{ text: 'DO' }, { text: 'NE' }] } }] }).content, 'DONE');
   for (const junk of [null, undefined, {}, { choices: [] }, { choices: [null] }, 'x']) {
     const r = parseChat(junk);
@@ -284,29 +284,42 @@ test('nebius: content in parts, empty and garbage answers do not throw', () => {
   }
 });
 
-test('nebius: chat sends the OpenAI request with the key in the header, tools and a named tool choice', async () => {
-  const { svc, net } = await makeSvc({ NEBIUS_API_KEY: 'nb-test-key-123' });
-  net.intercept = (path) => (path === '/v1/chat/completions' ? chatReply({ content: 'hello' }) : undefined);
-  assert.equal(svc.cfg.nebius, 'live');
+test('ai: chat runs the model on the binding with tools and a named tool choice, and no key travels', async () => {
+  const ai = fakeAi(() => chatBody({ content: 'hello' }, 'stop', 2.5));
+  const { svc, net } = await makeSvc({ AI: ai });
+  assert.equal(svc.cfg.ai, 'live');
   const tool = { type: 'function' as const, function: { name: 'create_order', description: 'd', parameters: { type: 'object' } } };
-  const r = await chat(svc, { model: 'nvidia/test', messages: [{ role: 'user', content: 'hi' }], tools: [tool], toolChoice: { name: 'create_order' } });
+  const r = await chat(svc, { model: '@cf/test/model', messages: [{ role: 'user', content: 'hi' }], tools: [tool], toolChoice: { name: 'create_order' }, maxTokens: 321 });
   assert.equal(r.content, 'hello');
-  const c = net.calls[0]!;
-  assert.deepEqual([c.host, c.path, c.headers.Authorization], ['api.tokenfactory.nebius.com', '/v1/chat/completions', 'Bearer nb-test-key-123']);
-  assert.deepEqual([c.body.model, c.body.tool_choice, c.body.tools.length], ['nvidia/test', { type: 'function', function: { name: 'create_order' } }, 1]);
-  assert.equal((await svc.meter.used()).ip.nebius, 1);
+  assert.deepEqual([r.via, r.usage], ['live', { prompt: 10, completion: 5, neurons: 2.5 }]);
+  const { model, input } = ai.runs[0]!;
+  assert.equal(model, '@cf/test/model');
+  assert.deepEqual([input.model, input.tool_choice, input.tools.length, input.max_tokens, input.messages.length], [undefined, { type: 'function', function: { name: 'create_order' } }, 1, 321, 1]);
+  assert.equal(net.calls.length, 0, 'the binding is not the internet');
+  const u = (await svc.meter.used()).ip as Record<string, number>;
+  assert.deepEqual([u.ai, u.neurons], [1, 3]);
 });
 
-test('nebius: one retry on a server error, none on a client error', async () => {
-  const { svc, net } = await makeSvc({ NEBIUS_API_KEY: 'nb-test-key-123' });
+test('ai: one retry on a refusal or a failure, then the error stands', async () => {
   let n = 0;
-  net.intercept = () => (++n === 1 ? json({ error: 'busy' }, 503) : chatReply({ content: 'ok' }));
+  const flaky = fakeAi(() => {
+    if (++n === 1) throw new Error('InferenceUpstreamError: capacity temporarily exceeded');
+    return chatBody({ content: 'ok' });
+  });
+  const { svc } = await makeSvc({ AI: flaky });
   assert.equal((await chat(svc, { model: 'm', messages: [] })).content, 'ok');
-  assert.equal(n, 2);
-  n = 0;
-  net.intercept = () => (++n, json({ error: 'bad key' }, 401));
-  await assert.rejects(chat(svc, { model: 'm', messages: [] }), (e) => e instanceof HttpError && e.status === 401);
-  assert.equal(n, 1);
+  assert.equal(flaky.runs.length, 2);
+  const down = fakeAi(() => {
+    throw new Error('boom');
+  });
+  const t = await makeSvc({ AI: down });
+  await assert.rejects(chat(t.svc, { model: 'm', messages: [] }), (e) => e instanceof HttpError && e.status === 502);
+  assert.equal(down.runs.length, 2);
+});
+
+test('ai: the older answer shape (response and flat tool_calls) is read too', () => {
+  const r = parseChat({ response: 'Looking.', tool_calls: [{ name: 'qloo_search', arguments: { query: 'Muji' } }], usage: { prompt_tokens: 7, completion_tokens: 2, neurons: 1.5 } });
+  assert.deepEqual([r.content, r.calls.map((c) => [c.name, c.args]), r.usage], ['Looking.', [['qloo_search', { query: 'Muji' }]], { prompt: 7, completion: 2, neurons: 1.5 }]);
 });
 
 // ---- PayPal --------------------------------------------------------------------------------------------------------

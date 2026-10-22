@@ -78,8 +78,8 @@ function fixtures(sample) {
   // the saved example has no type hints; give its favourites some so the chips and their hints can be shown and checked
   const HINT = { 'Hario V60': 'brand', 'Kafka on the Shore': 'book', Nujabes: 'artist', 'Stardew Valley': 'video_game', Kyoto: 'destination' };
   const FAVS = meta.favorites.map((f) => ({ text: f.text, ...((f.type || HINT[f.text]) ? { type: f.type || HINT[f.text] } : {}) }));
-  // the same events as a live run would send: not flagged as the saved example, Qloo and Nebius on demo data
-  const live = sample.map((e) => (e.t === 'meta' ? { ...e, example: false, mocks: ['qloo', 'nebius'] } : e.t === 'done' ? { t: 'done', tier: 'agent' } : e));
+  // the same events as a live run would send: not flagged as the saved example, Qloo and the model on demo data
+  const live = sample.map((e) => (e.t === 'meta' ? { ...e, example: false, mocks: ['qloo', 'ai'] } : e.t === 'done' ? { t: 'done', tier: 'agent' } : e));
   const nth = (t, n) => { let k = 0; return live.findIndex((e) => e.t === t && ++k === n); };
   return {
     FAVS,

@@ -1,5 +1,5 @@
-// Fake Nebius Token Factory for demos and tests while NEBIUS_API_KEY is missing. It speaks the OpenAI-compatible chat shape
-// (message.tool_calls[].function.arguments as a JSON string, usage, finish_reason) and scripts a plausible agent:
+// Fake model for demos and tests while the Workers AI binding is missing. It speaks the chat shape Workers AI returns
+// (message.tool_calls[].function.arguments as a JSON string, usage with neurons, finish_reason) and scripts a plausible agent:
 //   task "ideas":    qloo_search per favourite -> qloo_insights per gift type -> find_products for a diverse pick -> DONE
 //   task "picks":    JSON-only: choose entities and shopping queries
 //   task "reasons":  JSON-only: one grounded sentence per idea
@@ -56,7 +56,7 @@ function reply(model: string, message: Record<string, unknown>, finish: string, 
       object: 'chat.completion',
       model,
       choices: [{ index: 0, finish_reason: finish, message: { role: 'assistant', ...message } }],
-      usage: { prompt_tokens: Math.ceil(promptLen / 4), completion_tokens: 60, total_tokens: Math.ceil(promptLen / 4) + 60 },
+      usage: { prompt_tokens: Math.ceil(promptLen / 4), completion_tokens: 60, total_tokens: Math.ceil(promptLen / 4) + 60, neurons: 0 },
     }),
     { status: 200, headers: { 'content-type': 'application/json' } },
   );
@@ -66,8 +66,8 @@ function reply(model: string, message: Record<string, unknown>, finish: string, 
 let turnNo = 0;
 const call = (i: number, name: string, args: unknown) => ({ id: `call_${turnNo}_${i}`, type: 'function', function: { name, arguments: JSON.stringify(args) } });
 
-export function makeNebiusFake(opts: { delayMs?: number } = {}) {
-  return async function nebiusFake(_url: string, init?: RequestInit): Promise<Response> {
+export function makeAiFake(opts: { delayMs?: number } = {}) {
+  return async function aiFake(_url: string, init?: RequestInit): Promise<Response> {
     if (opts.delayMs) await sleep(opts.delayMs);
     const body = asObject(JSON.parse(String(init?.body ?? '{}'))) ?? {};
     const model = String(body.model ?? 'mock');

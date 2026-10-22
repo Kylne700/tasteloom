@@ -89,9 +89,9 @@ export function selectedCards() {
 export const totalCents = () => selectedCards().reduce((a, c) => a + c.price_cents, 0);
 export const budgetCents = () => (state.run ? state.run.budget_cents : Math.round(state.budget * 100));
 
-const MOCK_NAMES = { qloo: 'Qloo', nebius: 'Nebius (Nemotron)' };
+const MOCK_NAMES = { qloo: 'Qloo', ai: 'the AI model' };
 /** The sentence explaining the "Demo data" badge. */
 export function mockNote(mocks) {
   const names = mocks.map((m) => MOCK_NAMES[m] || m).join(' and ');
-  return `Demo data: ${names} ${mocks.length > 1 ? 'run' : 'runs'} on built-in stand-ins with the same response formats until an API key is added. Products, prices and PayPal are live.`;
+  return `Demo data: ${names} ${mocks.length > 1 ? 'run' : 'runs'} on built-in stand-ins with the same response formats until they are connected. Products, prices and PayPal are live.`;
 }

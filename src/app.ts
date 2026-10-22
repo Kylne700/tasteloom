@@ -9,14 +9,15 @@ import { cancelOrder, loadOrder, loadSession, ORDER_MESSAGES, OrderError, public
 import { validOrderId } from './adapters/paypal.ts';
 import { InputError, parseIdeasInput, runIdeas } from './agent/ideas.ts';
 import { agentCheckout, agentReturn } from './agent/orders.ts';
-import { makeNebiusFake } from './mocks/nebius-fake.ts';
+import { aiBindingFetch } from './adapters/ai.ts';
+import { makeAiFake } from './mocks/ai-fake.ts';
 import { makeQlooFake, qlooFake } from './mocks/qloo-fake.ts';
 import { sampleEvents, sampleSession } from './sample.ts';
 import type { Env, FetchFn, StreamEvent } from './types.ts';
 
 export interface Deps {
   fetch?: FetchFn;
-  /** test hook: replaces the Qloo and Nebius fake servers */
+  /** test hook: replaces the Qloo and model fake servers */
   mocks?: Partial<Record<ServiceName, FetchFn>>;
   /** test hook: skip the pacing delays of the example replay */
   fast?: boolean;
@@ -38,9 +39,9 @@ export const ORDER_LIMIT_MESSAGE = {
 
 export function createApp(deps: Deps = {}) {
   const app = new Hono<AppEnv>();
-  // Fake Qloo and Nebius servers (doc-shaped responses) answer while those keys are missing; slightly paced so the step list is readable
+  // Fake Qloo and model servers (doc-shaped responses) answer while the Qloo key or the AI binding is missing; slightly paced so the step list is readable
   const qlooMock = deps.fast ? qlooFake : makeQlooFake({ delayMs: 250 });
-  const nebiusMock = makeNebiusFake({ delayMs: deps.fast ? 0 : 450 });
+  const aiMock = makeAiFake({ delayMs: deps.fast ? 0 : 450 });
 
   // every API answer, the NDJSON stream and errors included (static files get theirs from public/_headers)
   app.use('/api/*', async (c, next) => {
@@ -66,9 +67,10 @@ export function createApp(deps: Deps = {}) {
     const meter = new Meter(meterApi(c.env), cfg.limits, ipHash, day);
     const mocks: Svc['mocks'] = {};
     if (cfg.qloo === 'mock') mocks.qloo = qlooMock;
-    if (cfg.nebius === 'mock') mocks.nebius = nebiusMock;
+    if (cfg.ai === 'mock') mocks.ai = aiMock;
     Object.assign(mocks, deps.mocks);
-    c.set('svc', { cfg, fetch: deps.fetch ?? ((u, i) => fetch(u, i)), store, meter, sub: { left: SUB_BUDGET }, mocks });
+    const direct: Svc['direct'] = cfg.ai === 'live' && c.env.AI ? { ai: aiBindingFetch(c.env.AI) } : {};
+    c.set('svc', { cfg, fetch: deps.fetch ?? ((u, i) => fetch(u, i)), store, meter, sub: { left: SUB_BUDGET }, mocks, direct });
     await next();
   });
 

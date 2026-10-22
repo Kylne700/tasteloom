@@ -5,7 +5,7 @@ import { errMsg, redact, sha256Hex } from './util.ts';
 import { getJson, putJson, type Store } from './store.ts';
 import type { Counts, Meter } from './limits.ts';
 
-export type ServiceName = 'qloo' | 'nebius' | 'tavily' | 'channel3' | 'paypal';
+export type ServiceName = 'qloo' | 'ai' | 'tavily' | 'channel3' | 'paypal';
 
 /** Per-request context handed to every adapter. */
 export interface Svc {
@@ -17,6 +17,8 @@ export interface Svc {
   sub: { left: number };
   /** mock fetchers keyed by service; used instead of the network while the adapter is in mock mode */
   mocks: Partial<Record<ServiceName, FetchFn>>;
+  /** real (billed) transports other than the global fetch: the Workers AI binding for 'ai' */
+  direct?: Partial<Record<ServiceName, FetchFn>>;
 }
 
 export class HttpError extends Error {
@@ -39,7 +41,7 @@ export class BudgetError extends Error {
 
 const BILLED: Partial<Record<ServiceName, CounterName>> = {
   qloo: 'qloo',
-  nebius: 'nebius',
+  ai: 'ai',
   tavily: 'tavily',
   channel3: 'channel3',
 };
@@ -52,11 +54,11 @@ export interface CallResult {
 
 /**
  * One JSON HTTP call. Real network calls spend the subrequest budget and the per-IP/global counters of billable services;
- * mock fetchers (same shapes as the docs, parsed by the same code) cost nothing. `charge` adds to the counters (Nebius tokens).
+ * mock fetchers (same shapes as the docs, parsed by the same code) cost nothing. `charge` adds to the counters (Workers AI neurons).
  */
 export async function callJson(svc: Svc, service: ServiceName, url: string, init: RequestInit, timeoutMs = 20000, charge: Counts = {}): Promise<CallResult> {
   const mock = svc.mocks[service];
-  let doFetch: FetchFn = svc.fetch;
+  let doFetch: FetchFn = svc.direct?.[service] ?? svc.fetch;
   let via: 'live' | 'mock' = 'live';
   if (mock) {
     doFetch = mock;
@@ -110,7 +112,7 @@ export async function readText(res: Pick<Response, 'body'>, max: number): Promis
 
 /**
  * Cache a parsed (small) adapter result in KV. Always on for Tavily and Channel3 (tight call budgets);
- * for Qloo and Nebius only with DEV_CACHE=1. Cache failures never break a request.
+ * for Qloo and the model only with DEV_CACHE=1. Cache failures never break a request.
  */
 export async function cached<T>(svc: Svc, service: ServiceName, keyParts: unknown, ttlSec: number, fn: () => Promise<T>): Promise<{ value: T; hit: boolean }> {
   const useCache = !svc.mocks[service] && (service === 'tavily' || service === 'channel3' || svc.cfg.devCache);

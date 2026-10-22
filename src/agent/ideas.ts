@@ -1,11 +1,11 @@
 // The gift agent. Three tiers share the same tools and the same server-side validation:
-//   tools    Nemotron (Nebius) drives qloo_search -> qloo_insights -> find_products through the tool loop (loop.ts)
+//   tools    the model (Workers AI) drives qloo_search -> qloo_insights -> find_products through the tool loop (loop.ts)
 //   pipeline the server calls the same tools in a fixed order; the model only fills JSON-only slots (which entities, which queries, reasons)
-//   template no model at all (Nebius over its daily limit or down): fixed picks and template reasons
+//   template no model at all (Workers AI over its daily limit or down): fixed picks and template reasons
 // Ideas and cards are assembled from tool results, never from model text. A reason is kept only if it names a favourite that
 // Qloo linked to the idea; otherwise a template sentence replaces it. Prices come from catalog results (Channel3) only.
 import { searchProducts } from '../adapters/channel3.ts';
-import { chat } from '../adapters/nebius.ts';
+import { chat } from '../adapters/ai.ts';
 import { GIFT_TYPES, INSIGHT_TYPES, insights, searchEntity } from '../adapters/qloo.ts';
 import { experienceCards, priceCheck } from '../adapters/tavily.ts';
 import { newSession, saveSession } from '../commerce.ts';
@@ -150,7 +150,7 @@ class Run {
   seq = 0;
   limited?: LimitError;
   failed?: unknown;
-  nebiusUp = true;
+  aiUp = true;
   private phases = new Map<string, string>();
 
   constructor(svc: Svc, input: IdeasInput, emit: Emit) {
@@ -339,7 +339,7 @@ class Run {
 
   private async choose(available: Candidate[], n: number): Promise<{ cand: Candidate; query: string }[]> {
     const fallback = () => diversePicks(available, n).map((cand) => ({ cand, query: '' }));
-    if (!this.nebiusUp) return fallback();
+    if (!this.aiUp) return fallback();
     try {
       const t0 = Date.now();
       const r = await chat(this.svc, {
@@ -357,7 +357,7 @@ class Run {
         ],
         maxTokens: 1200,
       });
-      this.emit({ t: 'call', tool: 'nemotron', arg: 'choose gift ideas', ms: Date.now() - t0, ok: true, out: 'JSON picks', via: r.via });
+      this.emit({ t: 'call', tool: 'model', arg: 'choose gift ideas', ms: Date.now() - t0, ok: true, out: 'JSON picks', via: r.via });
       const raw = asObject(parseLooseJson(r.content));
       const list = Array.isArray(raw?.picks) ? raw!.picks : [];
       const out: { cand: Candidate; query: string }[] = [];
@@ -370,14 +370,14 @@ class Run {
       return out.slice(0, n);
     } catch (e) {
       if (!(e instanceof LimitError || e instanceof HttpError || e instanceof BudgetError)) throw e;
-      this.nebiusUp = false;
+      this.aiUp = false;
       return fallback();
     }
   }
 
   async writeReasons() {
     const reasons: Record<string, string> = Object.fromEntries(this.ideas.map((i) => [i.id, templateReason(i)]));
-    if (this.nebiusUp) {
+    if (this.aiUp) {
       try {
         const t0 = Date.now();
         const r = await chat(this.svc, {
@@ -410,10 +410,10 @@ class Run {
             kept++;
           }
         }
-        this.emit({ t: 'call', tool: 'nemotron', arg: 'write the reasons', ms: Date.now() - t0, ok: kept > 0, out: `${kept} of ${this.ideas.length} reasons kept`, via: r.via });
+        this.emit({ t: 'call', tool: 'model', arg: 'write the reasons', ms: Date.now() - t0, ok: kept > 0, out: `${kept} of ${this.ideas.length} reasons kept`, via: r.via });
       } catch (e) {
         if (!(e instanceof LimitError || e instanceof HttpError || e instanceof BudgetError)) throw e;
-        this.nebiusUp = false;
+        this.aiUp = false;
       }
     }
     for (const i of this.ideas) i.reason = reasons[i.id]!;
@@ -451,7 +451,7 @@ export async function runIdeas(svc: Svc, input: IdeasInput, emit: Emit): Promise
   const run = new Run(svc, input, emit);
   emit({ t: 'meta', session: session.id, budget_cents: input.budget_cents, mocks: publicStatus(svc.cfg).mocks, example: false });
 
-  // 1. Nemotron drives the tools
+  // 1. the model drives the tools
   run.phase('taste', PH.taste, 'running');
   let loopDone = false;
   try {
@@ -461,13 +461,13 @@ export async function runIdeas(svc: Svc, input: IdeasInput, emit: Emit): Promise
       user: { favorites: input.favorites, budget_usd: input.budget_cents / 100 },
       tools: run.tools(),
       maxTurns: 6,
-      onTurn: (t) => emit({ t: 'call', tool: 'nemotron', arg: `step ${t.turn}`, ms: t.ms, ok: true, out: t.calls ? `${t.calls} tool call${t.calls === 1 ? '' : 's'}` : 'finished', via: t.via }),
+      onTurn: (t) => emit({ t: 'call', tool: 'model', arg: `step ${t.turn}`, ms: t.ms, ok: true, out: t.calls ? `${t.calls} tool call${t.calls === 1 ? '' : 's'}` : 'finished', via: t.via }),
     });
     loopDone = res.stopped === 'done';
   } catch (e) {
     if (!(e instanceof LimitError || e instanceof HttpError || e instanceof BudgetError)) throw e;
-    run.nebiusUp = false;
-    emit({ t: 'call', tool: 'nemotron', arg: 'agent loop', ms: 0, ok: false, out: e instanceof LimitError ? 'daily limit reached, using the fixed pipeline' : 'not answering, using the fixed pipeline', via: 'live' });
+    run.aiUp = false;
+    emit({ t: 'call', tool: 'model', arg: 'agent loop', ms: 0, ok: false, out: e instanceof LimitError ? 'daily limit reached, using the fixed pipeline' : 'not answering, using the fixed pipeline', via: 'live' });
   }
 
   // 2. the fixed pipeline fills whatever the model skipped
@@ -483,7 +483,7 @@ export async function runIdeas(svc: Svc, input: IdeasInput, emit: Emit): Promise
   }
   run.phase('products', PH.products, 'done', `${run.ideas.length} ideas`);
 
-  // 3. reasons (Nemotron writer) and informational price checks (Tavily) in parallel
+  // 3. reasons (model writer) and informational price checks (Tavily) in parallel
   run.phase('write', PH.write, 'running');
   run.phase('prices', PH.prices, svc.cfg.tavily === 'live' ? 'running' : 'skipped', svc.cfg.tavily === 'live' ? undefined : 'Tavily is not configured');
   const [, checked] = await Promise.all([run.writeReasons(), run.checkPrices()]);
@@ -491,5 +491,5 @@ export async function runIdeas(svc: Svc, input: IdeasInput, emit: Emit): Promise
   if (checked) run.phase('prices', PH.prices, 'done');
 
   await saveSession(svc, { ...session, cards: run.cards });
-  emit({ t: 'done', ideas: run.ideas.length, cards: run.cards.length, tier: !run.nebiusUp ? 'template' : loopDone && added === 0 ? 'tools' : 'pipeline' });
+  emit({ t: 'done', ideas: run.ideas.length, cards: run.cards.length, tier: !run.aiUp ? 'template' : loopDone && added === 0 ? 'tools' : 'pipeline' });
 }

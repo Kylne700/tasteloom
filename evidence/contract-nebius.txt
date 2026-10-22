@@ -1,4 +1,0 @@
-# npm run contract:nebius (2026-10-16T22:34Z)
-contract:nebius: KEY MISSING. NEBIUS_API_KEY is not set in tasteagent/.env.local, so no request was made.
-The app runs on a documented-shape fake of the OpenAI-compatible API until the key appears; add the key and run this again.
-exit code: 2

@@ -1,7 +1,7 @@
-// Generic tool-calling loop for Nemotron on Nebius (OpenAI-compatible tools). One loop serves three jobs: gift ideas,
+// Generic tool-calling loop for the Workers AI model (OpenAI-style tools). One loop serves three jobs: gift ideas,
 // checkout and the return from PayPal. The model only chooses which tool to call and with what arguments; every handler
 // validates its arguments against server state, so a wrong or manipulated call can never invent an id, a price or a charge.
-import { chat, type ChatMessage, type ToolSpec } from '../adapters/nebius.ts';
+import { chat, type ChatMessage, type ToolSpec } from '../adapters/ai.ts';
 import type { Svc } from '../lib/http.ts';
 
 /** Thrown by a handler for a bad call; the message goes back to the model so it can correct itself. */

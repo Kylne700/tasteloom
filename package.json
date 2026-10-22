@@ -1,7 +1,7 @@
 {
   "name": "tasteloom",
   "version": "0.1.0",
-  "description": "Taste-linked gift ideas (Qloo), an agent on Nemotron/Nebius, real product cards (Tavily, Channel3), PayPal sandbox guest checkout.",
+  "description": "Taste-linked gift ideas (Qloo), an agent on Cloudflare Workers AI, real product cards (Tavily, Channel3), PayPal sandbox guest checkout.",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -15,7 +15,6 @@
     "build": "wrangler deploy --dry-run --outdir .build",
     "e2e": "node scripts/e2e.mjs",
     "contract:qloo": "node --experimental-strip-types scripts/contract-qloo.ts",
-    "contract:nebius": "node --experimental-strip-types scripts/contract-nebius.ts",
     "scan": "node scripts/scan.mjs"
   },
   "dependencies": {

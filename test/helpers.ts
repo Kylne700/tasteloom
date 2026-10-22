@@ -1,6 +1,7 @@
-// Test harness: the real app with a Map-backed KV, the Qloo and Nebius fake servers (default, as in production without keys)
+// Test harness: the real app with a Map-backed KV, the Qloo and model fake servers (default, as in production without the Qloo key and the AI binding)
 // and one fake "internet" for Channel3, Tavily and the PayPal sandbox, built from synthetic doc-shaped JSON.
 import { createApp, type Deps } from '../src/app.ts';
+import { aiBindingFetch } from '../src/adapters/ai.ts';
 import { resetPayPalTokenCache } from '../src/adapters/paypal.ts';
 import { loadConfig } from '../src/config.ts';
 import type { Svc } from '../src/lib/http.ts';
@@ -147,14 +148,26 @@ export async function makeSvc(extraEnv: Partial<Env> = {}, net: Net = makeNet(),
   const cfg = loadConfig({ TAVILY_API_KEY: 'tv-test', CHANNEL3_API_KEY: 'c3-test', PAYPAL_CLIENT_ID: 'pp-id', PAYPAL_CLIENT_SECRET: 'pp-secret', ...extraEnv } as Env);
   const store = memoryStore();
   const meter = new Meter(memoryMeterApi(), cfg.limits, 'iphash', '2026-10-16');
-  return { svc: { cfg, fetch: net.fetch, store, meter, sub: { left: 40 }, mocks }, net };
+  const direct: Svc['direct'] = cfg.ai === 'live' && extraEnv.AI ? { ai: aiBindingFetch(extraEnv.AI) } : {};
+  return { svc: { cfg, fetch: net.fetch, store, meter, sub: { left: 40 }, mocks, direct }, net };
 }
 
 export const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
-/** OpenAI-compatible chat completion carrying a message (and optionally tool calls), as Nebius answers. */
-export const chatReply = (message: Record<string, unknown>, finish = 'stop') =>
-  json({ id: 'chatcmpl-test', object: 'chat.completion', choices: [{ index: 0, finish_reason: finish, message: { role: 'assistant', ...message } }], usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 } });
+/** Chat completion carrying a message (and optionally tool calls), in the shape Workers AI answers; `neurons` is what the call says it cost. */
+export const chatBody = (message: Record<string, unknown>, finish = 'stop', neurons?: number) => ({
+  id: 'chatcmpl-test',
+  object: 'chat.completion',
+  choices: [{ index: 0, finish_reason: finish, message: { role: 'assistant', ...message } }],
+  usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15, ...(neurons === undefined ? {} : { neurons }) },
+});
+export const chatReply = (message: Record<string, unknown>, finish = 'stop') => json(chatBody(message, finish));
+
+/** A fake Workers AI binding: every run is answered by `reply(model, input, n)` (a chat-completion object, or throw); the runs are recorded. */
+export function fakeAi(reply: (model: string, input: any, n: number) => unknown = () => chatBody({ content: 'ok' })) {
+  const runs: { model: string; input: any }[] = [];
+  return { runs, run: async (model: string, input: Record<string, unknown>) => (runs.push({ model, input }), reply(model, input, runs.length)) };
+}
 
 export const toolCall = (name: string, args: unknown, id = 'call_1') => ({ id, type: 'function', function: { name, arguments: typeof args === 'string' ? args : JSON.stringify(args) } });
 

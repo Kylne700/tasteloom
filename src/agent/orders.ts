@@ -1,4 +1,4 @@
-// The agent's payment tools: create_order, get_order, capture_order. Nemotron decides when to call them; the server decides whether
+// The agent's payment tools: create_order, get_order, capture_order. the model decides when to call them; the server decides whether
 // a call is allowed. create_order must carry exactly the buyer's selected item ids (prices come from the stored cards), and
 // capture_order runs the guarded finishOrder (fresh PayPal read, APPROVED and same amount, else no capture). If the model is
 // unavailable or does not call the tool, the same server functions run directly, so a model outage can never block or alter a payment.
@@ -48,7 +48,7 @@ export async function agentCheckout(svc: Svc, session: Session, itemIds: unknown
   if (orderErr) throw orderErr;
   if (!result) result = await startCheckout(svc, session, ids, urls);
   if (!result.reused) {
-    await addTrace(svc, result.order.id, viaAgent ? `Nemotron called create_order: CREATED, total $${fmtCents(result.order.total_cents)}` : `Server created the order directly (the agent did not): total $${fmtCents(result.order.total_cents)}`);
+    await addTrace(svc, result.order.id, viaAgent ? `The model called create_order: CREATED, total $${fmtCents(result.order.total_cents)}` : `Server created the order directly (the agent did not): total $${fmtCents(result.order.total_cents)}`);
   }
   return result;
 }
@@ -69,7 +69,7 @@ export async function agentReturn(svc: Svc, orderId: string): Promise<OrderRecor
       run: async (a) => {
         own(a);
         const v = await getOrder(svc, orderId);
-        lines.push(`Nemotron called get_order: ${v.status}`);
+        lines.push(`The model called get_order: ${v.status}`);
         return { status: v.status, total_usd: v.total_cents === null ? null : fmtCents(v.total_cents), currency: v.currency };
       },
     },
@@ -78,7 +78,7 @@ export async function agentReturn(svc: Svc, orderId: string): Promise<OrderRecor
       run: async (a) => {
         own(a);
         finished = await finishOrder(svc, orderId);
-        lines.push(`Nemotron called capture_order: ${finished?.status ?? 'unknown'}`);
+        lines.push(`The model called capture_order: ${finished?.status ?? 'unknown'}`);
         return { status: finished?.status };
       },
     },

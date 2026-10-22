@@ -83,7 +83,7 @@ test('repository hygiene: keys and local state are ignored, one runtime dependen
   const pkg = JSON.parse(read('package.json'));
   assert.deepEqual(Object.keys(pkg.dependencies), ['hono']);
   assert.equal(pkg.license, 'MIT');
-  for (const s of ['dev', 'test', 'typecheck', 'build', 'e2e', 'contract:qloo', 'contract:nebius', 'scan']) assert.ok(pkg.scripts[s], s);
+  for (const s of ['dev', 'test', 'typecheck', 'build', 'e2e', 'contract:qloo', 'scan']) assert.ok(pkg.scripts[s], s);
   assert.match(read('LICENSE'), /^MIT License/);
 });
 

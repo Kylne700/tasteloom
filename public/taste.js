@@ -193,7 +193,7 @@ export function mountTaste(root) {
           'ol',
           {},
           h('li', {}, h('strong', {}, 'Qloo reads their taste.'), h('span', {}, 'Your favourites become taste signals. Qloo explainability tells us which favourite links to each idea, so every suggestion says “because they love…”.')),
-          h('li', {}, h('strong', {}, 'An agent finds real products.'), h('span', {}, 'Nemotron on Nebius calls tools: Qloo for taste, Channel3 for products and prices, Tavily for experiences and price checks.')),
+          h('li', {}, h('strong', {}, 'An agent finds real products.'), h('span', {}, 'An AI model on Cloudflare Workers AI calls tools: Qloo for taste, Channel3 for products and prices, Tavily for experiences and price checks.')),
           h('li', {}, h('strong', {}, 'You pay in the PayPal sandbox.'), h('span', {}, 'The server prices the order from its own saved cards. You approve as a guest on PayPal’s page, and the agent captures it. No real money moves.')),
         ),
         demo,

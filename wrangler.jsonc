@@ -9,6 +9,7 @@
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"]
   },
+  "ai": { "binding": "AI" },
   "kv_namespaces": [{ "binding": "KV" }],
   "durable_objects": { "bindings": [{ "name": "METER", "class_name": "MeterDO" }] },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["MeterDO"] }],

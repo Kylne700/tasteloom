@@ -2,32 +2,38 @@
 
 export type FetchFn = (input: string, init?: RequestInit) => Promise<Response>;
 
+/** The Workers AI binding (wrangler.jsonc "ai"); the real one is `env.AI`. */
+export interface AiBinding {
+  run(model: string, inputs: Record<string, unknown>, options?: Record<string, unknown>): Promise<unknown>;
+}
+
 /** Worker bindings and vars. Secrets come from .dev.vars locally (generated from ../.env.local) or `wrangler secret` in production. */
 export interface Env {
   KV?: KVNamespace;
   /** the spend meter (src/lib/limits.ts); without it every billed call is refused */
   METER?: DurableObjectNamespace;
   ASSETS?: { fetch: (req: Request) => Promise<Response> };
+  /** Cloudflare Workers AI; without it the model is a fake and the page says "demo data" */
+  AI?: AiBinding;
   QLOO_API_KEY?: string;
-  NEBIUS_API_KEY?: string;
   TAVILY_API_KEY?: string;
   CHANNEL3_API_KEY?: string;
   PAYPAL_CLIENT_ID?: string;
   PAYPAL_CLIENT_SECRET?: string;
-  /** comma list of adapters to force into mock mode, e.g. "qloo,nebius" (qloo and nebius only) */
+  /** comma list of adapters to force into mock mode, e.g. "qloo,ai" (qloo and ai only) */
   FORCE_MOCK?: string;
   /** "1" caches upstream responses in KV (development only, spares the Tavily and Channel3 budgets) */
   DEV_CACHE?: string;
   /** absolute origin used for PayPal return and cancel URLs; defaults to the request origin */
   PUBLIC_BASE_URL?: string;
-  NEBIUS_AGENT_MODEL?: string;
-  NEBIUS_WRITER_MODEL?: string;
+  AI_AGENT_MODEL?: string;
+  AI_WRITER_MODEL?: string;
   // optional limit overrides, see config.ts
   [k: `LIMIT_${string}`]: string | undefined;
 }
 
-/** Daily counters. `tokens` is the Nebius estimate (prompt characters / 3 + max_tokens); `cents` is the sum of sandbox order totals. */
-export type CounterName = 'ideas' | 'qloo' | 'nebius' | 'tokens' | 'tavily' | 'channel3' | 'orders' | 'cents';
+/** Daily counters. `ai` counts model calls and `neurons` the Workers AI neurons they use (reserved from an estimate, settled by the answer); `cents` is the sum of sandbox order totals. */
+export type CounterName = 'ideas' | 'qloo' | 'ai' | 'neurons' | 'tavily' | 'channel3' | 'orders' | 'cents';
 
 export interface Limits {
   ip: Record<Exclude<CounterName, 'cents'>, number>;

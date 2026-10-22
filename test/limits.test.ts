@@ -5,7 +5,7 @@ import { LIMIT_MESSAGE } from '../src/app.ts';
 import { loadConfig, publicStatus, secretsOf } from '../src/config.ts';
 import { LimitError, Meter, memoryMeterApi, visitorOf, type MeterApi } from '../src/lib/limits.ts';
 import type { Env } from '../src/types.ts';
-import { FAVS, fakeMeter, makeHarness, readEvents } from './helpers.ts';
+import { FAVS, fakeAi, fakeMeter, makeHarness, readEvents } from './helpers.ts';
 
 const DAY = '2026-10-16';
 const lim = (env: Partial<Env> = {}) => loadConfig(env as Env).limits;
@@ -29,9 +29,9 @@ test('meter: a take that would pass any cap is refused whole and changes nothing
   const m = meter({ LIMIT_IP_TAVILY: '5' });
   await m.take({ tavily: 3 });
   await assert.rejects(m.take({ tavily: 3 }), LimitError);
-  await assert.rejects(m.take({ nebius: 1, tokens: 10_000_000 }), (e) => e instanceof LimitError && e.counter === 'tokens' && e.scope === 'ip');
+  await assert.rejects(m.take({ ai: 1, neurons: 10_000_000 }), (e) => e instanceof LimitError && e.counter === 'neurons' && e.scope === 'ip');
   const u = await m.used();
-  assert.deepEqual([u.ip.tavily, u.ip.nebius, u.global.tokens], [3, undefined, undefined]);
+  assert.deepEqual([u.ip.tavily, u.ip.ai, u.global.neurons], [3, undefined, undefined]);
   await m.take({ tavily: 2 });
   assert.equal((await m.used()).global.tavily, 5);
 });
@@ -86,8 +86,8 @@ test('meter: an IPv6 visitor is its /64; IPv4 is the address', () => {
 test('config: documented defaults', () => {
   const l = lim();
   assert.deepEqual([l.maxItems, l.minBudgetCents, l.maxBudgetCents, l.dailyCapCents], [6, 1000, 50000, 200000]);
-  assert.deepEqual(l.ip, { ideas: 8, qloo: 60, nebius: 80, tokens: 150_000, tavily: 10, channel3: 10, orders: 8 });
-  assert.deepEqual(l.global, { ideas: 100, qloo: 600, nebius: 600, tokens: 400_000, tavily: 30, channel3: 30, orders: 100 });
+  assert.deepEqual(l.ip, { ideas: 8, qloo: 60, ai: 80, neurons: 1500, tavily: 10, channel3: 10, orders: 8 });
+  assert.deepEqual(l.global, { ideas: 100, qloo: 600, ai: 600, neurons: 8000, tavily: 30, channel3: 30, orders: 100 });
 });
 
 test('config: overrides apply, junk falls back to the default', () => {
@@ -95,19 +95,20 @@ test('config: overrides apply, junk falls back to the default', () => {
   assert.deepEqual([l.maxItems, l.maxBudgetCents, l.dailyCapCents, l.ip.ideas, l.global.ideas, l.ip.tavily], [3, 12000, 1250, 8, 100, 10]);
 });
 
-test('config: Qloo and Nebius switch from mock to live by themselves when a key appears; FORCE_MOCK overrides', () => {
+test('config: Qloo and the model switch from mock to live by themselves when the key or the AI binding appears; FORCE_MOCK overrides', () => {
+  const ai = fakeAi();
   const none = loadConfig({} as Env);
-  assert.deepEqual([none.qloo, none.nebius, none.tavily, none.channel3, none.paypal], ['mock', 'mock', 'off', 'off', 'off']);
-  const keyed = loadConfig({ QLOO_API_KEY: 'q-key', NEBIUS_API_KEY: ' n-key ', TAVILY_API_KEY: 't', CHANNEL3_API_KEY: 'c', PAYPAL_CLIENT_ID: 'i', PAYPAL_CLIENT_SECRET: 's' } as Env);
-  assert.deepEqual([keyed.qloo, keyed.nebius, keyed.tavily, keyed.channel3, keyed.paypal, keyed.keys.nebius], ['live', 'live', 'live', 'live', 'live', 'n-key']);
+  assert.deepEqual([none.qloo, none.ai, none.tavily, none.channel3, none.paypal], ['mock', 'mock', 'off', 'off', 'off']);
+  const keyed = loadConfig({ QLOO_API_KEY: 'q-key', AI: ai, TAVILY_API_KEY: 't', CHANNEL3_API_KEY: 'c', PAYPAL_CLIENT_ID: 'i', PAYPAL_CLIENT_SECRET: 's' } as Env);
+  assert.deepEqual([keyed.qloo, keyed.ai, keyed.tavily, keyed.channel3, keyed.paypal], ['live', 'live', 'live', 'live', 'live']);
   assert.deepEqual(publicStatus(keyed).mocks, []);
-  assert.deepEqual(publicStatus(loadConfig({ QLOO_API_KEY: 'q-key', NEBIUS_API_KEY: 'n-key', FORCE_MOCK: 'qloo, nebius' } as Env)).mocks, ['qloo', 'nebius']);
+  assert.deepEqual(publicStatus(loadConfig({ QLOO_API_KEY: 'q-key', AI: ai, FORCE_MOCK: 'qloo, ai' } as Env)).mocks, ['qloo', 'ai']);
   assert.equal(loadConfig({ PAYPAL_CLIENT_ID: 'only-id' } as Env).paypal, 'off');
   assert.equal(loadConfig({ QLOO_API_KEY: '   ' } as Env).qloo, 'mock');
 });
 
 test('config: the public status carries modes and budget bounds, never a key', () => {
-  const env = { QLOO_API_KEY: 'q-secret-111', NEBIUS_API_KEY: 'n-secret-222', TAVILY_API_KEY: 't-secret-333', CHANNEL3_API_KEY: 'c-secret-444', PAYPAL_CLIENT_ID: 'id-secret-555', PAYPAL_CLIENT_SECRET: 's-secret-666' } as Env;
+  const env = { QLOO_API_KEY: 'q-secret-111', AI: fakeAi(), TAVILY_API_KEY: 't-secret-333', CHANNEL3_API_KEY: 'c-secret-444', PAYPAL_CLIENT_ID: 'id-secret-555', PAYPAL_CLIENT_SECRET: 's-secret-666' } as Env;
   const cfg = loadConfig(env);
   const text = JSON.stringify(publicStatus(cfg));
   for (const k of secretsOf(cfg)) assert.ok(k && !text.includes(k));
@@ -142,16 +143,16 @@ test('ideas: when Channel3 is over its daily limit the run ends with a clear lim
   assert.equal(h.net.count('api.trychannel3.com'), 0, 'no billed call was made');
 });
 
-test('status: usage counts live Channel3 and Tavily calls only; the Qloo and Nebius demo data cost nothing', async () => {
+test('status: usage counts live Channel3 and Tavily calls only; the Qloo and model demo data cost nothing', async () => {
   const h = makeHarness();
   await readEvents(await ideas(h));
   const s = (await (await h.req('/api/status')).json()) as any;
   assert.equal(s.usage.ideas, 1);
   assert.ok(s.usage.channel3 >= 4 && s.usage.tavily >= 1, JSON.stringify(s.usage));
-  assert.equal(s.usage.nebius, undefined);
+  assert.equal(s.usage.ai, undefined);
   assert.equal(s.usage.channel3, h.net.count('api.trychannel3.com'));
   assert.equal(s.usage.tavily, h.net.count('api.tavily.com'));
-  assert.deepEqual(s.mocks, ['qloo', 'nebius']);
+  assert.deepEqual(s.mocks, ['qloo', 'ai']);
 });
 
 test('privacy: KV holds the session and cache entries, the meter hashed counters, and neither holds what the visitor typed or their IP', async () => {
