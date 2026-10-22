@@ -142,6 +142,18 @@ export async function seedSession(h: ReturnType<typeof makeHarness>, cards: Card
   return s.id;
 }
 
+/** The key of every KV write from now on (Workers KV Free allows 1,000 writes a day), or a throw for the keys `failing` matches. */
+export function watchWrites(h: ReturnType<typeof makeHarness>, failing?: RegExp): string[] {
+  const keys: string[] = [];
+  const put = h.kv.put.bind(h.kv) as unknown as (k: string, v: string) => Promise<void>;
+  h.kv.put = (async (k: string, v: string) => {
+    if (failing?.test(k)) throw new Error('KV PUT failed: 429 Too Many Requests');
+    keys.push(k);
+    return put(k, v);
+  }) as unknown as typeof h.kv.put;
+  return keys;
+}
+
 /** A request context for calling adapters and commerce functions directly (no HTTP layer). */
 export async function makeSvc(extraEnv: Partial<Env> = {}, net: Net = makeNet(), mocks: Svc['mocks'] = {}): Promise<{ svc: Svc; net: Net }> {
   resetPayPalTokenCache();

@@ -493,6 +493,10 @@ export async function runIdeas(svc: Svc, input: IdeasInput, emit: Emit): Promise
   run.phase('write', PH.write, 'done');
   if (checked) run.phase('prices', PH.prices, 'done');
 
-  await saveSession(svc, { ...session, cards: run.cards });
+  try {
+    await saveSession(svc, { ...session, cards: run.cards });
+  } catch {
+    throw new LimitError('ideas', 'global'); // the KV write quota is the only way this fails: the plain limit message, not "internal"
+  }
   emit({ t: 'done', ideas: run.ideas.length, cards: run.cards.length, tier: !run.aiUp ? 'template' : loopDone && added === 0 ? 'tools' : 'pipeline', ...(run.limitedBy.size ? { limited: [...run.limitedBy] } : {}) });
 }

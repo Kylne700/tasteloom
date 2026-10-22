@@ -4,7 +4,7 @@ import test from 'node:test';
 import { groundedReason, templateReason } from '../src/agent/ideas.ts';
 import { runLoop, ToolError, toolSpec, type Tool } from '../src/agent/loop.ts';
 import type { FetchFn } from '../src/types.ts';
-import { card, chatReply, FAVS, json, makeHarness, makeSvc, readEvents, seedSession, taskOf, toolCall } from './helpers.ts';
+import { card, chatReply, FAVS, json, makeHarness, makeSvc, readEvents, seedSession, taskOf, toolCall, watchWrites } from './helpers.ts';
 
 const DONE = () => chatReply({ content: 'DONE' });
 const calls = (...c: ReturnType<typeof toolCall>[]) => chatReply({ content: null, tool_calls: c }, 'tool_calls');
@@ -196,6 +196,20 @@ test('sample: the cached example replays with no upstream call and its cards can
   const res = await h.post('/api/checkout', { sessionId: ev[0].session, itemIds: pick.map((c: any) => c.id) });
   assert.equal(res.status, 200);
   assert.equal(((await res.json()) as any).total_cents, pick[0].price_cents + pick[1].price_cents);
+});
+
+test('sample: the example is served and bought with no session or pointer in KV, and two visitors never share an order', async () => {
+  const h = makeHarness();
+  const writes = watchWrites(h);
+  const a = (await readEvents(await h.post('/api/sample', {}))) as any[];
+  const b = (await readEvents(await h.post('/api/sample', {}))) as any[];
+  assert.deepEqual(writes, [], 'serving the example writes nothing');
+  const ids = a.filter((e) => e.t === 'idea').flatMap((e) => e.cards).filter((c: any) => c.purchasable).slice(0, 2).map((c: any) => c.id);
+  const one = (await (await h.post('/api/checkout', { sessionId: a[0].session, itemIds: ids })).json()) as any;
+  const two = (await (await h.post('/api/checkout', { sessionId: b[0].session, itemIds: ids })).json()) as any;
+  assert.notEqual(one.orderId, two.orderId);
+  assert.deepEqual([one.reused, two.reused], [false, false]);
+  assert.ok(writes.length > 0 && writes.every((k) => k.startsWith('o:')), writes.join(' ')); // the orders only
 });
 
 // ---- checkout and return through the agent ----------------------------------------------------------------------------------

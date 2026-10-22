@@ -5,7 +5,7 @@ import { LIMIT_MESSAGE } from '../src/app.ts';
 import { loadConfig, publicStatus, secretsOf } from '../src/config.ts';
 import { LimitError, Meter, memoryMeterApi, visitorOf, type MeterApi } from '../src/lib/limits.ts';
 import type { Env } from '../src/types.ts';
-import { FAVS, fakeAi, fakeMeter, makeHarness, readEvents } from './helpers.ts';
+import { FAVS, fakeAi, fakeMeter, makeHarness, readEvents, watchWrites } from './helpers.ts';
 
 const DAY = '2026-10-16';
 const lim = (env: Partial<Env> = {}) => loadConfig(env as Env).limits;
@@ -86,8 +86,8 @@ test('meter: an IPv6 visitor is its /64; IPv4 is the address', () => {
 test('config: documented defaults', () => {
   const l = lim();
   assert.deepEqual([l.maxItems, l.minBudgetCents, l.maxBudgetCents, l.dailyCapCents], [6, 1000, 50000, 200000]);
-  assert.deepEqual(l.ip, { ideas: 8, qloo: 60, ai: 80, neurons: 1500, tavily: 10, channel3: 10, orders: 8 });
-  assert.deepEqual(l.global, { ideas: 100, qloo: 600, ai: 600, neurons: 8000, tavily: 30, channel3: 30, orders: 100 });
+  assert.deepEqual(l.ip, { ideas: 8, qloo: 60, ai: 80, neurons: 1500, tavily: 10, channel3: 10, orders: 8, returns: 20 });
+  assert.deepEqual(l.global, { ideas: 100, qloo: 600, ai: 600, neurons: 8000, tavily: 30, channel3: 30, orders: 100, returns: 150 });
 });
 
 test('config: overrides apply, junk falls back to the default', () => {
@@ -150,6 +150,13 @@ test('ideas: when Tavily is over its daily limit the run still finishes with its
   assert.ok(done.ideas >= 1, 'ideas still came out');
   assert.deepEqual(done.limited, ['tavily']);
   assert.equal(h.net.count('api.tavily.com'), 0, 'no billed call was made');
+});
+
+test('ideas: when the session cannot be saved (KV write quota) the run ends with the plain limit message, not "internal"', async () => {
+  const h = makeHarness();
+  watchWrites(h, /^s:/);
+  const last = (await readEvents(await ideas(h))).at(-1) as any;
+  assert.deepEqual([last.t, last.code, last.message], ['error', 'limit', LIMIT_MESSAGE.global]);
 });
 
 test('status: usage counts live Channel3 and Tavily calls only; the Qloo and model demo data cost nothing', async () => {

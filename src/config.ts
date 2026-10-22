@@ -49,6 +49,7 @@ export function loadConfig(env: Env): Config {
       tavily: L('IP_TAVILY', 10),
       channel3: L('IP_CHANNEL3', 10),
       orders: L('IP_ORDERS', 8),
+      returns: L('IP_RETURNS', 20),
     },
     // global: 31 days of Channel3 or Tavily stay under 1,000 a month (free plans); the neurons stay under Workers AI's free 10,000 a day
     global: {
@@ -59,6 +60,7 @@ export function loadConfig(env: Env): Config {
       tavily: L('GLOBAL_TAVILY', 30),
       channel3: L('GLOBAL_CHANNEL3', 30),
       orders: L('GLOBAL_ORDERS', 100),
+      returns: L('GLOBAL_RETURNS', 150),
     },
     dailyCapCents: Math.round(L('DAILY_CAP_USD', 2000) * 100),
     maxItems: L('MAX_ITEMS', 6),

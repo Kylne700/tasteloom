@@ -5,7 +5,7 @@ import { ORDER_LIMIT_MESSAGE } from '../src/app.ts';
 import { buildOrderBody } from '../src/adapters/paypal.ts';
 import { newSession, OrderError, priceOrder, type OrderErrorCode } from '../src/commerce.ts';
 import type { Card } from '../src/types.ts';
-import { card, makeHarness, seedSession } from './helpers.ts';
+import { card, makeHarness, seedSession, watchWrites } from './helpers.ts';
 
 const LIM = { maxItems: 6 };
 const A = card('pa', 1250);
@@ -241,6 +241,34 @@ test('return: a declined capture is reported in plain words and keeps the order'
   h.net.intercept = undefined;
   await h.req(`/api/return?token=${id}`);
   assert.equal((await receipt(h, id)).status, 'COMPLETED');
+});
+
+test('return: reloading the return URL of an order that has not changed writes nothing to KV', async () => {
+  const h = makeHarness();
+  const id = await createdOrder(h);
+  await h.req(`/api/return?token=${id}`); // CREATED to NOT_APPROVED: the one change worth a write
+  const writes = watchWrites(h);
+  await h.req(`/api/return?token=${id}`);
+  await h.req(`/api/return?token=${id}`);
+  assert.deepEqual(writes, []);
+  assert.equal((await receipt(h, id)).status, 'NOT_APPROVED');
+});
+
+test('return: each visitor has a daily allowance of returns; past it the receipt shows the order as it stands and PayPal is not asked', async () => {
+  const h = makeHarness({ LIMIT_IP_RETURNS: '1' });
+  const a = await createdOrder(h);
+  const b = await createdOrder(h, [B], ['pb']);
+  for (const id of [a, b]) h.net.orders.get(id)!.status = 'APPROVED';
+  await h.req(`/api/return?token=${a}`);
+  await h.req(`/api/return?token=${a}`); // already completed: a reload that costs nothing and is not counted
+  const before = h.net.calls.length;
+  const res = await h.req(`/api/return?token=${b}`, { redirect: 'manual' });
+  assert.equal(res.status, 302);
+  assert.equal(res.headers.get('location'), `/#/receipt/${b}`);
+  assert.equal(h.net.calls.length, before, 'no PayPal call');
+  assert.equal((await receipt(h, b)).status, 'CREATED');
+  assert.equal(captures(h).length, 1);
+  assert.equal(((await (await h.req('/api/status')).json()) as any).usage.returns, 1);
 });
 
 test('cancel: an unpaid order is cancelled and goes back to checkout; a paid one is untouched', async () => {

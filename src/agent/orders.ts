@@ -58,6 +58,7 @@ export async function agentReturn(svc: Svc, orderId: string): Promise<OrderRecor
   const order = await loadOrder(svc, orderId);
   if (!order) return null;
   if (order.status === 'COMPLETED' || order.status === 'CANCELLED') return order;
+  await svc.meter.take({ returns: 1 }); // before the model or PayPal is asked: reloading the return URL ends at the daily allowance
   let finished: OrderRecord | null = null;
   const lines: string[] = [];
   const own = (a: Record<string, unknown>) => {
@@ -92,6 +93,6 @@ export async function agentReturn(svc: Svc, orderId: string): Promise<OrderRecor
     finished = await finishOrder(svc, orderId);
     lines.push(`Server checked the order and finished it: ${finished?.status ?? 'unknown'}`);
   }
-  await addTrace(svc, orderId, ...lines);
+  if (finished?.status !== order.status) await addTrace(svc, orderId, ...lines); // an unchanged order writes nothing (KV Free: 1,000 writes a day)
   return (await loadOrder(svc, orderId)) ?? finished;
 }

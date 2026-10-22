@@ -32,8 +32,8 @@ export interface Env {
   [k: `LIMIT_${string}`]: string | undefined;
 }
 
-/** Daily counters. `ai` counts model calls and `neurons` the Workers AI neurons they use (reserved from an estimate, settled by the answer); `cents` is the sum of sandbox order totals. */
-export type CounterName = 'ideas' | 'qloo' | 'ai' | 'neurons' | 'tavily' | 'channel3' | 'orders' | 'cents';
+/** Daily counters. `ai` counts model calls and `neurons` the Workers AI neurons they use (reserved from an estimate, settled by the answer); `returns` counts returns from PayPal that still had work to do; `cents` is the sum of sandbox order totals. */
+export type CounterName = 'ideas' | 'qloo' | 'ai' | 'neurons' | 'tavily' | 'channel3' | 'orders' | 'returns' | 'cents';
 
 export interface Limits {
   ip: Record<Exclude<CounterName, 'cents'>, number>;

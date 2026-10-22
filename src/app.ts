@@ -5,14 +5,14 @@ import { LimitError, Meter, meterApi, visitorOf } from './lib/limits.ts';
 import { storeFor } from './lib/store.ts';
 import { dayKey, sha256Hex, sleep } from './lib/util.ts';
 import { loadConfig, publicStatus, secretsOf } from './config.ts';
-import { cancelOrder, loadOrder, loadSession, ORDER_MESSAGES, OrderError, publicOrder, saveSession } from './commerce.ts';
+import { cancelOrder, loadOrder, loadSession, ORDER_MESSAGES, OrderError, publicOrder } from './commerce.ts';
 import { validOrderId } from './adapters/paypal.ts';
 import { InputError, parseIdeasInput, runIdeas } from './agent/ideas.ts';
 import { agentCheckout, agentReturn } from './agent/orders.ts';
 import { aiBindingFetch } from './adapters/ai.ts';
 import { makeAiFake } from './mocks/ai-fake.ts';
 import { makeQlooFake, qlooFake } from './mocks/qloo-fake.ts';
-import { sampleEvents, sampleSession } from './sample.ts';
+import { EXAMPLE_ID, sampleEvents, sampleSession } from './sample.ts';
 import type { Env, FetchFn, StreamEvent } from './types.ts';
 
 export interface Deps {
@@ -80,8 +80,7 @@ export function createApp(deps: Deps = {}) {
     const svc = c.get('svc');
     const session = sampleSession();
     return ndjson(c, async (emit) => {
-      await saveSession(svc, session);
-      const mocks = publicStatus(svc.cfg).mocks;
+      const mocks = publicStatus(svc.cfg).mocks; // the example is not saved: its id is fixed and the checkout builds it from code
       for (const step of sampleEvents(session, mocks)) {
         if (!deps.fast) await sleep(step.delay);
         emit(step.e);
@@ -107,7 +106,7 @@ export function createApp(deps: Deps = {}) {
     const sessionId = typeof body?.sessionId === 'string' ? body.sessionId : '';
     if (!/^s[0-9a-f]{20}$/.test(sessionId)) return c.json({ error: { code: 'session_expired', message: ORDER_MESSAGES.session_expired } }, 404);
     try {
-      const session = await loadSession(svc, sessionId);
+      const session = sessionId === EXAMPLE_ID ? sampleSession() : await loadSession(svc, sessionId);
       if (!session) throw new OrderError('session_expired', ORDER_MESSAGES.session_expired);
       // Only item ids are read from the request. Any price, title or total a client sends is ignored.
       const base = svc.cfg.publicBase ?? new URL(c.req.url).origin;
@@ -128,7 +127,11 @@ export function createApp(deps: Deps = {}) {
   app.get('/api/return', async (c) => {
     const id = c.req.query('token') ?? '';
     if (!validOrderId(id)) return c.redirect('/#/receipt/unknown', 302);
-    await agentReturn(c.get('svc'), id);
+    try {
+      await agentReturn(c.get('svc'), id);
+    } catch (e) {
+      if (!(e instanceof LimitError)) throw e; // today's allowance of returns is used up: the receipt shows the order as it stands
+    }
     return c.redirect(`/#/receipt/${id}`, 302);
   });
 

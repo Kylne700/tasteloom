@@ -92,8 +92,9 @@ export interface CheckoutResult {
 export async function startCheckout(svc: Svc, session: Session, itemIds: unknown, urls: { returnUrl: string; cancelUrl: string }): Promise<CheckoutResult> {
   const { lines, total_cents } = priceOrder(session, itemIds, svc.cfg.limits);
   const sel = lines.map((l) => l.id).sort().join(',');
-  const ptrKey = `chk:${session.id}:${(await sha256Hex(sel)).slice(0, 16)}`;
-  const existingId = await svc.store.get(ptrKey);
+  // the example's id is shared by every visitor: no pointer, so nobody is handed another visitor's order (and no KV write)
+  const ptrKey = session.example ? undefined : `chk:${session.id}:${(await sha256Hex(sel)).slice(0, 16)}`;
+  const existingId = ptrKey && (await svc.store.get(ptrKey));
   if (existingId) {
     const existing = await loadOrder(svc, existingId);
     if (existing && existing.status === 'CREATED') return { order: existing, reused: true };
@@ -120,11 +121,13 @@ export async function startCheckout(svc: Svc, session: Session, itemIds: unknown
     updatedAt: now,
   };
   await saveOrder(svc, order);
-  await svc.store.put(ptrKey, order.id, 24 * 3600);
+  if (ptrKey) await svc.store.put(ptrKey, order.id, 24 * 3600);
   return { order, reused: false };
 }
 
 async function setStatus(svc: Svc, o: OrderRecord, status: OrderStatus, extra: Partial<OrderRecord> = {}): Promise<OrderRecord> {
+  // KV Free allows 1,000 writes a day: a reload of the return URL that finds nothing new must not write
+  if (o.status === status && Object.entries(extra).every(([k, v]) => (o as unknown as Record<string, unknown>)[k] === v)) return o;
   const next = { ...o, ...extra, status, updatedAt: Date.now() };
   await saveOrder(svc, next);
   return next;

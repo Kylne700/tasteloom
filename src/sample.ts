@@ -4,9 +4,12 @@ import { SAMPLE } from './sample-data.ts';
 import { newSession } from './commerce.ts';
 import type { Card, Session, StreamEvent } from './types.ts';
 
+/** One fixed id for the example, so serving it needs no KV write (Free plan: 1,000 a day); the checkout finds its cards in code, not in KV. */
+export const EXAMPLE_ID = 's' + 'e'.repeat(20);
+
 export function sampleSession(): Session {
   const cards: Card[] = SAMPLE.events.flatMap((e) => (e.t === 'idea' ? e.cards : []));
-  return newSession(SAMPLE.budget_cents, cards, true);
+  return { ...newSession(SAMPLE.budget_cents, cards, true), id: EXAMPLE_ID };
 }
 
 // Pacing of the replay in milliseconds, so the agent steps are readable (a live run is as slow as the services).
