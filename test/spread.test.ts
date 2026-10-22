@@ -69,14 +69,14 @@ function qloo(rows = ROWS) {
 }
 
 /** The app on invented Qloo answers, a scripted model and a catalog that files every item under books and vinyl (the default fake sends no category, so book and artist ideas would never pass the gate). */
-function setup(q: ReturnType<typeof qloo>, ai: FetchFn) {
+function setup(q: ReturnType<typeof qloo>, ai: FetchFn, prices = [12.5, 24, 39.99]) {
   const h = makeHarness({}, { mocks: { qloo: q.fetch, ai } });
   h.net.intercept = (path, init) => {
     if (path !== '/v1/search') return undefined;
     const name = String(JSON.parse(String(init?.body)).query);
     const slug = name.replace(/\W+/g, '-');
     return json({
-      products: [12.5, 24, 39.99].map((price, k) => ({
+      products: prices.map((price, k) => ({
         id: `t-${slug}-${k}`,
         title: `${name} item ${k}`,
         brands: [{ name }],
@@ -228,6 +228,15 @@ test('spread: a search without the entity name is replaced by the plain name sea
   assert.equal(ev.at(-1).t, 'done', JSON.stringify(ev.at(-1)));
   assert.ok(ideasOf(ev).length >= 4);
   assert.ok(h.net.calls.filter((c) => c.host === 'api.trychannel3.com').every((c) => !/nice gift/.test(c.body.query)));
+});
+
+test('spread: a catalog search that finds one matching item still makes an idea', async () => {
+  const h = setup(qloo(), modelDown, [24]);
+  const ev = await go(h);
+  assert.equal(ev.at(-1).t, 'done', JSON.stringify(ev.at(-1)));
+  const products = ideasOf(ev).filter((i) => i.kind === 'product');
+  assert.ok(products.length >= 3, `${products.length} product ideas`);
+  assert.ok(products.every((i) => i.cardIds.length === 1));
 });
 
 test('spread: a model reason is kept only if it names the favourite Qloo links most strongly', async () => {

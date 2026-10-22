@@ -65,7 +65,6 @@ const MAX_IDEAS = 6;
 const MIN_IDEAS = 4;
 const CARDS_PER_IDEA = 3;
 const MAX_SEARCHES = 8; // entities that get a product search in one run, found or not: the keys of the catalog and web search have small daily allowances
-const MIN_CARDS = 2; // a product idea with a single card looks thin and is usually a weak match
 const TYPE_ORDER = ['brand', 'book', 'artist', 'place'];
 const DEFAULT_TYPES = ['brand', 'book', 'artist', 'place'];
 const EXPERIENCE = new Set(['place', 'destination']);
@@ -308,7 +307,7 @@ class Run {
         paused = needs; // degrade, do not block: Qloo's idea is still worth showing, just without cards
       }
       const fresh = found.filter((c) => !this.cards.some((x) => x.id === c.id)).slice(0, CARDS_PER_IDEA);
-      if (!paused && fresh.length < (experience ? 1 : MIN_CARDS)) {
+      if (!paused && !fresh.length) { // one item that passed the catalog gate is enough: live, most searches find 0 or 1, and 8 searches are all a run gets
         this.used.delete(cand.id);
         throw new ToolError('too few matching results within the budget; put the exact entity name in the query, or choose another entity');
       }
@@ -396,7 +395,7 @@ class Run {
     const start = this.ideas.length;
     for (let round = 0; round < 3 && this.ideas.length < MIN_IDEAS; round++) {
       const available = [...this.cands.values()].filter((c) => !this.used.has(c.id) && !this.tried.has(c.id));
-      if (!available.length) break;
+      if (!available.length || this.tried.size >= MAX_SEARCHES) break; // no search left, so picks would only cost a model call
       const need = Math.min(MAX_IDEAS - this.ideas.length, MIN_IDEAS - this.ideas.length + 1);
       const picks = await this.choose(available, need);
       await Promise.allSettled(picks.map((p) => this.products(p.cand.id, p.query)));
