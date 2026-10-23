@@ -150,8 +150,8 @@ const tokens = (s: string) => s.toLowerCase().split(/[^a-z0-9]+/).filter((t) => 
  * Only an exact price match on a page about the same product counts as "confirmed"; anything else is "unknown" (page prices are too
  * noisy to call a mismatch). Never changes the price that is charged: PayPal totals always come from the stored card.
  */
-export async function priceCheck(svc: Svc, card: Card, hint = ''): Promise<Card['priceCheck']> {
-  const { results } = await searchWeb(svc, { query: clip(`${card.title} ${hint}`.trim(), 160), domains: [card.shop], max: 3, raw: true });
+export async function priceCheck(svc: Svc, card: Card, hint = ''): Promise<{ check: NonNullable<Card['priceCheck']>; hit: boolean }> {
+  const { results, hit } = await searchWeb(svc, { query: clip(`${card.title} ${hint}`.trim(), 160), domains: [card.shop], max: 3, raw: true });
   const want = new Set(tokens(card.title));
   for (const r of results) {
     const h = hostOf(r.url);
@@ -161,7 +161,7 @@ export async function priceCheck(svc: Svc, card: Card, hint = ''): Promise<Card[
     if (want.size === 0 || overlap / Math.min(want.size, 6) < 0.5) continue;
     const prices = extractUsdPrices((r.raw ?? r.content).slice(0, 6000));
     if (!prices.length) continue;
-    if (prices.includes(card.price_cents)) return { state: 'confirmed', url: r.url };
+    if (prices.includes(card.price_cents)) return { check: { state: 'confirmed', url: r.url }, hit };
   }
-  return { state: 'unknown' };
+  return { check: { state: 'unknown' }, hit };
 }

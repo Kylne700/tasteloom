@@ -163,7 +163,7 @@ test('tavily: a price is "confirmed" only by an exact match on a page of the sam
   const page = (price: string) => ({ results: [{ title: 'Hario V60 Ceramic Dripper', url: 'https://tours-0.example/hario-v60-ceramic-dripper', content: 'text', raw_content: `Buy now ${price} free shipping` }] });
   const run = async (shop: string, cents: number, body: unknown) => {
     const x = await makeSvc({}, Object.assign(net, { intercept: () => json(body) }));
-    return priceCheck(x.svc, mk(shop, cents));
+    return (await priceCheck(x.svc, mk(shop, cents))).check;
   };
   assert.deepEqual((await run('tours-0.example', 2400, page('$24.00')))?.state, 'confirmed');
   assert.deepEqual(await run('tours-0.example', 2500, page('$24.00')), { state: 'unknown' }, 'a different price is not a mismatch claim, just unknown');
@@ -172,6 +172,9 @@ test('tavily: a price is "confirmed" only by an exact match on a page of the sam
   assert.deepEqual(await run('tours-0.example', 2400, at('https://nottours-0.example/hario-v60-ceramic-dripper')), { state: 'unknown' }, 'a host that only ends with the shop name is another site');
   assert.deepEqual((await run('tours-0.example', 2400, at('https://www.tours-0.example/hario-v60-ceramic-dripper')))?.state, 'confirmed');
   assert.deepEqual((await run('tours-0.example', 2400, at('https://store.tours-0.example/hario-v60-ceramic-dripper')))?.state, 'confirmed', 'a subdomain of the shop counts');
+  const same = await makeSvc({}, Object.assign(net, { intercept: () => json(page('$24.00')) }));
+  assert.equal((await priceCheck(same.svc, mk('tours-0.example', 2400))).hit, false);
+  assert.equal((await priceCheck(same.svc, mk('tours-0.example', 2400))).hit, true, 'the same check again comes from the cache, so the step must not say live');
   assert.deepEqual(await run('tours-0.example', 2400, { results: [{ title: 'Unrelated garden tools', url: 'https://tours-0.example/garden', content: '$24.00', raw_content: '$24.00' }] }), { state: 'unknown' });
   assert.ok(svc);
 });

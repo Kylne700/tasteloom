@@ -503,8 +503,8 @@ class Run {
         try {
           if (this.limitedBy.has('tavily')) return pause();
           const res = await this.traced('tavily_search', `${card.shop} price check`, async () => {
-            const v = (await priceCheck(this.svc, card, hint)) ?? { state: 'unknown' as const };
-            return { value: v, via: 'live' as const, out: v.state === 'confirmed' ? 'price matches the shop page' : 'could not confirm on the shop page' };
+            const { check: v, hit } = await priceCheck(this.svc, card, hint);
+            return { value: v, via: hit ? ('cache' as const) : ('live' as const), out: v.state === 'confirmed' ? 'price matches the shop page' : 'could not confirm on the shop page' };
           });
           card.priceCheck = res;
           this.emit({ t: 'check', cardId: card.id, state: res.state, url: res.url });
