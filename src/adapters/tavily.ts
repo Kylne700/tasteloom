@@ -110,10 +110,14 @@ export async function experienceCards(svc: Svc, a: { name: string; ideaId: strin
   for (const r of results) {
     const host = hostOf(r.url).replace(/^www\./, '');
     if (!host || NOT_GIFT_HOSTS.test(host)) continue;
-    // about this place, and one card per distinct page title (sites often return the same page under several URLs)
-    const hay = ' ' + nameTokens(`${r.title} ${r.url} ${r.content}`).join(' ') + ' ';
+    // About this place: every word of its name is in the page's own title or in the site name (noonsunsethill.com), not only somewhere in a
+    // snippet, because aggregators mention a name in passing (a Cape Town sunset tour for "Noon on Sunset Hill"). And one card per distinct
+    // page title (sites often return the same page under several URLs). shortcut: a page that only has the name in its URL path is dropped.
+    const hay = ' ' + nameTokens(r.title).join(' ') + ' ';
+    const labels = host.split(/[.-]/);
+    const inName = (t: string) => hay.includes(` ${t} `) || hay.includes(` ${t}s `) || labels.some((l) => l === t || (t.length > 3 && l.includes(t)));
     const dup = `${host}|${r.title.toLowerCase()}`;
-    if (!need.every((t) => hay.includes(` ${t} `) || hay.includes(` ${t}s `)) || seen.has(dup)) continue;
+    if (!need.every(inName) || seen.has(dup)) continue;
     seen.add(dup);
     cards.push({
       id: 'x' + fnv(r.url).toString(16).padStart(8, '0'),

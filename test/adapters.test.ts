@@ -156,6 +156,25 @@ test('tavily: experienceCards makes link-only cards about the place and never a 
   assert.ok(cards.every((c) => !/https?:|\[|\]/.test(c.snippet ?? '')));
 });
 
+test('tavily: experienceCards wants every word of the place name in the page title or the site name, not just in a snippet or the URL path', async () => {
+  const net = makeNet();
+  net.intercept = (path) =>
+    path === '/search'
+      ? json({
+          results: [
+            // seen in a live run: an aggregator page about another place whose text happens to contain the words
+            { title: 'Signal Hill Romantic Sunset Tour in Cape Town', url: 'https://www.viator.com/tours/Cape-Town/Signal-Hill-Sunset/d318-1', content: 'Noon on Sunset Hill is a quiet walk. Book now.' },
+            { title: 'Gift experiences', url: 'https://shop.example/noon-on-sunset-hill', content: 'Noon on Sunset Hill' },
+            { title: 'Noon on Sunset Hill: tickets and times', url: 'https://tickets.example/a', content: 'Open daily.' },
+            { title: 'Visit and plan', url: 'https://www.noonsunsethill.example/visit', content: 'Opening hours.' },
+          ],
+        })
+      : undefined;
+  const { svc } = await makeSvc({}, net);
+  const { cards } = await experienceCards(svc, { name: 'Noon on Sunset Hill', ideaId: 'i1' });
+  assert.deepEqual(cards.map((c) => c.shop), ['tickets.example', 'noonsunsethill.example']);
+});
+
 test('tavily: a price is "confirmed" only by an exact match on a page of the same shop about the same product', async () => {
   const { svc } = await makeSvc();
   const mk = (shop: string, price_cents: number): Card => ({ id: 'p1', ideaId: 'i', title: 'Hario V60 Ceramic Dripper', price_cents, currency: 'USD', shop, url: `https://${shop}/p`, purchasable: true, source: 'channel3' });
