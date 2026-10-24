@@ -8,6 +8,10 @@ Try it: https://tasteloom.kylne700.workers.dev/?images=on (free, no sign-in; "Tr
 
 Project page: https://devpost.com/software/tasteloom. Demo video (about 2 minutes): https://youtu.be/iccyQhFp6LQ.
 
+![The ideas screen on the saved example: the first gift idea, its "Because they love" line and two picked products, with the agent's lookups on the left](evidence/saved-example.png)
+
+The saved example, with product photos off (the default). The page says it itself: the products and prices were live on the day it was recorded, and its taste matches and reasons are stand-ins.
+
 This is an entry to the Qloo hackathon. It was built by AI agents (Claude Code), with a person setting the goals and owning the accounts the app uses.
 
 ## How Qloo is used
