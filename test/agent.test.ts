@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { groundedReason, templateReason } from '../src/agent/ideas.ts';
 import { runLoop, ToolError, toolSpec, type Tool } from '../src/agent/loop.ts';
+import { SAMPLE } from '../src/sample-data.ts';
 import type { FetchFn } from '../src/types.ts';
 import { card, chatReply, FAVS, json, makeHarness, makeSvc, readEvents, seedSession, taskOf, toolCall, watchWrites } from './helpers.ts';
 
@@ -238,6 +239,26 @@ test('sample: the example is served and bought with no session or pointer in KV,
   assert.notEqual(one.orderId, two.orderId);
   assert.deepEqual([one.reused, two.reused], [false, false]);
   assert.ok(writes.length > 0 && writes.every((k) => k.startsWith('o:')), writes.join(' ')); // the orders only
+});
+
+test('sample: the hand-edited example stays consistent, leads with a real match and never claims to be live', () => {
+  const ev = SAMPLE.events;
+  const ideas = ev.filter((e) => e.t === 'idea');
+  const reasons = (ev.find((e) => e.t === 'reasons') as any).reasons as Record<string, string>;
+  assert.equal((ideas[0] as any).idea.entity.name, 'Ryuichi Sakamoto'); // not the skincare gel the first recording led with
+  assert.deepEqual(Object.keys(reasons).sort(), ideas.map((e: any) => e.idea.id).sort());
+  const ids = new Set<string>();
+  for (const e of ideas as any[]) {
+    assert.deepEqual(e.idea.cardIds, e.cards.map((c: any) => c.id), e.idea.id + ': cardIds follow the cards');
+    e.cards.forEach((c: any) => ids.add(c.id));
+    const text = reasons[e.idea.id]!;
+    // the rules a live reason must pass, so the stand-ins read like the real thing: it names a linked favourite, and the strongest one
+    assert.ok(groundedReason(text, e.idea), e.idea.id + ': ' + text);
+    assert.ok(text.toLowerCase().includes(e.idea.because[0].toLowerCase()), e.idea.id + ' names ' + e.idea.because[0]);
+    assert.notEqual(text, templateReason(e.idea), 'hand-written, not the fallback template');
+  }
+  assert.ok(ev.filter((e) => e.t === 'check').every((e: any) => ids.has(e.cardId)), 'every price check belongs to a card of the example');
+  assert.ok(!ev.some((e) => e.t === 'call' && e.via === 'live'), 'a replay is tagged cache or mock, never live');
 });
 
 // ---- checkout and return through the agent ----------------------------------------------------------------------------------

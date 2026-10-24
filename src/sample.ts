@@ -1,4 +1,4 @@
-// "Try an example": a recorded session (real Channel3 product cards, reasons written by the pipeline) replayed as a stream,
+// "Try an example": a recorded session (real Channel3 product cards, hand-written stand-in reasons) replayed as a stream,
 // so judges never hit a dead end when a key is missing, a daily limit is reached or an upstream API is down.
 import { SAMPLE } from './sample-data.ts';
 import { newSession } from './commerce.ts';
