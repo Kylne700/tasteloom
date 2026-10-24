@@ -143,6 +143,13 @@ test('config: the public status carries modes and budget bounds, never a key', (
   assert.deepEqual(publicStatus(cfg).budget, { min_cents: 1000, max_cents: 50000, max_items: 6 });
 });
 
+test('config: deploy-time --var values arrive as strings and set the shared Channel3 and Tavily caps, which the public status shows', () => {
+  const dflt = publicStatus(loadConfig({} as Env)).caps;
+  assert.deepEqual([dflt.channel3, dflt.tavily], [25, 25]);
+  const set = publicStatus(loadConfig({ LIMIT_GLOBAL_CHANNEL3: '56', LIMIT_GLOBAL_TAVILY: '40' } as Env)).caps;
+  assert.deepEqual([set.channel3, set.tavily], [56, 40]);
+});
+
 // ---- through the HTTP layer ------------------------------------------------------------------------------------------
 
 const ideas = (h: ReturnType<typeof makeHarness>, ip?: string) =>

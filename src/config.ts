@@ -94,5 +94,6 @@ export function publicStatus(cfg: Config) {
     mocks,
     modes: { qloo: cfg.qloo, ai: cfg.ai, tavily: cfg.tavily, channel3: cfg.channel3, paypal: cfg.paypal },
     budget: { min_cents: cfg.limits.minBudgetCents, max_cents: cfg.limits.maxBudgetCents, max_items: cfg.limits.maxItems },
+    caps: cfg.limits.global, // the shared daily caps, so what a deploy-time --var set can be read back next to today's usage
   };
 }
