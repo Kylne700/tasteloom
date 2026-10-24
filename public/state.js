@@ -23,6 +23,9 @@ export const PHASES = [
   { id: 'prices', label: 'Checking prices on the shops’ pages' },
 ];
 
+/** Qloo, shop and web lookups of a run: `calls` also holds the model's own steps, which are not lookups. */
+export const lookupCount = (calls) => calls.filter((c) => c.tool !== 'model').length;
+
 export function newRun({ favorites, budget_cents, example }) {
   return {
     status: 'running',

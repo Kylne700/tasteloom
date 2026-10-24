@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import test from 'node:test';
+import { lookupCount } from '../public/state.js';
 
 const root = new URL('../', import.meta.url);
 const read = (p: string) => readFileSync(new URL(p, root), 'utf8');
@@ -107,4 +108,11 @@ test('live captures: the e2e, the tour and the dev server keep everything captur
   assert.match(tour, /s\.live \? LIVE_SHOTS : undefined/, 'the states drawn from a live run are saved outside the repo');
   assert.doesNotMatch(tour, /evidence\/debug/);
   assert.doesNotMatch(server, /\.wrangler\/e2e-state|\/tmp\/ta-wrangler/, 'the dev server keeps its state and log in the capture folder');
+});
+
+test('ideas screen: the count after a run is lookups only, the model\'s own steps are not counted', () => {
+  const calls = [{ tool: 'model' }, { tool: 'qloo_search' }, { tool: 'qloo_insights' }, { tool: 'model' }, { tool: 'find_products' }, { tool: 'tavily_search' }];
+  assert.equal(lookupCount(calls), 4);
+  assert.equal(lookupCount([]), 0);
+  assert.match(read('public/ideas.js'), /lookupCount\(run\.calls\)/, 'the status line uses it');
 });

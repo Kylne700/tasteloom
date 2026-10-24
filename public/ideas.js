@@ -1,7 +1,7 @@
 // Screen 2: the agent works (live step list), gift ideas arrive as sections with product cards, the buyer picks items.
 import { h, icon, money, safeUrl, shopImage, announce, spinner } from './dom.js';
 import { ApiError, streamNdjson } from './api.js';
-import { budgetCents, mockNote, newRun, save, selectedCards, state, totalCents } from './state.js';
+import { budgetCents, lookupCount, mockNote, newRun, save, selectedCards, state, totalCents } from './state.js';
 
 // Product images come from the shops' servers, which see the visitor's IP, so none loads until the switch (or ?images=on) turns
 // them on; ?images=off keeps them off. Cards stay complete without them.
@@ -206,8 +206,8 @@ export function mountIdeas(root) {
       agentStatus.dataset.state = 'empty';
       agentStatus.append(icon('info', 14), h('span', {}, 'Finished without ideas'));
     } else if (run.status === 'done') {
-      const n = run.calls.length;
-      agentStatus.append(icon('check', 14), h('span', {}, `Done in ${(run.ms / 1000).toFixed(1)} s · ${n} tool call${n === 1 ? '' : 's'}`));
+      const n = lookupCount(run.calls);
+      agentStatus.append(icon('check', 14), h('span', {}, `Done in ${(run.ms / 1000).toFixed(1)} s · ${n} lookup${n === 1 ? '' : 's'}`));
     } else {
       agentStatus.dataset.state = 'error';
       agentStatus.append(icon('alert', 14), h('span', {}, 'Stopped'));
