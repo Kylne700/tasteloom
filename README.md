@@ -4,7 +4,9 @@ Taste + loom: Tasteloom weaves the things someone loves into gifts you can actua
 
 Type three to five things a person loves (a book, a band, a shop, a place) and a budget. Qloo reads their taste, an AI agent finds real products with real prices, every idea says "Because they love X", and you can pay in the PayPal sandbox as a guest. No account, and Tasteloom stores nothing you type.
 
-Try it: https://tasteloom.kylne700.workers.dev (free, no sign-in; "Try an example" costs no API calls).
+Try it: https://tasteloom.kylne700.workers.dev/?images=on (free, no sign-in; "Try an example" costs no API calls; `?images=on` shows product photos, which load from the shops' own servers and are off by default for privacy).
+
+Project page: https://devpost.com/software/tasteloom. Demo video (about 2 minutes): https://youtu.be/iccyQhFp6LQ.
 
 This is an entry to the Qloo hackathon. It was built by AI agents (Claude Code), with a person setting the goals and owning the accounts the app uses.
 
@@ -29,7 +31,7 @@ An AI model runs a loop in which it chooses tool calls; the server decides wheth
 - **Three tiers, so a model problem never breaks the page.** First the model drives the tools in a loop (up to 6 turns). The server then fills in whatever it skipped by calling the same tools in a fixed order, and the model only fills JSON slots (which entities, which search words, the reasons). In every tier the server keeps the ideas of one run apart: at most two of one type, and not all led by the same favourite (a tool call that would break this is refused like any other bad call). If the model is unavailable, template choices and template reasons keep the page working, and the page says that the model did not take part.
 - Every tool validates its arguments against server state, so a model cannot invent an id, a price or a charge. A model outage never blocks or changes a payment: the same guarded server functions run directly.
 
-One live run makes 5 to 6 model calls and uses 85 to 100 neurons (Cloudflare's unit for Workers AI; measured on 2026-10-22). The checkout part of the live test (3 order creations and 1 capture) used 5 model calls and 15 neurons.
+One live run makes 5 to 6 model calls and uses up to about 110 neurons (Cloudflare's unit for Workers AI; 85 to 110 measured on 2026-10-22, and on 2026-10-24 a run plus its checkout used 8 model calls and 79 neurons in total). The checkout part of the live test (3 order creations and 1 capture) used 5 model calls and 15 neurons.
 
 ## The flow
 
@@ -71,14 +73,14 @@ The demo is free and has no sign-in. Daily caps, counted per UTC day, keep it in
 | Gift-idea runs | 8 | 100 | 1 |
 | Qloo calls | 60 | 600 | about 9 (8 to 10) |
 | Model calls | 80 | 600 | 5 to 6 (the checkout part of the live test, 3 order creations and 1 capture, used 5 more) |
-| Model neurons | 1,500 | 8,000 | 85 to 110 (that checkout part used 15 more) |
-| Channel3 searches | 24 | 25 | 4 to 6 (1 or 2 when the same search was made in the last 12 hours) |
-| Tavily searches | 20 | 25 | 4 to 5 (1 when repeated within 12 hours) |
+| Model neurons | 1,500 | 8,000 | up to 110 (that checkout part used 15 more) |
+| Channel3 searches | 24 | 25 or more (see below) | 4 to 6 (1 or 2 when the same search was made in the last 12 hours) |
+| Tavily searches | 20 | 25 or more (see below) | 4 to 5 (1 when repeated within 12 hours) |
 | Sandbox orders | 8 | 100 | 1 per payment |
 | Returns from PayPal that still had work to do | 20 | 150 | 1 or 2 per payment |
 | Sandbox spend | | $2,000 | |
 
-The Channel3 and Tavily numbers are the small ones on purpose: each service gives 1,000 free credits a month (its docs, read 2026-10-22), the demo has to keep working until judging ends (Nov 16, 2026, 11:45 pm ET, which is Nov 17, 04:45 UTC), and a fifth of the credits is held back. One visitor can still make about four ordinary runs a day (4 to 6 shop searches and 4 to 5 web searches each, as measured). A run that tries more suggestions uses more: the caps then pause shop or web search for the rest of the day and the run still returns its Qloo ideas. The other caps keep a day inside the free plans of Cloudflare (Workers AI neurons, 1,000 KV writes a day: the caps above allow about 850 at the very most; the saved example and an unchanged order write nothing) and give each visitor several runs.
+The Channel3 and Tavily numbers are the small ones on purpose: each service gives 1,000 free credits a month (its docs, read 2026-10-22; the balances in the dashboards were not re-read for this text), the demo has to keep working until judging ends (Nov 5, 2026, 11:45 pm ET, which is Nov 6, 04:45 UTC), and a fifth of the credits is held back. The 25 in the table is the default in the code; the deployed shared pool for these two can be higher, set at deploy time (see the end of this section). One visitor can still make about four ordinary runs a day (4 to 6 shop searches and 4 to 5 web searches each, as measured). A run that tries more suggestions uses more: the caps then pause shop or web search for the rest of the day and the run still returns its Qloo ideas. The other caps keep a day inside the free plans of Cloudflare (Workers AI neurons, 1,000 KV writes a day: the caps above allow about 850 at the very most; the saved example and an unchanged order write nothing) and give each visitor several runs.
 
 What the page shows when a cap is reached. The services that only add to a run (shop search, web search, the model) pause on their own and the run goes on; the ones a run cannot do without (a run, Qloo) refuse it before it starts, so a refused run has spent no Qloo or model call.
 
@@ -91,7 +93,7 @@ What the page shows when a cap is reached. The services that only add to a run (
 
 Cloudflare's own limit sits behind ours. The Workers AI pricing page (read 2026-10-22) says: "Our free allocation allows anyone to use a total of 10,000 Neurons per day at no charge" and "If you exceed any one of the above limits, further operations will fail with an error." Our neuron cap (8,000) stops first; if Cloudflare refuses a call anyway, the model tier is skipped in the same way.
 
-The caps are settings, not code: `LIMIT_IP_*` and `LIMIT_GLOBAL_*` (`IDEAS`, `QLOO`, `AI`, `NEURONS`, `TAVILY`, `CHANNEL3`, `ORDERS`, `RETURNS`), `LIMIT_DAILY_CAP_USD`, `LIMIT_MAX_ITEMS` and `LIMIT_MAX_BUDGET_USD`. The deployed values are all written in the `vars` of `wrangler.jsonc` (a test keeps them equal to the defaults in `src/config.ts`), so changing one means editing that file and deploying again.
+The caps are settings, not code: `LIMIT_IP_*` and `LIMIT_GLOBAL_*` (`IDEAS`, `QLOO`, `AI`, `NEURONS`, `TAVILY`, `CHANNEL3`, `ORDERS`, `RETURNS`), `LIMIT_DAILY_CAP_USD`, `LIMIT_MAX_ITEMS` and `LIMIT_MAX_BUDGET_USD`. The deployed values are all written in the `vars` of `wrangler.jsonc` (a test keeps them equal to the defaults in `src/config.ts`), so changing one for good means editing that file and deploying again. A single deploy can also override a value without touching the files: `wrangler deploy --var LIMIT_GLOBAL_CHANNEL3:40 --var LIMIT_GLOBAL_TAVILY:40`; the next deploy goes back to the file unless it repeats the flags.
 
 ## Setup
 
