@@ -1,5 +1,7 @@
 # Tasteloom design review and polish (stage 2)
 
+> First-build file (written 2026-10-16 to 2026-10-17, when the model ran on Nebius; the model is now Cloudflare Workers AI). Its hosting dates and costs are the first plan. Kept as history.
+
 Start HEAD f24f118. Commits: 93b03aa, 7d0fd62, cec3674, a493528 (this file and the evidence) and one later correction of this file. Local only, nothing pushed. Light theme only: the app has no dark theme and none was added. Only CSS, markup, client rendering and copy changed; no payment, pricing, caps, adapter, agent-loop or server-route code (`git diff f24f118 --stat -- src` is empty).
 
 ## How it was reviewed
@@ -30,10 +32,10 @@ Harness (not product code), `scripts/`: Firefox option `TOUR_BROWSER=firefox` (l
 
 | File | Shows | Size |
 |---|---|---|
-| evidence/before-after-home.png | home at 1280 with the too-few error: count line no longer repeats it | 56 KB |
-| evidence/before-after-ideas.png | ideas with the agent steps at 1280 (top 1500 px): price row above the shop on every card | 104 KB |
-| evidence/before-after-checkout.png | checkout at 390 px, photos hidden: price and remove button side by side | 61 KB |
-| evidence/before-after-receipt.png | completed receipt at 1280: one disclosure, no repeat in the subtitle or footer | 28 KB |
+| before-after-home.png | home at 1280 with the too-few error: count line no longer repeats it | 56 KB |
+| before-after-ideas.png | ideas with the agent steps at 1280 (top 1500 px): price row above the shop on every card | 104 KB |
+| before-after-checkout.png | checkout at 390 px, photos hidden: price and remove button side by side | 61 KB |
+| before-after-receipt.png | completed receipt at 1280: one disclosure, no repeat in the subtitle or footer | 28 KB |
 
 The home (empty) and the checkout at 1280 are visually unchanged (23 pixels differ), so the pictures use the states where the change shows. The "before" half of the checkout picture was made by running the same tour state against the f24f118 `public/` files (put back afterwards).
 

@@ -163,7 +163,7 @@ Plain HTML, CSS and ES modules in `public/` (no framework, no build step). One w
 - The model is small and free: its answers are checked by the server, and a run can finish on the fixed pipeline or on templates.
 - PayPal's hosted sandbox page is outside this app's control and its layout varies. In testing it showed either a "Save info & create your PayPal account" switch with a "Pay Now" button, or two buttons, "Create Account & Pay Now" and "Pay now as guest"; the guest one is the right one (the checkout screen says so). If a load offers only account creation, reload the PayPal page.
 - Workers Free allows 10 ms of CPU per request and 50 subrequests. The Node tests measure about 5 to 8 ms of this app's own work per run, mostly waiting on the network, but that was not measured on Cloudflare. A run makes about 25 outgoing calls (the budget stops at 40).
-- Files in `evidence/` dated 2026-10-16 and 2026-10-17 (the two reviews, the security test runs, and the pictures `evidence/before-after-home.png` and `evidence/before-after-ideas.png`, which still show the Nebius steps) come from the first build, when the model ran on Nebius; the model is now Cloudflare Workers AI.
+- `evidence/first-build/` holds the files from 2026-10-16 and 2026-10-17 (the two reviews, the security test runs and four before/after pictures, two of which still show the Nebius steps), from the first build, when the model ran on Nebius; the model is now Cloudflare Workers AI.
 
 ## Why "Tasteloom"
 

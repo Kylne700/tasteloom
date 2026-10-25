@@ -1,8 +1,10 @@
 # Security review: payments, agent, spend, web, secrets, privacy
 
+> First-build file (written 2026-10-16 to 2026-10-17, when the model ran on Nebius; the model is now Cloudflare Workers AI). Its hosting dates and costs are the first plan. Kept as history.
+
 Stage 2 of the pre-launch work, 2026-10-17, starting from HEAD 2ce0d5a (design review, no src changes). Scope: README.md,
-src/, public/, scripts/, test/, evidence/design-review.md, wrangler.jsonc. Method: read every request path; write a test for
-every finding I fix and run it against the untouched code first (`evidence/security-tests-before.txt`: 14 unit tests, 14 fail; one browser check, fails);
+src/, public/, scripts/, test/, evidence/first-build/design-review.md, wrangler.jsonc. Method: read every request path; write a test for
+every finding I fix and run it against the untouched code first (`evidence/first-build/security-tests-before.txt`: 14 unit tests, 14 fail; one browser check, fails);
 fix; then run the full check set. Deployment target: Cloudflare Workers Free, public until about Dec 15; PayPal sandbox;
 Nebius ($25 credit), Tavily, Channel3 (1,000 searches a month) and Qloo (hackathon key) are real.
 
@@ -150,8 +152,8 @@ or the URL says `?images=on`; while off, cards carry `data-src` only, so the bro
 
 ## Tests added
 
-- `test/security.test.ts`, 14 tests: all 14 failed on the code before their fixes (`evidence/security-tests-before.txt`;
-  the last two were added after commit 0dcdc7b) and pass after (`evidence/security-tests-after.txt`).
+- `test/security.test.ts`, 14 tests: all 14 failed on the code before their fixes (`evidence/first-build/security-tests-before.txt`;
+  the last two were added after commit 0dcdc7b) and pass after (`evidence/first-build/security-tests-after.txt`).
 - `test/limits.test.ts`, rewritten for the meter: per visitor then global; a reservation refused whole (tokens included);
   cents given back; per visitor and per day; fail closed with no or a dead meter; `visitorOf`; privacy (the meter gets a
   16-hex hash, no typed text, no IP).

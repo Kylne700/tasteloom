@@ -1,4 +1,4 @@
-// Security review regressions (evidence/security-review.md): spend caps that hold, fail closed and cover every billed
+// Security review regressions (evidence/first-build/security-review.md): spend caps that hold, fail closed and cover every billed
 // service, plus the small web and privacy fixes. Each test failed on the code before the review.
 import assert from 'node:assert/strict';
 import test from 'node:test';

@@ -581,7 +581,7 @@ function states(fx) {
 
   S.push({ key: 'ideas-live', tablet: true, live: true, run: async (c) => { await open(c, '#/ideas', { st: c.liveRun }); await c.audit('ideas live'); await c.snap(); } });
   S.push({ key: 'checkout-live', tablet: true, live: true, run: async (c) => { await open(c, '#/checkout', { st: c.liveRun }); await c.audit('checkout live'); await c.snap(); } });
-  // The same checkout with the photos hidden: the before/after pictures in evidence/ are made from this (shop photos are third-party and stay out of tracked files).
+  // The same checkout with the photos hidden: the before/after pictures in evidence/first-build/ are made from this (shop photos are third-party and stay out of tracked files).
   add('checkout-images-off', false, async (c) => {
     await open(c, '#/checkout', { st: ckSt(c), search: '?images=off' });
     const shown = await c.page.evaluate(() => [...document.querySelectorAll('.thumb img')].filter((i) => i.getClientRects().length && getComputedStyle(i).display !== 'none').length);
