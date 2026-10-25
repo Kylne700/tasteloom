@@ -43,7 +43,7 @@ export async function qlooContract(svc: Svc): Promise<{ checks: [string, boolean
 if (import.meta.main) {
   const env = loadEnvLocal(['QLOO_API_KEY']);
   if (!env.QLOO_API_KEY) {
-    console.log('contract:qloo: KEY MISSING. QLOO_API_KEY is not set in tasteagent/.env.local, so no request was made.');
+    console.log('contract:qloo: KEY MISSING. QLOO_API_KEY is not set in ../.env.local, so no request was made.');
     console.log('The app runs on documented-shape demo data until the key appears; add the key and run this again.');
     process.exit(2);
   }

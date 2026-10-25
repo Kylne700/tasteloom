@@ -10,6 +10,8 @@ Try it: https://tasteloom.kylne700.workers.dev/?images=on (free, no sign-in; "Tr
 
 Project page: https://devpost.com/software/tasteloom. Demo video (1:45): https://youtu.be/iWgkkVTSKYI.
 
+Test logs: [unit tests](evidence/unit.txt), [end-to-end run](evidence/e2e.txt), [Qloo contract check](evidence/contract-qloo.txt).
+
 ![The ideas screen on the saved example: the first gift idea, its "Because they love" line and two picked products, with the agent's lookups on the left](evidence/saved-example.png)
 
 The saved example, with product photos off (the default). The page says it itself: the products and prices were live on the day it was recorded, and its taste matches and reasons are stand-ins.
@@ -113,7 +115,7 @@ Needs Node 22.18 or newer and a Cloudflare login (`npx wrangler login`): the Wor
 
 ```sh
 npm install
-# keys go in ../.env.local (tasteagent/.env.local), one KEY=value per line:
+# keys go in ../.env.local (one folder above this repository), one KEY=value per line:
 #   QLOO_API_KEY  TAVILY_API_KEY  CHANNEL3_API_KEY  PAYPAL_CLIENT_ID  PAYPAL_CLIENT_SECRET
 npm run dev        # http://localhost:8791
 ```

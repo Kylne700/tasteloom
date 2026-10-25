@@ -1,7 +1,7 @@
 {
   "name": "tasteloom",
   "version": "0.1.0",
-  "description": "Real gifts for what someone loves, with the reason. Taste links from Qloo, an agent on Cloudflare Workers AI, real product cards (Tavily, Channel3), PayPal sandbox guest checkout.",
+  "description": "Real gifts for what someone loves, with the reason. Taste links from Qloo, an agent on Cloudflare Workers AI, real product cards from Channel3, experience links from Tavily, PayPal sandbox guest checkout.",
   "private": true,
   "type": "module",
   "license": "MIT",

@@ -1,4 +1,4 @@
-// Reads tasteagent/.env.local in code. Values stay in memory: callers must never print them.
+// Reads ../.env.local (one folder above the repository) in code. Values stay in memory: callers must never print them.
 import fs from 'node:fs';
 
 export const ENV_FILE = new URL('../../../.env.local', import.meta.url);
