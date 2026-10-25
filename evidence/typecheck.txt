@@ -1,5 +1,0 @@
-# npm run typecheck (2026-10-22 16:16 UTC, node v24.18.0)
-
-> tasteloom@0.1.0 typecheck
-> tsc --noEmit
-
