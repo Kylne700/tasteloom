@@ -8,7 +8,7 @@ Type three to five things a person loves (a book, a band, a shop, a place) and a
 
 Try it: https://tasteloom.kylne700.workers.dev/?images=on (free, no sign-in; "Try an example" costs no API calls; `?images=on` shows product photos, which load from the shops' own servers and are off by default for privacy).
 
-Project page: https://devpost.com/software/tasteloom. Demo video (1:51): https://youtu.be/CYoNMWDnXSM.
+Project page: https://devpost.com/software/tasteloom. Demo video (1:45): https://youtu.be/iWgkkVTSKYI.
 
 ![The ideas screen on the saved example: the first gift idea, its "Because they love" line and two picked products, with the agent's lookups on the left](evidence/saved-example.png)
 
