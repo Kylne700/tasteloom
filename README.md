@@ -1,18 +1,26 @@
 # Tasteloom
 
-Taste + loom: Tasteloom weaves the things someone loves into gifts you can actually buy, and says why each one fits.
+Real gifts for what someone loves, with the reason.
+
+The reason on every gift idea is a contract: it must name the favourite that Qloo links most strongly to the idea, or the server replaces it with a template built from that link. Every live run in which the model takes part lists "N of M reasons kept" in the agent's lookups, so you can check the contract yourself.
 
 Type three to five things a person loves (a book, a band, a shop, a place) and a budget. Qloo reads their taste, an AI agent finds real products with real prices, every idea says "Because they love X", and you can pay in the PayPal sandbox as a guest. No account, and Tasteloom stores nothing you type.
 
 Try it: https://tasteloom.kylne700.workers.dev/?images=on (free, no sign-in; "Try an example" costs no API calls; `?images=on` shows product photos, which load from the shops' own servers and are off by default for privacy).
 
-Project page: https://devpost.com/software/tasteloom. Demo video (about 2 minutes): https://youtu.be/CYoNMWDnXSM.
+Project page: https://devpost.com/software/tasteloom. Demo video (1:51): https://youtu.be/CYoNMWDnXSM.
 
 ![The ideas screen on the saved example: the first gift idea, its "Because they love" line and two picked products, with the agent's lookups on the left](evidence/saved-example.png)
 
 The saved example, with product photos off (the default). The page says it itself: the products and prices were live on the day it was recorded, and its taste matches and reasons are stand-ins.
 
 This is an entry to the Qloo hackathon. It was built by AI agents (Claude Code), with a person setting the goals and owning the accounts the app uses.
+
+## Who it is for, and who could pay (a hypothesis, untested)
+
+Who it is for: anyone with a budget and no product in mind who knows a person only in fragments: a favourite book, band, shop or place.
+
+Who could pay: the shop, not the gift-giver. A retailer or gifting marketplace with a gift-finder page could add a reason to each pick. We have not spoken to one and have no price. What we can state is the cost of one run, in the Limits table below.
 
 ## How Qloo is used
 
