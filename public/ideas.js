@@ -363,13 +363,15 @@ export function mountIdeas(root) {
     if (code === 'bad_input') actions.push(h('a', { class: 'btn', href: '#/' }, icon('back', 16), 'Change favourites'));
     if (live) actions.push(h('button', { type: 'button', class: 'btn', onclick: () => restart('live') }, 'Try again'));
     actions.push(h('button', { type: 'button', class: 'btn', onclick: () => restart('example') }, 'Try an example'));
+    if (code === 'upstream') actions.reverse(); // a service is down (or a contest key has ended): the saved example is the sure way on
     if (!partial) actions[0].classList.add('primary'); // one filled button; with ideas on screen the "Review and pay" bar is the main action
+    const text = partial ? 'Some ideas arrived before it stopped.' : err.message + (code === 'upstream' ? ' The saved example always works.' : '');
     notices.append(
       h(
         'section',
         { class: 'panel ' + (partial ? 'warn' : 'bad'), role: 'alert' },
         h('div', { class: 'panel-icon' }, icon('alert', 22)),
-        h('div', { class: 'panel-body' }, h('h2', {}, title), h('p', {}, partial ? 'Some ideas arrived before it stopped.' : err.message), h('div', { class: 'panel-actions' }, actions)),
+        h('div', { class: 'panel-body' }, h('h2', {}, title), h('p', {}, text), h('div', { class: 'panel-actions' }, actions)),
       ),
     );
   }
