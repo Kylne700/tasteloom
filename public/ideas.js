@@ -105,7 +105,7 @@ export function mountIdeas(root) {
   const agentTitle = h('span', { class: 'agent-title' }, 'The agent at work');
   const agentH = h('h2', { class: 'agent-h' });
   const agentBody = h('div', { class: 'agent-body', id: 'agent-body' }, phasesEl, demoNote);
-  const agent = h('aside', { class: 'agent', 'aria-label': 'Agent steps', 'data-open': String(wide.matches) }, agentH, agentBody);
+  const agent = h('aside', { class: 'agent', 'aria-label': 'Agent steps', tabindex: '0', 'data-open': String(wide.matches) }, agentH, agentBody);
   // Wide screens show the step list as a side panel; narrow screens fold it into an accordion whose header still shows the live status.
   function agentHead() {
     if (wide.matches) {
@@ -347,7 +347,7 @@ export function mountIdeas(root) {
           h('p', { class: 'bar-count' }, sel.length ? [h('strong', {}, `${sel.length} item${sel.length === 1 ? '' : 's'}`), ` · ${money(total)}`, h('span', { class: 'of' }, ` of ${money(budget)}`)] : [h('strong', {}, `Pick up to ${MAX_ITEMS} items`), h('span', { class: 'of' }, ` · ${money(budget)} budget`)]),
           meter,
         ),
-        h('button', { type: 'button', class: 'btn primary', disabled: sel.length === 0, onclick: () => (location.hash = '#/checkout') }, 'Review and pay', icon('arrow', 16)),
+        h('button', { type: 'button', class: 'btn primary', disabled: sel.length === 0 || run.status !== 'done', onclick: () => (location.hash = '#/checkout') }, 'Review and pay', icon('arrow', 16)),
       ),
     );
     barRoot.hidden = !run.ideas.some(({ cards }) => cards.some((c) => c.purchasable)); // no buy buttons (all shop search paused): nothing to pick
@@ -369,7 +369,7 @@ export function mountIdeas(root) {
         'section',
         { class: 'panel ' + (partial ? 'warn' : 'bad'), role: 'alert' },
         h('div', { class: 'panel-icon' }, icon('alert', 22)),
-        h('div', { class: 'panel-body' }, h('h2', {}, title), h('p', {}, partial ? 'Some ideas arrived before it stopped. You can pick from them below.' : err.message), h('div', { class: 'panel-actions' }, actions)),
+        h('div', { class: 'panel-body' }, h('h2', {}, title), h('p', {}, partial ? 'Some ideas arrived before it stopped.' : err.message), h('div', { class: 'panel-actions' }, actions)),
       ),
     );
   }
@@ -456,6 +456,7 @@ export function mountIdeas(root) {
     setAgentStatus();
     settleAgent();
     showHeader();
+    renderBar(); // the bar was drawn while running: enable "Review and pay" now (the server saves the session only at the end)
     save();
     announce(run.ideas.length ? `Done. ${run.ideas.length} gift ideas. ${run.ideas.some(({ cards }) => cards.some((c) => c.purchasable)) ? 'Pick the items you like.' : 'None has a buy button right now.'}` : 'Finished without any gift ideas.');
     if (!run.ideas.length) showEmpty();

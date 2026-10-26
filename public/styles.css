@@ -449,3 +449,12 @@ html[data-images='off'] .media img, html[data-images='off'] .thumb img { display
   .sk-line, .sk-card { animation: none; }
   .spinner { animation-duration: 2.4s; } /* slower, but still shows that something is happening */
 }
+
+/* long unbroken words (an 80-character favourite, a long shop domain) must wrap instead of widening the page at 375 px */
+.ideas-list { grid-template-columns: minmax(0, 1fr); }
+.idea h2, .because, .reason, .pill-soft, .chip-text, .line-shop { overflow-wrap: anywhere; }
+.chip { max-width: 100%; }
+.chip-text { min-width: 0; }
+/* the copy button sits in its own dd so the test card list is valid; the look is unchanged */
+.tc-row dd.tc-act { grid-column: 2; grid-row: 1 / span 2; display: flex; }
+@media (max-width: 360px) { .tc-row dd.tc-act { grid-row: 1; } }

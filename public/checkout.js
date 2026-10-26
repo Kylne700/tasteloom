@@ -186,7 +186,7 @@ export function mountCheckout(root, { cancelled }) {
   const card = h(
     'dl',
     { class: 'testcard' },
-    TEST_CARD.map(([label, shown, value]) => h('div', { class: 'tc-row' }, h('dt', {}, label), h('dd', {}, h('code', {}, shown)), copyBtn(label, value))),
+    TEST_CARD.map(([label, shown, value]) => h('div', { class: 'tc-row' }, h('dt', {}, label), h('dd', {}, h('code', {}, shown)), h('dd', { class: 'tc-act' }, copyBtn(label, value)))),
   );
 
   root.append(
