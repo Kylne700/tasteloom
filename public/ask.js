@@ -5,14 +5,27 @@ import { favouritesField } from './favs.js';
 import { linkRow } from './linkrow.js';
 import { decodeLoves, encodeLoves, MIN } from './loves.js';
 
-const TOO_FEW = `Add at least ${MIN} things you love, so your friend has something to go on.`;
+const FRIEND = {
+  h1: 'What do you love lately?',
+  lead: 'A friend wants to know what you love lately. Nothing is stored: your answer travels inside the link you send back.',
+  tooFew: `Add at least ${MIN} things you love, so your friend has something to go on.`,
+  button: 'Make my reply link',
+  resultH: 'Your reply link',
+  resultLead: 'Send this link back to your friend. When they open it, your answer is there.',
+  hint: 'Anyone who has this link can read your answer, so send it only to your friend.',
+  ready: 'Your reply link is ready.',
+};
+// /ask?for=me is the same page for someone making their own taste link. Its words load only then (own.js), and the flag is read once here, never sent anywhere.
+const self = new URLSearchParams(location.search).get('for') === 'me';
+const W = self ? (await import('./own.js')).OWN : FRIEND;
+if (self) document.title = W.title;
 
 const result = h('section', { class: 'panel result', 'aria-labelledby': 'result-h', hidden: true });
 const { field, favs, input, err, setError, addFromInput } = favouritesField({
   initial: [],
   label: 'Things you love',
   hint: 'An artist, a book, a brand, a place, a game. Press Enter to add each one, and pick a type when a name could mean several things.',
-  tooFew: TOO_FEW,
+  tooFew: W.tooFew,
   onChange: () => { result.hidden = true; }, // an old link must not stay on show once the list changes
 });
 
@@ -25,14 +38,14 @@ function makeLink() {
   }
   const url = `${location.origin}/#${token}`;
   result.replaceChildren(
-    h('h2', { id: 'result-h', tabindex: '-1' }, 'Your reply link'),
-    h('p', { class: 'result-lead' }, 'Send this link back to your friend. When they open it, your answer is there.'),
-    linkRow({ url, label: 'Your reply link', text: 'Here is what I love lately:' }),
-    h('p', { class: 'hint tight' }, 'Anyone who has this link can read your answer, so send it only to your friend.'),
+    h('h2', { id: 'result-h', tabindex: '-1' }, W.resultH),
+    h('p', { class: 'result-lead' }, W.resultLead),
+    linkRow({ url, label: W.resultH, text: 'Here is what I love lately:' }),
+    h('p', { class: 'hint tight' }, W.hint),
   );
   result.hidden = false;
   result.querySelector('h2').focus();
-  announce('Your reply link is ready.');
+  announce(W.ready);
 }
 
 const form = h(
@@ -45,22 +58,22 @@ const form = h(
       if (input.value.trim()) addFromInput();
       if (err.textContent) return;
       if (favs.length < MIN) {
-        setError(TOO_FEW, true);
+        setError(W.tooFew, true);
         return;
       }
       makeLink();
     },
   },
   field,
-  h('div', { class: 'actions' }, h('button', { type: 'submit', class: 'btn primary big' }, 'Make my reply link', icon('arrow', 18))),
+  h('div', { class: 'actions' }, h('button', { type: 'submit', class: 'btn primary big' }, W.button, icon('arrow', 18))),
 );
 
 document.getElementById('view').append(
   h(
     'div',
     { class: 'screen ask-main' },
-    h('h1', {}, 'What do you love lately?'),
-    h('p', { class: 'lead' }, 'A friend wants to know what you love lately. Nothing is stored: your answer travels inside the link you send back.'),
+    h('h1', {}, W.h1),
+    h('p', { class: 'lead' }, W.lead),
     form,
     result,
   ),

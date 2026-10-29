@@ -19,6 +19,9 @@ const LEAD = 'A friend wants to know what you love lately. Nothing is stored: yo
 const FEW_YOU = 'Add at least 3 things you love, so your friend has something to go on.';
 const SPOILERS = /gift|paypal|sandbox|budget|surprise|\bbuy\b|shop|product|price/i;
 const BAD_LINE = 'That reply link could not be read, so nothing was filled in.';
+const SELF_LEAD = 'Name three to five things you love. Nothing is stored: your answer travels inside the link you make.';
+const SELF_FEW = 'Add at least 3 things you love, so your link has something to go on.';
+const SELF_SENT = 'Send this to whoever buys you gifts. They see what you love, not what you will get.'; // the brief's sentence, word for word
 const USAGE = ['ideas', 'qloo', 'ai', 'neurons', 'tavily', 'channel3', 'orders'];
 const MINE = [{ text: 'Mine one', type: '' }, { text: 'Mine two', type: 'book' }, { text: 'Mine three', type: 'artist' }];
 
@@ -28,6 +31,12 @@ const text = (page, sel) => page.$eval(sel, (e) => e.textContent.replace(/\s+/g,
 const chipsOf = (page) => page.$$eval('ul.chips li.chip', (l) => l.map((li) => [li.querySelector('.chip-text').textContent, li.querySelector('.chip-type')?.textContent || '']));
 const frag = (v) => 'loves=' + Buffer.from(typeof v === 'string' ? v : JSON.stringify(v)).toString('base64url');
 const usage = async () => (await (await fetch(BASE + '/api/status')).json()).usage || {};
+
+/** /ask has no nav and its brand is plain text: nothing on the page leads on to the gift home page. */
+async function plainBrand(page, L) {
+  const r = await page.evaluate(() => ({ hrefs: [...document.querySelectorAll('a[href]')].map((a) => a.getAttribute('href')), brand: document.querySelector('header .brand')?.tagName, text: document.querySelector('header .brand')?.textContent.trim(), navs: document.querySelectorAll('nav').length }));
+  check(`${L}: the header brand "Tasteloom" is plain text (no link, no nav) and the page links nowhere but its skip link`, r.brand === 'DIV' && r.text === 'Tasteloom' && r.navs === 0 && r.hrefs.join() === '#main', JSON.stringify(r));
+}
 
 /** A recording reverse proxy in front of the dev server: an allowlist, not a filter (see the top of this file). */
 async function startProxy() {
@@ -117,11 +126,13 @@ async function friendRound(ctx, vp, proxy) {
   const loaded = proxy.log.length;
   const assets = proxy.log.slice(from, loaded);
   check(`${L}: the page loads from static files only (${assets.length} requests, none to /api)`, assets.length > 0 && assets.every((e) => e.method === 'GET' && !e.url.startsWith('/api/')), assets.map((e) => e.url).join(' '));
+  check(`${L}: a friend's page never loads the taste-link words (own.js)`, assets.every((e) => !e.url.includes('own.js')), assets.map((e) => e.url).join(' '));
   check(`${L}: the one line of copy is the brief's, word for word`, (await text(page, '.lead')) === LEAD, `${await text(page, '.lead')}`);
+  await plainBrand(page, L);
   const seen = await page.evaluate(() => [document.title, document.querySelector('meta[name=description]')?.content, document.body.innerText, ...[...document.querySelectorAll('[aria-label],[title],[alt],[placeholder]')].flatMap((e) => [e.getAttribute('aria-label'), e.title, e.getAttribute('alt'), e.getAttribute('placeholder')])].filter(Boolean).join('\n'));
   check(`${L}: nothing on the page (title, description, text, labels) mentions a gift, PayPal, a sandbox, a budget or shopping`, !SPOILERS.test(seen), (seen.match(SPOILERS) || [''])[0]);
   check(`${L}: the field speaks to the friend ("Things you love", "Your favourites will show up here")`, (await text(page, 'label[for=fav-input]')) === 'Things you love' && (await page.$eval('ul.chips', (el) => getComputedStyle(el, '::before').content)) === '"Your favourites will show up here"', await page.$eval('ul.chips', (el) => getComputedStyle(el, '::before').content));
-  await audit(page, `${L} empty`);
+  await audit(page, `${L} empty`, '1011');
   await tabWalk(page, L);
   if (vp === DESKTOP) await overflowSweep(page, L); // the sweep drops phone emulation, which reloads the page
   await shot(page, 'ask-friend-empty');
@@ -148,7 +159,7 @@ async function friendRound(ctx, vp, proxy) {
     const clip = await page.evaluate(() => navigator.clipboard.readText()).catch((e) => `ERR ${e.message}`);
     check(`${L}: "Copy" puts the reply link on the clipboard and says Copied`, clip === url && /Copied/.test(await text(page, '.result .btn.copy')), clip === url ? '' : `${clip}`);
   }
-  await audit(page, `${L} with the reply link`);
+  await audit(page, `${L} with the reply link`, '1011');
   await shot(page, 'ask-friend-reply');
   const kept = await page.evaluate(() => [sessionStorage.length, localStorage.length, document.cookie.length]);
   check(`${L}: nothing is kept in the browser (no session or local storage, no cookie)`, kept.join() === '0,0,0', kept.join());
@@ -157,6 +168,62 @@ async function friendRound(ctx, vp, proxy) {
   check(`${L}: no request after the page loaded, through typing, two links and a copy`, proxy.log.length === loaded, `${proxy.log.length - loaded} extra`);
   await page.close();
   return { url, fragment };
+}
+
+// ---- the taste link: from the home page to /ask?for=me, then the link opened like any reply (the home page's principle line is checked in the tour) ----
+async function selfRound(ctx, giverCtx, vp, proxy) {
+  const L = `ask/self ${vp.width}`;
+  const page = await tracked(ctx, vp, L, proxy);
+  await fresh(page, proxy.origin);
+  const links = await page.$$eval('a[href="/ask?for=me"]', (l) => l.map((a) => `${a.textContent.trim()}|in form: ${!!a.closest('form')}`));
+  check(`${L}: one small link "Make your own taste link" to /ask?for=me, outside the form`, links.join() === 'Make your own taste link|in form: false', links.join());
+  await sleep(600); // the home page's own status request has landed
+  const from = proxy.log.length;
+  await Promise.all([page.waitForNavigation({ waitUntil: 'networkidle0' }), page.click('a[href="/ask?for=me"]')]);
+  await page.waitForSelector('#fav-input');
+  await sleep(500);
+  const loaded = proxy.log.length;
+  const assets = proxy.log.slice(from, loaded);
+  check(`${L}: the link opens ${proxy.origin}/ask?for=me from static files only, and the taste-link words (own.js) load`, page.url() === `${proxy.origin}/ask?for=me` && assets.every((e) => e.method === 'GET' && !e.url.startsWith('/api/')) && assets.some((e) => e.url === '/own.js'), assets.map((e) => e.url).join(' '));
+  check(`${L}: heading, title and the one line of copy are the taste link's own`, (await text(page, 'h1')) === 'Make your own taste link' && (await page.title()) === 'Tasteloom: your taste link' && (await text(page, '.lead')) === SELF_LEAD, `${await text(page, '.lead')}`);
+  await plainBrand(page, L);
+  await audit(page, `${L} empty`, '1011');
+  await tabWalk(page, L);
+  await shot(page, 'ask-self-empty');
+
+  await page.click('form button[type=submit]');
+  check(`${L}: "Make my taste link" with nothing added asks for three, in its own words`, (await text(page, '#fav-error')) === SELF_FEW, `${await text(page, '#fav-error')}`);
+  for (const l of LOVES) {
+    await page.type('#fav-input', l.text);
+    if (l.type) await page.select('#fav-type', l.type);
+    await page.click('.add-row .btn');
+  }
+  await page.click('form button[type=submit]');
+  await page.waitForSelector('.result:not([hidden]) .link-box', { visible: true });
+  const url = await page.$eval('.result .link-box', (e) => e.value);
+  const fragment = url.slice(url.indexOf('#') + 1);
+  const dec = decodeLoves(fragment);
+  check(`${L}: the taste link is ${proxy.origin}/#loves=… (the reply format) and reads back as exactly what was typed`, url.startsWith(`${proxy.origin}/#loves=`) && dec.ok && same(dec.items, PLAIN), `${url.length} characters`);
+  check(`${L}: the result is headed "Your taste link", says the brief's sentence word for word, and focus is on the heading`, (await text(page, '#result-h')) === 'Your taste link' && (await text(page, '.result-lead')) === SELF_SENT && (await page.evaluate(() => document.activeElement?.id)) === 'result-h', `${await text(page, '.result-lead')}`);
+  if (!FIREFOX) {
+    await page.click('.result .btn.copy');
+    const clip = await page.evaluate(() => navigator.clipboard.readText()).catch((e) => `ERR ${e.message}`);
+    check(`${L}: "Copy" puts the taste link on the clipboard and says Copied`, clip === url && /Copied/.test(await text(page, '.result .btn.copy')), clip === url ? '' : `${clip}`);
+  }
+  await audit(page, `${L} with the link`, '1011');
+  await shot(page, 'ask-self-reply');
+  const kept = await page.evaluate(() => [sessionStorage.length, localStorage.length, document.cookie.length]);
+  check(`${L}: nothing is kept in the browser (no session or local storage, no cookie)`, kept.join() === '0,0,0', kept.join());
+  check(`${L}: no request after the page loaded, through typing, the link and a copy`, proxy.log.length === loaded, `${proxy.log.length - loaded} extra`);
+  await page.close();
+
+  const g = await tracked(giverCtx, vp, `${L} opened`, proxy);
+  await g.goto(url, { waitUntil: 'load' });
+  await g.waitForSelector('ul.chips li.chip');
+  const notes = await g.$$eval('.note', (l) => l.map((e) => `${e.className}|${e.textContent.trim()}`));
+  check(`${L}: whoever buys the gifts opens the taste link like any reply: favourites filled in, one line says so, fragment gone`, same(await chipsOf(g), LOVES.map((l) => [l.text, l.label])) && notes.join() === 'note info|Filled from their reply' && g.url() === `${proxy.origin}/`, `${notes.join(' || ')} ${g.url().replace(/#.*/, '#…')}`);
+  await g.close();
+  return { fragment };
 }
 
 // ---- the giver opens the reply ---------------------------------------------------------------------------------------------
@@ -289,6 +356,7 @@ export async function ask(browser) {
       const reply = await friendRound(friendCtx, vp, proxy);
       fragments.push(reply.fragment);
       await giverOpens(giverCtx, vp, proxy, reply);
+      fragments.push((await selfRound(friendCtx, giverCtx, vp, proxy)).fragment);
     }
     await extras(giverCtx, proxy);
     serverView(proxy, fragments);

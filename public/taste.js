@@ -106,7 +106,7 @@ export function mountTaste(root, { reply } = {}) {
   const syncDemo = () => {
     const m = (state.status && state.status.mocks) || [];
     demo.hidden = m.length === 0;
-    if (m.length) demo.textContent = mockNote(m);
+    if (m.length) demo.textContent = mockNote(m, state.status.modes);
   };
   window.addEventListener('tasteloom:status', syncDemo);
 
@@ -114,7 +114,16 @@ export function mountTaste(root, { reply } = {}) {
     h(
       'div',
       { class: 'screen taste' },
-      h('div', { class: 'taste-main' }, h('p', { class: 'eyebrow' }, 'Gift agent'), h('h1', { tabindex: '-1' }, 'Gifts that understand them'), h('p', { class: 'lead' }, 'Tell us three to five things they love. We read their taste, find real products that fit your budget, and you pay in the PayPal sandbox.'), form),
+      h(
+        'div',
+        { class: 'taste-main' },
+        h('p', { class: 'eyebrow' }, 'Gift agent'),
+        h('h1', { tabindex: '-1' }, 'Gifts that understand them'),
+        h('p', { class: 'principle' }, 'No age, no gender, no account: only what they love.'), // true of the form: favourites (with an optional type) and the giver's budget, nothing else about the person
+        h('p', { class: 'lead' }, 'Tell us three to five things they love. We read their taste, find real products that fit your budget, and you pay in the PayPal sandbox.'),
+        form,
+        h('p', { class: 'own-link' }, h('a', { class: 'link-btn', href: '/ask?for=me' }, 'Make your own taste link')), // the same page a friend gets, set up for sending to whoever buys you gifts
+      ),
       h(
         'aside',
         { class: 'how', 'aria-labelledby': 'how-h' },
@@ -122,7 +131,7 @@ export function mountTaste(root, { reply } = {}) {
         h(
           'ol',
           {},
-          h('li', {}, h('strong', {}, 'Qloo reads their taste.'), h('span', {}, 'Your favourites become taste signals. Qloo explainability tells us which favourite links to each idea, so every suggestion says “because they love…”.')),
+          h('li', {}, h('strong', {}, 'Qloo reads their taste.'), h('span', {}, 'Your favourites become taste signals. Qloo explainability tells us which favourite links to each idea, and the card names it: “because they love…”. If Qloo links none, the card says the idea fits their overall taste.')),
           h('li', {}, h('strong', {}, 'An agent finds real products.'), h('span', {}, 'An AI model on Cloudflare Workers AI calls tools: Qloo for taste, Channel3 for products and prices, Tavily for experiences and price checks.')),
           h('li', {}, h('strong', {}, 'You pay in the PayPal sandbox.'), h('span', {}, 'The server prices the order from its own saved cards. You approve as a guest on PayPal’s page, and the agent captures it. No real money moves.')),
         ),

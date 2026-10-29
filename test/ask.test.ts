@@ -110,7 +110,9 @@ test('ask.html: language, title, viewport, skip link, landmarks, live region; no
   assert.match(askHtml, /<meta name="viewport" content="width=device-width, initial-scale=1">/);
   assert.match(askHtml, /<a class="skip" href="#main">/);
   assert.match(askHtml, /<main id="main" tabindex="-1">/);
-  assert.match(askHtml, /<nav [^>]*aria-label="[^"]+"/);
+  const header = askHtml.slice(askHtml.indexOf('<header'), askHtml.indexOf('</header>'));
+  assert.match(header, /<div class="brand">/);
+  assert.doesNotMatch(header, /<a\b|<nav\b|href=/, 'the brand on /ask is plain text: it must not lead from the friend page to the gift home page');
   assert.match(askHtml, /<footer\b/);
   assert.match(askHtml, /role="status"[^>]*aria-live="polite"|aria-live="polite"[^>]*role="status"/);
   assert.match(askHtml, /<noscript>/);
@@ -126,14 +128,43 @@ test('ask.html: nothing in the title, description, footer or copy gives the gift
 });
 
 test('the /ask page makes no request and keeps nothing: it imports no module that can', () => {
-  const allowed = new Set(['./dom.js', './favs.js', './linkrow.js', './loves.js']);
+  const allowed = new Set(['./dom.js', './favs.js', './linkrow.js', './loves.js', './own.js']);
   const files = new Set(['public/ask.js']);
   for (const f of files) {
-    for (const m of read(f).matchAll(/\bfrom '(\.\/[^']+)'/g)) {
+    for (const m of read(f).matchAll(/\b(?:from |import\()'(\.\/[^']+)'/g)) {
       assert.ok(allowed.has(m[1]!), `${f} imports ${m[1]}`);
       files.add('public/' + m[1]!.slice(2));
     }
   }
-  assert.ok(files.size >= 4);
+  assert.ok(files.size >= 5 && files.has('public/own.js'));
   for (const f of files) assert.doesNotMatch(read(f), /\bfetch\s*\(|XMLHttpRequest|sendBeacon|WebSocket|EventSource|sessionStorage|localStorage|indexedDB|document\.cookie|\.submit\(/, f);
+});
+
+// ---- the taste link: the home page link, the self mode of /ask, and the principle line ----------------------------------------
+const tasteJs = read('public/taste.js');
+
+test('taste link: /ask?for=me loads its own words only in that mode, and its words match the friend page key for key', async () => {
+  const ask = read('public/ask.js');
+  assert.doesNotMatch(ask, /\bfrom '\.\/own\.js'/, 'a static import would put the taste-link words on every /ask page');
+  assert.equal(ask.match(/import\('\.\/own\.js'\)/g)?.length, 1);
+  assert.match(ask, /get\('for'\) === 'me'/);
+  const own = read('public/own.js');
+  assert.deepEqual([...own.matchAll(/\bfrom '([^']+)'/g)].map((m) => m[1]), ['./loves.js'], 'own.js needs only the codec: the link is made by the same code as a reply link');
+  const { OWN } = await import('../public/own.js');
+  assert.equal(OWN.resultLead, 'Send this to whoever buys you gifts. They see what you love, not what you will get.');
+  assert.equal(OWN.h1, 'Make your own taste link');
+  const friendKeys = [...ask.match(/const FRIEND = \{([\s\S]*?)\n\};/)![1]!.matchAll(/^ {2}(\w+):/gm)].map((m) => m[1]).sort();
+  assert.deepEqual(Object.keys(OWN).filter((k) => k !== 'title').sort(), friendKeys, 'a missing word would print "undefined" on the page');
+  for (const k of friendKeys) assert.ok(typeof (OWN as Record<string, unknown>)[k as string] === 'string' && (OWN as Record<string, string>)[k as string]!.length > 8, k);
+});
+
+test('home page: one principle line under the heading, one small link to make a taste link, and a form that asks for nothing the line denies', () => {
+  const principle = 'No age, no gender, no account: only what they love.';
+  const at = (x: string) => tasteJs.indexOf(x);
+  assert.equal(tasteJs.split(principle).length - 1, 1);
+  assert.ok(at("'Gifts that understand them'") < at(principle) && at(principle) < at("class: 'lead'"), 'order: heading, principle, lead');
+  assert.match(tasteJs, /href: '\/ask\?for=me' \}, 'Make your own taste link'\)/);
+  // the form's fields are the favourites (name and optional type) and the giver's budget: nothing about the person
+  const fields = [...(tasteJs + read('public/favs.js')).matchAll(/h\('(?:input|select|textarea)', \{ id: '([^']+)'/g)].map((m) => m[1]).sort();
+  assert.deepEqual(fields, ['budget', 'fav-input', 'fav-type']);
 });

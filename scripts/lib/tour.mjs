@@ -176,6 +176,16 @@ function states(fx) {
     const { page } = c;
     await fresh(page);
     check(`${c.name}/home: heading, title and focus on the heading`, (await text(page, 'h1')) === 'Gifts that understand them' && (await page.title()) === 'Gifts that understand them · Tasteloom' && (await page.evaluate(() => document.activeElement?.tagName)) === 'H1', await page.title());
+    const lede = await page.evaluate(() => {
+      const [h1, p, lead] = ['h1', '.principle', '.taste .lead'].map((q) => document.querySelector(q));
+      const before = (a, b) => !!(a && b && a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+      return { text: p?.textContent.trim(), order: before(h1, p) && before(p, lead), count: document.querySelectorAll('.principle').length };
+    });
+    check(`${c.name}/home: one principle line sits right under the heading, before the lead`, lede.text === 'No age, no gender, no account: only what they love.' && lede.order && lede.count === 1, JSON.stringify(lede));
+    const form = await page.$eval('form', (f) => ({ ids: [...f.querySelectorAll('input:not([readonly]), select, textarea:not([readonly])')].map((e) => e.id).sort().join(), words: [...f.querySelectorAll('label')].map((l) => l.textContent).concat([...f.querySelectorAll('[placeholder]')].map((e) => e.getAttribute('placeholder'))).join(' | ') }));
+    check(`${c.name}/home: the principle is true of the form: its only fields are the favourites (name, type) and the budget, and no label asks for an age, gender, account or email`, form.ids === 'budget,fav-input,fav-type' && !/\b(age|gender|sex|birth\w*|relationship|account|e-?mail|password)\b/i.test(form.words), `${form.ids}; ${form.words}`);
+    const own = await page.$$eval('a[href="/ask?for=me"]', (l) => l.map((a) => `${a.textContent.trim()}|${a.closest('form') ? 'in the form' : 'outside the form'}`));
+    check(`${c.name}/home: one small link "Make your own taste link" to /ask?for=me, outside the form`, own.join() === 'Make your own taste link|outside the form', own.join());
     const status = await page.evaluate(() => fetch('/api/status').then((r) => r.json()));
     check(`${c.name}/home: the "Demo data" badge is shown exactly while a mock is active`, (await shown(page, '#demo-badge')) === (status.mocks.length > 0), `mocks: ${status.mocks.join(',') || 'none'}`);
     check(`${c.name}/home: sandbox label in the header, three steps with step 1 current`, /sandbox/i.test((await text(page, '.pill.sandbox')) || '') && (await count(page, '#steps li.step')) === 3 && (await text(page, '#steps li.current')).startsWith('1'), await text(page, '#steps li.current'));
@@ -272,7 +282,7 @@ function states(fx) {
     await page.waitForSelector('section.panel.warn[role=alert]', { timeout: 8000 });
     const acts = await actionsOf(page, 'section.panel.warn .panel-actions');
     const body = (await text(page, 'section.panel.warn .panel-body p')) || '';
-    check(`${c.name}/ideas: stopping early keeps the ideas, says so, and offers to try again`, (await text(page, 'section.panel.warn h2')) === 'The agent stopped early' && (await count(page, '.ideas-list article.idea:not(.skeleton)')) >= 2 && acts.names.join('|') === 'Try again|Try an example', `${await text(page, 'section.panel.warn h2')} / ${acts.names.join(', ')}`);
+    check(`${c.name}/ideas: stopping early keeps the ideas, says so, and offers to try again`, (await text(page, 'section.panel.warn h2')) === 'The agent stopped early' && (await count(page, '.ideas-list article.idea:not(.skeleton)')) >= 2 && acts.names.join('|') === 'Try an example|Try again', `${await text(page, 'section.panel.warn h2')} / ${acts.names.join(', ')}`); // a service is down: the saved example comes first (75bb9a0)
     check(`${c.name}/ideas: stopping early has no filled button (the Review and pay bar stays the main action) and its text does not say "try again" twice`, acts.filled.length === 0 && !/try again/i.test(body) && body.length > 20, `${acts.filled.join(',')} / ${body}`);
     check(`${c.name}/ideas: no placeholder is left spinning after the error`, (await count(page, '.idea.skeleton')) === 0 && (await count(page, '.phases li.phase[data-state=running]')) === 0);
     check(`${c.name}/ideas: the step list tells the truth (unfinished steps are not ticked) and the status says Stopped`, (await count(page, '.phases li.phase[data-state=done]')) < (await count(page, '.phases li.phase')) && (await count(page, '.phases li.phase[data-state=error]')) >= 1 && (await text(page, '.agent-status')) === 'Stopped', await text(page, '.agent-status'));
@@ -358,7 +368,7 @@ function states(fx) {
     check(`${c.name}/ideas: a fresh visit asks no shop for an image until the images switch is turned on`, before.asked === 0 && before.src === 0 && after > 0, `${before.asked} third-party image requests and ${before.src} image sources before the switch, ${after} sources after`);
   });
 
-  const ideasError = (key, label, spec, title, buttons, filled) =>
+  const ideasError = (key, label, spec, title, buttons, filled, ends = '') =>
     add(key, key === 'ideas-error-limit', async (c) => {
       const { page } = c;
       await open(c, '#/', { st: { favorites: fx.FAVS, budget: 120 }, mocks: { 'POST /api/ideas': spec } });
@@ -368,14 +378,14 @@ function states(fx) {
       const got = await actionsOf(page, 'section.panel[role=alert] .panel-actions');
       const body = (await text(page, 'section.panel[role=alert] .panel-body p')) || '';
       check(`${c.name}/ideas: ${label}: title "${title}" with a plain message and the actions ${buttons.join(', ')}`, (await text(page, 'section.panel[role=alert] h2')) === title && got.names.join('|') === buttons.join('|') && (await count(page, '.idea.skeleton')) === 0, `${await text(page, 'section.panel[role=alert] h2')} / ${got.names.join(', ')}`);
-      check(`${c.name}/ideas: ${label}: one filled button ("${filled}") and a message that does not repeat the title`, got.filled.join('|') === filled && body.length > 10 && !body.toLowerCase().includes(title.toLowerCase()), `${got.filled.join(',')} / ${body}`);
+      check(`${c.name}/ideas: ${label}: one filled button ("${filled}") and a message that does not repeat the title${ends ? ` and ends with "${ends}"` : ''}`, got.filled.join('|') === filled && body.length > 10 && !body.toLowerCase().includes(title.toLowerCase()) && body.endsWith(ends), `${got.filled.join(',')} / ${body}`);
       check(`${c.name}/ideas: ${label}: the status row says Stopped, in the same red as the card icon`, (await text(page, '.agent-status')) === 'Stopped' && (await page.evaluate(() => getComputedStyle(document.querySelector('.agent-status svg')).color === getComputedStyle(document.querySelector('section.panel.bad .panel-icon')).color)), await text(page, '.agent-status'));
       if (key === 'ideas-error-limit') await c.audit('ideas error');
       await c.snap();
     });
   ideasError('ideas-error-network', 'server unreachable', { reject: true }, 'We could not reach the server', ['Try again', 'Try an example'], 'Try again');
   ideasError('ideas-error-limit', 'daily limit reached', err(429, 'limit', LIMIT_MSG), 'Live lookups are used up for now', ['Try an example'], 'Try an example');
-  ideasError('ideas-error-upstream', 'a service is down', err(502, 'upstream', UPSTREAM_MSG), 'A service we depend on is not answering', ['Try again', 'Try an example'], 'Try again');
+  ideasError('ideas-error-upstream', 'a service is down', err(502, 'upstream', UPSTREAM_MSG), 'A service we depend on is not answering', ['Try an example', 'Try again'], 'Try an example', 'The saved example always works.');
   ideasError('ideas-error-bad-input', 'input refused by the server', err(400, 'bad_input', 'Nothing we found fits that budget. Try a higher budget or different favourites.'), 'Nothing to suggest yet', ['Change favourites', 'Try an example'], 'Change favourites');
 
   add('ideas-empty', false, async (c) => {
@@ -586,6 +596,62 @@ function states(fx) {
     await open(c, '#/checkout', { st: ckSt(c), search: '?images=off' });
     const shown = await c.page.evaluate(() => [...document.querySelectorAll('.thumb img')].filter((i) => i.getClientRects().length && getComputedStyle(i).display !== 'none').length);
     check(`${c.name}/checkout: ?images=off hides the line photos`, (await text(c.page, 'h1')) === 'Checkout' && shown === 0, `${shown} shown`);
+    await c.snap();
+  });
+
+  // "Copy note": one true sentence to send along with an idea, built from the favourites its card names (spelled out here, not imported from public/note.js).
+  const noteOf = (names) => `I picked this because you love ${names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`}.\n\n`;
+  const MEMORY = 'Add one memory only you can write.';
+  add('ideas-copy-note', false, async (c) => {
+    const { page } = c;
+    await open(c, '#/ideas', { st: c.done });
+    await page.waitForSelector('article.idea:not(.skeleton) .because');
+    const ideas = await page.$$eval('article.idea:not(.skeleton)', (l) => l.map((a) => ({ title: a.querySelector('h2').textContent, names: [...a.querySelectorAll('.because.named .pill-soft')].map((e) => e.textContent), label: a.querySelector('.note-row button.copy')?.getAttribute('aria-label') ?? null })));
+    const arts = await page.$$('article.idea:not(.skeleton)');
+    // three cards that name a favourite, with notes that differ from their neighbours' (so a copy that did nothing cannot pass for the last one); prefer one that names two or three
+    const named = ideas.map((_, k) => k).filter((k) => ideas[k].names.length);
+    const note = (k) => noteOf(ideas[k].names);
+    const a = named[0];
+    const b = named.find((k) => ideas[k].names.length > 1 && note(k) !== note(a)) ?? named.find((k) => note(k) !== note(a));
+    const f = named.find((k) => k !== a && k !== b) ?? b;
+    check(`${c.name}/ideas: every idea that names a favourite has a "Copy note" button named after it, and no other idea has one`, a >= 0 && b > -1 && ideas.every((i) => i.label === (i.names.length ? `Copy note: ${i.title}` : null)), ideas.map((i) => `${i.names.length}:${i.label}`).join(' | ').slice(0, 200));
+    check(`${c.name}/ideas: "${MEMORY}" is not on screen until a note is copied`, !(await page.evaluate(() => document.body.innerText.includes('Add one memory'))));
+
+    // the hero line: "Because they love X" is the largest text of a card that names a favourite (type scale only, no new colour)
+    const hero = await page.$$eval('article.idea:not(.skeleton)', (l) => l.filter((x) => x.querySelector('.because.named')).map((x) => { const px = (q) => parseFloat(getComputedStyle(x.querySelector(q)).fontSize); return { label: px('.because-lbl'), pill: px('.because.named .pill-soft'), title: px('h2'), reason: px('.reason'), kind: px('.kind') }; }));
+    check(`${c.name}/ideas: on every card that names a favourite, "Because they love X" is bigger than the title, the reason and the kind label`, hero.length > 0 && hero.every((x) => x.label > x.title && x.pill > x.title && x.label > x.reason && x.label > x.kind), JSON.stringify(hero[0]));
+
+    // Chromium without the clipboard permission (every round but the desktop one) records the write instead; the desktop round reads the real clipboard back
+    const rec = !c.clip;
+    if (rec) await page.evaluate(() => { window.__clip = []; navigator.clipboard.writeText = async (t) => { window.__clip.push(t); }; });
+    const clipboard = () => (rec ? page.evaluate(() => window.__clip.at(-1) ?? null) : page.evaluate(() => navigator.clipboard.readText()));
+    const pressed = async (k, key) => {
+      if (rec) await page.evaluate(() => { window.__clip = []; });
+      const before = await clipboard();
+      await (await arts[k].$('.note-row button.copy')).focus();
+      await page.keyboard.press(key);
+      let got = before;
+      for (let i = 0; i < 20 && got === before; i++) { await sleep(100); got = await clipboard(); }
+      return got; // still `before` when nothing was copied
+    };
+    const how = rec ? 'recorded write' : 'real clipboard';
+    const entered = await pressed(a, 'Enter');
+    check(`${c.name}/ideas: Enter on a focused "Copy note" button copies "${note(a).trim()}" and a blank line (${how})`, entered === note(a), JSON.stringify(entered));
+    const spaced = await pressed(b, 'Space');
+    check(`${c.name}/ideas: Space on another card's button copies that card's note, which names ${ideas[b].names.length} favourite${ideas[b].names.length > 1 ? 's, all of them' : ''} (${how})`, spaced === note(b), JSON.stringify(spaced));
+    await sleep(150);
+    const done = await arts[a].$eval('.note-row', (r) => ({ status: r.querySelector('.note-status').textContent, shown: !r.querySelector('.note-status').hidden, boxHidden: r.querySelector('.note-box').hidden }));
+    check(`${c.name}/ideas: after the copy the card says "Copied. ${MEMORY}" (the live region carries the last card's words)`, done.shown && done.boxHidden && done.status === `Copied. ${MEMORY}` && (await text(page, '#live')) === `Copied. ${MEMORY}`, `${done.status} / ${await text(page, '#live')}`);
+
+    // no clipboard at all (the API refuses, the old copy command fails too): the note shows in a box to copy by hand
+    await page.evaluate(() => { navigator.clipboard.writeText = async () => { throw new Error('denied'); }; document.execCommand = () => false; });
+    await (await arts[f].$('.note-row button.copy')).focus();
+    await page.keyboard.press('Enter');
+    await sleep(250);
+    const fb = await arts[f].$eval('.note-row', (r) => { const box = r.querySelector('.note-box'); return { shown: !box.hidden && box.getClientRects().length > 0, readOnly: box.readOnly, value: box.value, label: box.getAttribute('aria-label'), focused: document.activeElement === box, all: box.selectionStart === 0 && box.selectionEnd === box.value.length, status: r.querySelector('.note-status').textContent, statusShown: !r.querySelector('.note-status').hidden }; });
+    check(`${c.name}/ideas: when copying fails, the note shows in a focused, selected, read-only box that has a name, with the Ctrl+C line and the memory line`, fb.shown && fb.readOnly && fb.value === note(f) && fb.label === `Note for ${ideas[f].title}` && fb.focused && fb.all && fb.statusShown && fb.status === `Could not copy by itself. Press Ctrl+C to copy the note above. ${MEMORY}`, JSON.stringify(fb));
+    await c.audit('ideas copy note');
+    if (c.sweep) await overflowSweep(page, `${c.name}/ideas copy note`);
     await c.snap();
   });
   return S;

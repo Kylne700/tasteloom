@@ -1,5 +1,6 @@
 // Screen 2: the agent works (live step list), gift ideas arrive as sections with product cards, the buyer picks items.
-import { h, icon, money, safeUrl, shopImage, announce, spinner } from './dom.js';
+import { h, icon, money, safeUrl, shopImage, announce, spinner, copyText } from './dom.js';
+import { MEMORY, noteFor } from './note.js';
 import { ApiError, streamNdjson } from './api.js';
 import { budgetCents, lookupCount, mockNote, newRun, save, selectedCards, state, totalCents } from './state.js';
 
@@ -21,6 +22,28 @@ const SKELETONS = 3;
 
 // A shop host breaks after a dot, not in the middle of a word, when a narrow card is too small for it.
 const hostWords = (host) => host.split('.').flatMap((part, i, all) => (i < all.length - 1 ? [`${part}.`, document.createElement('wbr')] : [part]));
+
+// "Copy note": the line a giver can send along with an idea, built from the favourites its card already names (note.js). The memory
+// prompt shows after the press, so it is clear what is left to write. If the browser refuses the clipboard, the note shows in a box to copy by hand.
+function noteRow(idea) {
+  const note = noteFor(idea.because);
+  if (!note) return null; // an idea that names no favourite has no true "I picked this because you love..." to send
+  const status = h('p', { class: 'note-status', hidden: true });
+  const box = h('textarea', { class: 'note-box', readonly: true, rows: '3', hidden: true, 'aria-label': `Note for ${idea.title}`, onfocus: (e) => e.target.select() });
+  box.value = note;
+  const copy = h('button', { type: 'button', class: 'btn small copy', 'aria-label': `Copy note: ${idea.title}`, onclick: async () => {
+    const ok = await copyText(note);
+    status.textContent = ok ? `Copied. ${MEMORY}` : `Could not copy by itself. Press Ctrl+C to copy the note above. ${MEMORY}`;
+    status.hidden = false;
+    box.hidden = ok;
+    if (!ok) {
+      box.focus();
+      box.select();
+    }
+    announce(status.textContent);
+  } }, icon('copy', 14), 'Copy note');
+  return h('div', { class: 'note-row' }, copy, status, box);
+}
 
 // A link card whose page gave no blurb shows where the link goes, built only from its own address (path words, no query or fragment).
 // It never describes the product: the page itself is the only source for that.
@@ -298,14 +321,14 @@ export function mountIdeas(root) {
 
   function addIdea({ idea, cards }) {
     const because = idea.because.length
-      ? h('p', { class: 'because' }, h('span', { class: 'because-lbl' }, 'Because they love'), h('ul', { class: 'pills' }, idea.because.map((b) => h('li', { class: 'pill-soft' }, b))))
+      ? h('p', { class: 'because named' }, h('span', { class: 'because-lbl' }, 'Because they love'), h('ul', { class: 'pills' }, idea.because.map((b) => h('li', { class: 'pill-soft' }, b))))
       : h('p', { class: 'because' }, h('span', { class: 'because-lbl' }, 'Fits their overall taste'));
     const reasonText = run.reasons[idea.id];
     const reason = h('div', { class: 'reason', 'data-state': reasonText ? 'ready' : 'pending' }, reasonText ? reasonText : [h('span', { class: 'sk-line w100' }), h('span', { class: 'sk-line w60' })]);
     const section = h(
       'article',
       { class: 'idea', 'aria-labelledby': `idea-${idea.id}` },
-      h('header', { class: 'idea-head' }, h('p', { class: 'kind' }, idea.kind === 'experience' ? 'Experience' : 'Gift'), h('h2', { id: `idea-${idea.id}` }, idea.title), because, reason),
+      h('header', { class: 'idea-head' }, h('p', { class: 'kind' }, idea.kind === 'experience' ? 'Experience' : 'Gift'), h('h2', { id: `idea-${idea.id}` }, idea.title), because, reason, noteRow(idea)),
       idea.paused ? h('p', { class: 'note info paused', role: 'status' }, icon('info', 18), h('span', {}, PAUSED_NOTE[idea.paused])) : h('ul', { class: 'cards' }, cards.map((c) => cardEl(c, idea))),
     );
     ideaEls.set(idea.id, { reason, section });
@@ -498,7 +521,7 @@ export function mountIdeas(root) {
     );
     notices.querySelectorAll('.example-note, .tier-note').forEach((n) => n.remove());
     if (run.tier === 'template') {
-      notices.prepend(h('p', { class: 'note info tier-note' }, icon('info', 18), h('span', {}, 'The AI model did not take part in this run (its daily allowance is used up, or it did not answer), so the steps were fixed and the reasons are plain templates. Qloo, the catalog and prices were still live.')));
+      notices.prepend(h('p', { class: 'note info tier-note' }, icon('info', 18), h('span', {}, 'The AI model did not take part in this run (its daily allowance is used up, or it did not answer), so the steps were fixed and the reasons are plain templates.')));
     }
     const cut = run.limited.map((k) => LIMITED_NOTE[k]).filter(Boolean);
     if (cut.length) {
@@ -509,7 +532,7 @@ export function mountIdeas(root) {
     }
     if (run.mocks.length) {
       demoNote.hidden = false;
-      demoNote.textContent = mockNote(run.mocks);
+      demoNote.textContent = mockNote(run.mocks, run.example ? null : state.status && state.status.modes); // the saved example's products were recorded, so no "live" claim there
     }
   }
 

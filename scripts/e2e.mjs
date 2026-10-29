@@ -241,7 +241,9 @@ let browser;
 try {
   spawnSync('node', ['scripts/dev-vars.mjs'], { cwd: APP, stdio: 'inherit' }); // writes .dev.vars from ../.env.local, prints key names only
   say(`e2e ${new Date().toISOString()} phases: ${phases.join(', ')}${keep ? ' (kept state)' : ''}`);
-  srv = await startDev({ port: PORT, fresh: !keep });
+  srv = await startDev({ port: PORT, fresh: !keep, vars: process.env.FORCE_MOCK ? { FORCE_MOCK: process.env.FORCE_MOCK } : {} }); // FORCE_MOCK=qloo,ai runs the stand-ins even when keys exist
+  const st0 = (await api('/api/status')).json || {};
+  say(`dev server up on :${PORT}; mocks: ${(st0.mocks || []).join(',') || 'none'}; usage at start: ${JSON.stringify(st0.usage || {})}`);
   browser = FIREFOX
     ? await puppeteer.launch({ browser: 'firefox', executablePath: '/usr/bin/firefox', headless: true, protocol: 'webDriverBiDi' })
     : await puppeteer.launch({ executablePath: '/usr/bin/chromium', headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage'] });

@@ -94,8 +94,9 @@ export const totalCents = () => selectedCards().reduce((a, c) => a + c.price_cen
 export const budgetCents = () => (state.run ? state.run.budget_cents : Math.round(state.budget * 100));
 
 const MOCK_NAMES = { qloo: 'Qloo', ai: 'the AI model' };
-/** The sentence explaining the "Demo data" badge. */
-export function mockNote(mocks) {
+/** The sentence explaining the "Demo data" badge. `modes` is /api/status's modes: the "live" half is said only when those modes back it (null says nothing about the rest). */
+export function mockNote(mocks, modes = null) {
   const names = mocks.map((m) => MOCK_NAMES[m] || m).join(' and ');
-  return `Demo data: ${names} ${mocks.length > 1 ? 'run' : 'runs'} on built-in stand-ins with the same response formats until they are connected. Products, prices and PayPal are live.`;
+  const rest = modes && modes.channel3 === 'live' && modes.paypal === 'live' ? ' Products, prices and PayPal are live.' : '';
+  return `Demo data: ${names} ${mocks.length > 1 ? 'run' : 'runs'} on built-in stand-ins with the same response formats until they are connected.${rest}`;
 }
