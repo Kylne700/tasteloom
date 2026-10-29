@@ -1,107 +1,45 @@
 // Screen 1: what do they love, and what is the budget? Also the "Try an example" entry.
-import { h, icon } from './dom.js';
+import { announce, h, icon } from './dom.js';
+import { favouritesField } from './favs.js';
+import { linkRow } from './linkrow.js';
+import { MIN } from './loves.js';
 import { mockNote, save, state } from './state.js';
 
-const TYPES = [
-  ['', 'Any type'],
-  ['artist', 'Artist or band'],
-  ['book', 'Book'],
-  ['brand', 'Brand'],
-  ['place', 'Place or venue'],
-  ['destination', 'City or country'],
-  ['movie', 'Movie'],
-  ['tv_show', 'TV show'],
-  ['video_game', 'Video game'],
-  ['podcast', 'Podcast'],
-  ['person', 'Person'],
-];
-const TYPE_LABEL = Object.fromEntries(TYPES.map(([v, l]) => [v, l.replace(/ \(.*\)/, '').replace(/ or .*/, '')]));
 const PRESETS = [25, 50, 100, 200];
-const MIN = 3;
-const MAX = 5;
 const TOO_FEW = `Add at least ${MIN} things they love, so the taste reading has something to work with.`;
 
-export function mountTaste(root) {
-  const favs = state.favorites.map((f) => ({ ...f }));
+// "Not sure what they love?": a link to send. Their answer comes back inside the reply link (loves.js), so no server holds it.
+function askLink() {
+  const panel = h('div', { id: 'ask-panel', class: 'ask-panel', hidden: true },
+    h('p', {}, 'Send them this link. They name what they love and send you a reply link. When you open it here, their answer fills in below.'),
+    linkRow({ url: `${location.origin}/ask`, label: 'Link to send', text: 'What do you love lately? Tell me here.' }),
+  );
+  const btn = h('button', { type: 'button', class: 'link-btn', 'aria-expanded': 'false', 'aria-controls': 'ask-panel', onclick: () => {
+    panel.hidden = !panel.hidden;
+    btn.setAttribute('aria-expanded', String(!panel.hidden));
+  } }, 'Not sure what they love? Ask them');
+  return h('div', { class: 'ask-link' }, btn, panel);
+}
 
-  const input = h('input', { id: 'fav-input', type: 'text', maxlength: '80', autocomplete: 'off', autocapitalize: 'off', spellcheck: 'false', placeholder: 'For example: Nujabes', 'aria-describedby': 'fav-hint fav-count fav-error' });
-  const type = h('select', { id: 'fav-type' }, TYPES.map(([v, l]) => h('option', { value: v }, l)));
-  const chips = h('ul', { class: 'chips', 'aria-label': 'Things they love' });
-  const count = h('p', { class: 'count', id: 'fav-count', role: 'status' });
-  const err = h('p', { class: 'error', id: 'fav-error', role: 'alert' });
+export function mountTaste(root, { reply } = {}) {
+  const { field, favs, input, err, setError, addFromInput } = favouritesField({
+    initial: state.favorites,
+    label: 'Things they love',
+    hint: 'An artist, a book, a brand, a place, a game. Press Enter to add each one, and pick a type when a name could mean several things.',
+    tooFew: TOO_FEW,
+    after: askLink(),
+  });
+  // app.js hands over what became of a reply link (#loves=…) that was opened: filled in, or not readable
+  const replyLine = reply && (reply.ok ? 'Filled from their reply' : 'That reply link could not be read, so nothing was filled in.');
   const budget = h('input', { id: 'budget', type: 'number', inputmode: 'numeric', min: '10', max: '500', step: '5', value: String(state.budget || 100), 'aria-describedby': 'budget-hint budget-error' });
   const budgetErr = h('p', { class: 'error', id: 'budget-error', role: 'alert' });
   const presetBtns = PRESETS.map((n) =>
     h('button', { type: 'button', class: 'chip-btn', 'aria-pressed': 'false', onclick: () => { budget.value = String(n); syncPresets(); budgetErr.textContent = ''; } }, `$${n}`),
   );
 
-  const setError = (msg, focus) => {
-    err.textContent = msg;
-    input.setAttribute('aria-invalid', msg ? 'true' : 'false');
-    syncCount();
-    if (msg && focus) input.focus();
-  };
-
-  // The count line gives the "add N more" hint only while the too-few error is not already saying it.
-  function syncCount() {
-    const n = favs.length;
-    count.textContent = n >= MIN || err.textContent === TOO_FEW ? `${n} of ${MAX} added.` : `${n} of ${MAX} added. Add ${MIN - n} more to continue.`;
-    count.dataset.ok = String(n >= MIN);
-  }
-
   function syncPresets() {
     presetBtns.forEach((b, i) => b.setAttribute('aria-pressed', String(Number(budget.value) === PRESETS[i])));
   }
-
-  function renderChips() {
-    chips.replaceChildren(
-      ...favs.map((f, i) =>
-        h(
-          'li',
-          { class: 'chip' },
-          h('span', { class: 'chip-text' }, f.text),
-          f.type ? h('span', { class: 'chip-type' }, TYPE_LABEL[f.type] || f.type) : null,
-          h('button', { type: 'button', class: 'chip-x', 'aria-label': `Remove ${f.text}`, onclick: () => { favs.splice(i, 1); setError(''); renderChips(); input.focus(); } }, icon('x', 14)),
-        ),
-      ),
-    );
-    syncCount();
-  }
-
-  function add(raw) {
-    const text = raw.replace(/\s+/g, ' ').trim();
-    if (!text) return true;
-    if (favs.some((f) => f.text.toLowerCase() === text.toLowerCase())) {
-      setError(`You already added ${text}.`, true);
-      return false;
-    }
-    if (favs.length >= MAX) {
-      setError(`You can add up to ${MAX}. Remove one to add another.`, true);
-      return false;
-    }
-    favs.push({ text, type: type.value });
-    setError('');
-    return true;
-  }
-
-  function addFromInput() {
-    // a pasted list ("A, B, C") adds each part
-    const parts = input.value.split(',');
-    for (const p of parts) if (!add(p)) break;
-    if (!err.textContent) {
-      input.value = '';
-      type.value = ''; // the type hint belongs to the item just added; the next one starts as "Any type"
-    }
-    renderChips();
-    input.focus();
-  }
-
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault();
-      addFromInput();
-    }
-  });
 
   function readBudget() {
     const lim = (state.status && state.status.budget) || { min_cents: 1000, max_cents: 50000 };
@@ -139,16 +77,8 @@ export function mountTaste(root) {
         location.hash = '#/ideas';
       },
     },
-    h(
-      'div',
-      { class: 'field' },
-      h('label', { for: 'fav-input', class: 'label' }, 'Things they love'),
-      h('p', { class: 'hint', id: 'fav-hint' }, 'An artist, a book, a brand, a place, a game. Press Enter to add each one, and pick a type when a name could mean several things.'),
-      h('div', { class: 'add-row' }, input, h('label', { class: 'sr-only', for: 'fav-type' }, 'Type of thing'), type, h('button', { type: 'button', class: 'btn', onclick: addFromInput }, icon('plus', 16), 'Add')),
-      chips,
-      count,
-      err,
-    ),
+    replyLine ? h('p', { class: `note ${reply.ok ? 'info' : 'warn'}` }, icon(reply.ok ? 'info' : 'alert', 18), h('span', {}, replyLine)) : null,
+    field,
     h(
       'div',
       { class: 'field' },
@@ -176,7 +106,7 @@ export function mountTaste(root) {
   const syncDemo = () => {
     const m = (state.status && state.status.mocks) || [];
     demo.hidden = m.length === 0;
-    if (m.length) demo.textContent = mockNote(m);
+    if (m.length) demo.textContent = mockNote(m, state.status.modes);
   };
   window.addEventListener('tasteloom:status', syncDemo);
 
@@ -184,7 +114,16 @@ export function mountTaste(root) {
     h(
       'div',
       { class: 'screen taste' },
-      h('div', { class: 'taste-main' }, h('p', { class: 'eyebrow' }, 'Gift agent'), h('h1', { tabindex: '-1' }, 'Gifts that understand them'), h('p', { class: 'lead' }, 'Tell us three to five things they love. We read their taste, find real products that fit your budget, and you pay in the PayPal sandbox.'), form),
+      h(
+        'div',
+        { class: 'taste-main' },
+        h('p', { class: 'eyebrow' }, 'Gift agent'),
+        h('h1', { tabindex: '-1' }, 'Gifts that understand them'),
+        h('p', { class: 'principle' }, 'No age, no gender, no account: only what they love.'), // true of the form: favourites (with an optional type) and the giver's budget, nothing else about the person
+        h('p', { class: 'lead' }, 'Tell us three to five things they love. We read their taste, find real products that fit your budget, and you pay in the PayPal sandbox.'),
+        form,
+        h('p', { class: 'own-link' }, h('a', { class: 'link-btn', href: '/ask?for=me' }, 'Make your own taste link')), // the same page a friend gets, set up for sending to whoever buys you gifts
+      ),
       h(
         'aside',
         { class: 'how', 'aria-labelledby': 'how-h' },
@@ -192,7 +131,7 @@ export function mountTaste(root) {
         h(
           'ol',
           {},
-          h('li', {}, h('strong', {}, 'Qloo reads their taste.'), h('span', {}, 'Your favourites become taste signals. Qloo explainability tells us which favourite links to each idea, so every suggestion says “because they love…”.')),
+          h('li', {}, h('strong', {}, 'Qloo reads their taste.'), h('span', {}, 'Your favourites become taste signals. Qloo explainability tells us which favourite links to each idea, and the card names it: “because they love…”. If Qloo links none, the card says the idea fits their overall taste.')),
           h('li', {}, h('strong', {}, 'An agent finds real products.'), h('span', {}, 'An AI model on Cloudflare Workers AI calls tools: Qloo for taste, Channel3 for products and prices, Tavily for experiences and price checks.')),
           h('li', {}, h('strong', {}, 'You pay in the PayPal sandbox.'), h('span', {}, 'The server prices the order from its own saved cards. You approve as a guest on PayPal’s page, and the agent captures it. No real money moves.')),
         ),
@@ -202,7 +141,7 @@ export function mountTaste(root) {
       ),
     ),
   );
-  renderChips();
+  if (replyLine) announce(replyLine);
   syncPresets();
   syncDemo();
   return () => window.removeEventListener('tasteloom:status', syncDemo);

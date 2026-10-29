@@ -40,7 +40,7 @@ export function watch(page, label) {
   page.on('console', (m) => {
     if (m.type() !== 'error') return;
     const url = m.location()?.url || '';
-    (!url || url.startsWith(BASE) ? consoleErrors : thirdParty).push(`${label}: ${m.text().slice(0, 140)}`);
+    (!url || url.startsWith('http://localhost:') ? consoleErrors : thirdParty).push(`${label}: ${m.text().slice(0, 140)}`);
   });
   page.on('pageerror', (e) => consoleErrors.push(`${label}: uncaught ${String(e.message).slice(0, 140)}`));
 }
@@ -94,12 +94,12 @@ export async function newPage(ctx, viewport, label) {
   return page;
 }
 
-/** Empty session, empty first screen. */
-export async function fresh(page) {
-  await page.goto(BASE + '/', { waitUntil: 'load' });
+/** Empty session, empty first screen (base: another origin that serves the same app, such as the ask phase's recording proxy). */
+export async function fresh(page, base = BASE) {
+  await page.goto(base + '/', { waitUntil: 'load' });
   await page.evaluate(() => sessionStorage.clear());
   await page.goto('about:blank');
-  await page.goto(BASE + '/', { waitUntil: 'load' });
+  await page.goto(base + '/', { waitUntil: 'load' });
   await page.waitForSelector('#fav-input');
 }
 
@@ -161,8 +161,8 @@ export async function waitUrl(page, re, ms = 60000) {
   throw new Error(`timed out waiting for a URL matching ${re}; at ${page.url().replace(/\?.*/, '')}`);
 }
 
-/** Labels, language, title, headings, ids, alt text and touch-target size of what is on screen now. */
-export async function audit(page, label) {
+/** Labels, language, title, headings, ids, alt text and touch-target size of what is on screen now. `landmarks` = counts of main, nav, header, footer ('1011' on /ask: its brand is plain text, so it has no nav). */
+export async function audit(page, label, landmarks = '1111') {
   const r = await page.evaluate(() => {
     const vis = (el) => el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden';
     const nameOf = (el) => {
@@ -191,7 +191,7 @@ export async function audit(page, label) {
   check(`${label}: every control has an accessible name`, r.nameless.length === 0, r.nameless.slice(0, 3).join(' | '));
   check(`${label}: one visible h1, no skipped heading levels, no duplicate ids, every img has alt`, r.h1 === 1 && r.headingSkips === 0 && r.dupIds.length === 0 && r.imgsNoAlt === 0, `h1 ${r.h1}, skips ${r.headingSkips}, duplicate ids ${r.dupIds.join(',')}, img without alt ${r.imgsNoAlt}`);
   check(`${label}: touch targets at least 24x24 px (inline links excepted)`, r.small.length === 0, r.small.slice(0, 4).join(', '));
-  check(`${label}: header, nav, main, footer landmarks and a live region`, r.landmarks === '1111' && r.liveRegion, r.landmarks);
+  check(`${label}: header, ${landmarks[1] === '1' ? 'nav, ' : ''}main, footer landmarks and a live region`, r.landmarks === landmarks && r.liveRegion, r.landmarks);
 }
 
 /** Presses Tab through the page; every stop must show a focus ring (outline of 2 px or more, or a box shadow). */

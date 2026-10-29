@@ -1,8 +1,10 @@
 // End-to-end check in a real browser (puppeteer-core + /usr/bin/chromium) against `wrangler dev` on port 8791.
-//   node scripts/e2e.mjs [live] [tour] [--keep]
+//   node scripts/e2e.mjs [live] [tour] [ask] [--keep]
 // live: the full judge flow with the real Tavily, Channel3 and PayPal sandbox (guest card -> capture COMPLETED); Qloo and the model run on their
 //       documented-shape stand-ins unless the Qloo key and the AI binding exist. Costs about 6 Channel3 and 7 Tavily calls per run on a fresh state.
 // tour: every screen and error/empty state at 1280, 390 and 768 px, with accessibility, focus, layout-shift and overflow checks. No billed calls.
+// ask: "Ask them without spoiling it" (the /ask page and the reply link) at 1280 and 390 px, behind a recording proxy that refuses every billed route
+//      and proves no request carries the reply link. No billed calls.
 // --keep reuses the dev server's state (and with it the cached Channel3/Tavily answers) so a debugging re-run costs nothing.
 // Everything captured from live services (run JSON, live screenshots, dev server state and log) goes to the capture folder outside the repo
 // (TASTELOOM_LIVE_DIR, default <system temp>/tasteloom-live; see scripts/lib/live.mjs). Nothing live is written inside the repository.
@@ -17,12 +19,13 @@ import { LIVE_DIR, LIVE_SHOTS } from './lib/live.mjs';
 import { payAsGuest } from './lib/paypal-guest.mjs';
 import { APP, BASE, DESKTOP, EVIDENCE, FIREFOX, MOBILE, PORT, SHOTS, TABLET, audit, check, consoleErrors, fresh, newPage, overflowSweep, report, sandboxMentions, say, shot, shots, sleep, strayText, tabWalk, thirdParty, waitUrl } from './lib/browser.mjs';
 import { tourRound } from './lib/tour.mjs';
+import { ask } from './lib/ask.mjs';
 
 const args = process.argv.slice(2);
 const keep = args.includes('--keep');
 const evidence = args.includes('--evidence');
 const phases = args.filter((a) => !a.startsWith('--'));
-if (!phases.length) phases.push('live', 'tour');
+if (!phases.length) phases.push('live', 'tour', 'ask');
 const DEBUG = LIVE_DIR;
 fs.mkdirSync(DEBUG, { recursive: true });
 
@@ -238,7 +241,9 @@ let browser;
 try {
   spawnSync('node', ['scripts/dev-vars.mjs'], { cwd: APP, stdio: 'inherit' }); // writes .dev.vars from ../.env.local, prints key names only
   say(`e2e ${new Date().toISOString()} phases: ${phases.join(', ')}${keep ? ' (kept state)' : ''}`);
-  srv = await startDev({ port: PORT, fresh: !keep });
+  srv = await startDev({ port: PORT, fresh: !keep, vars: process.env.FORCE_MOCK ? { FORCE_MOCK: process.env.FORCE_MOCK } : {} }); // FORCE_MOCK=qloo,ai runs the stand-ins even when keys exist
+  const st0 = (await api('/api/status')).json || {};
+  say(`dev server up on :${PORT}; mocks: ${(st0.mocks || []).join(',') || 'none'}; usage at start: ${JSON.stringify(st0.usage || {})}`);
   browser = FIREFOX
     ? await puppeteer.launch({ browser: 'firefox', executablePath: '/usr/bin/firefox', headless: true, protocol: 'webDriverBiDi' })
     : await puppeteer.launch({ executablePath: '/usr/bin/chromium', headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
@@ -248,6 +253,7 @@ try {
     try {
       if (ph === 'live') await live(browser);
       else if (ph === 'tour') await tour(browser);
+      else if (ph === 'ask') await ask(browser);
       else check(`unknown phase ${ph}`, false);
     } catch (e) {
       check(`${ph}: finished without an unexpected error`, false, String(e.stack || e).split('\n').slice(0, 3).join(' | ').slice(0, 300));
