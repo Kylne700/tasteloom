@@ -145,16 +145,24 @@ function fits(c: Candidate, taken: Candidate[]): boolean {
   const lead = c.because[0]?.seedId;
   return !taken.length || have.size > 1 || (!!lead && !have.has(lead)); // once two ideas are led by different favourites, any lead will do
 }
-/** True when c breaks the spread while another candidate of the pool would not: only then is it refused (with nothing else left, it is allowed). */
-const blocked = (c: Candidate, taken: Candidate[], pool: Candidate[]) => !fits(c, taken) && pool.some((p) => p !== c && fits(p, taken));
+const leadOf = (c: Candidate) => c.because[0]?.seedId;
+/** True when c breaks the spread while another candidate of the pool would not: only then is it refused (with nothing else left, it is allowed).
+ *  With `cover` (the server's own picks, never the model's find_products calls) a lead that already drives an idea breaks it too, while a candidate that fits
+ *  is led by a favourite that drives none yet: refusing a model call can cost an idea the model has no turn left to replace. */
+const blocked = (c: Candidate, taken: Candidate[], pool: Candidate[], cover = false) => {
+  const rest = pool.filter((p) => p !== c && fits(p, taken));
+  if (!fits(c, taken)) return rest.length > 0;
+  const led = new Set(taken.map(leadOf));
+  return cover && !!leadOf(c) && led.has(leadOf(c)) && rest.some((p) => !!leadOf(p) && !led.has(leadOf(p)));
+};
 
 /** n candidates from `ordered` (best first), each taken in turn unless blocked by the ones before it and the ideas already made (`taken`). */
-function spreadPicks(ordered: Candidate[], taken: Candidate[], n: number): Candidate[] {
+export function spreadPicks(ordered: Candidate[], taken: Candidate[], n: number): Candidate[] {
   const left = [...ordered];
   const out: Candidate[] = [];
   while (out.length < n && left.length) {
-    // never -1: a candidate that fits is not blocked, and when none fits none is blocked
-    out.push(...left.splice(left.findIndex((c) => !blocked(c, [...taken, ...out], left)), 1));
+    // never -1: a fitting candidate with a lead no idea has yet is free; if every fitting one repeats a lead, all are free; if none fits, none is blocked
+    out.push(...left.splice(left.findIndex((c) => !blocked(c, [...taken, ...out], left, true)), 1));
   }
   return out;
 }

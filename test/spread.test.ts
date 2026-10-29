@@ -2,8 +2,8 @@
 // The Qloo answers are invented, in the shape of the docs (src/adapters/qloo.ts); real Qloo output is never committed.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { MEGA, templateReason } from '../src/agent/ideas.ts';
-import type { FetchFn } from '../src/types.ts';
+import { MEGA, spreadPicks, templateReason } from '../src/agent/ideas.ts';
+import type { Candidate, FetchFn } from '../src/types.ts';
 import { chatReply, FAVS, json, makeHarness, readEvents, taskOf, toolCall } from './helpers.ts';
 
 const DONE = () => chatReply({ content: 'DONE' });
@@ -208,6 +208,13 @@ for (const [tier, ai] of [
     assert.ok(leads(ideas).size >= 2, [...leads(ideas)].join());
     assert.ok(most(ideas) <= 2, ideas.map((i) => i.entity.type).join());
   });
+
+  test(`spread: ${tier}: a favourite that leads a usable candidate leads an idea, so all three typed favourites are cited first by some idea`, async () => {
+    const ideas = ideasOf(await go(setup(qloo(), ai)));
+    assert.ok(ideas.length >= 4, `${ideas.length} ideas`);
+    assert.deepEqual([...leads(ideas)].sort(), ['Kafka on the Shore', 'Muji', 'Nujabes']);
+    assert.ok(most(ideas) <= 2, ideas.map((i) => i.entity.type).join());
+  });
 }
 
 test('spread: the tools tier refuses a second find_products led by the same favourite while other favourites lead other candidates', async () => {
@@ -226,6 +233,55 @@ test('spread: the tools tier refuses a second find_products led by the same favo
   const ideas = ideasOf(await go(h));
   assert.match(refused?.error ?? JSON.stringify(refused), /too alike/);
   assert.ok(ideas.length >= 4 && leads(ideas).size >= 2, [...leads(ideas)].join());
+});
+
+test('spread: the tools tier does not refuse a repeated lead once two favourites lead ideas, even while Kafka on the Shore leads none (only the server’s own picks look for coverage)', async () => {
+  let accepted: any;
+  const h = setup(
+    qloo(),
+    model({
+      ideas: turns(
+        LOOK_ALL,
+        () => ['brand', 'book', 'artist', 'place'].map((t) => toolCall('qloo_insights', { target_type: t }, `i-${t}`)),
+        () => [find('B-AUREL', 'Aurel'), find('B-CORVO', 'Corvo'), find('K-FABLE', 'Fable Hill')], // led by Nujabes, Muji, then Nujabes again
+        (a) => ((accepted = a['f-K-FABLE']), []),
+      ),
+    }),
+  );
+  const ideas = ideasOf(await go(h));
+  assert.equal(accepted?.error, undefined, JSON.stringify(accepted)?.slice(0, 200));
+  assert.ok(ideas.some((i) => i.entity.name === 'Fable Hill'), ideas.map((i) => i.entity.name).join());
+});
+
+const cand = (id: string, type: string, lead: string): Candidate => ({ id, name: id, type, because: [{ seedId: lead, score: 0.5 }], explained: true });
+
+test('spread: picks cover as many favourites as the candidates allow, strongest first within that', () => {
+  const pool = [cand('a0', 'brand', 'S0'), cand('a1', 'book', 'S0'), cand('a2', 'artist', 'S0'), cand('a3', 'podcast', 'S0'), cand('b', 'brand', 'S1'), cand('c', 'book', 'S2'), cand('d', 'artist', 'S3')];
+  assert.deepEqual(spreadPicks(pool, [], 4).map((c) => c.id), ['a0', 'b', 'c', 'd']);
+  assert.deepEqual(spreadPicks(pool, [], 5).map((c) => c.id), ['a0', 'b', 'c', 'd', 'a1'], 'once every favourite leads an idea, the order of the list decides again');
+  const noD = pool.filter((c) => c.id !== 'd');
+  assert.deepEqual(spreadPicks(noD, [], 4).map((c) => c.id), ['a0', 'b', 'c', 'a1'], 'a favourite with no candidate is not waited for');
+});
+
+test('spread: a favourite whose only candidates break the type or trip rules gets no forced pick', () => {
+  const pool = [cand('a0', 'brand', 'S0'), cand('b0', 'brand', 'S1'), cand('a1', 'book', 'S0'), cand('a2', 'artist', 'S0'), cand('c0', 'brand', 'S2'), cand('p', 'place', 'S0'), cand('q', 'destination', 'S3')];
+  const got = spreadPicks(pool, [], 5).map((c) => c.id);
+  assert.deepEqual(got, ['a0', 'b0', 'q', 'a1', 'a2'], 'S3 gets the trip before a second S0 idea; S2 has only a third brand, so nothing waits for it, and the other trip is out');
+});
+
+test('spread: the favourite rule never costs a pick: random pools give as many picks as they hold, none twice', () => {
+  let seed = 11;
+  const next = (n: number) => (seed = (seed * 48271) % 2147483647) % n;
+  const types = ['brand', 'book', 'artist', 'place', 'destination'];
+  for (let round = 0; round < 400; round++) {
+    const pool = Array.from({ length: 1 + next(14) }, (_, i) => cand(`c${i}`, types[next(types.length)]!, `S${next(4)}`));
+    const taken = pool.slice(0, next(3)).splice(0);
+    const rest = pool.filter((c) => !taken.includes(c));
+    const n = 1 + next(8);
+    const got = spreadPicks(rest, taken, n);
+    assert.equal(got.length, Math.min(n, rest.length), `${rest.length} candidates, ${n} wanted`);
+    assert.equal(new Set(got).size, got.length);
+  }
 });
 
 // ---- the queries and the reasons -------------------------------------------------------------------------------------------
