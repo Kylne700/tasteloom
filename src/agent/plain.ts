@@ -1,6 +1,6 @@
 // "Compare: same AI, no Qloo". The model Tasteloom uses gets only the favourites the visitor typed (and the budget) and answers like a plain
-// chat: no Qloo, no shop search, no web search. The prompt is the plain arm of the measured comparison (scratch/why-us/proof/prompts.json), word
-// for word; the name rule is that comparison's M1 ("the gift names a favourite"), ported with its test cases (test/plain.test.ts).
+// chat: no Qloo, no shop search, no web search. The prompt follows the plain arm of the measured comparison (scratch/why-us/proof/prompts.json), with
+// labels for the types its profiles did not use; the name rule is that comparison's M1 ("the gift names a favourite"), ported with its test cases (test/plain.test.ts).
 import { chat } from '../adapters/ai.ts';
 import type { InsightType } from '../adapters/qloo.ts';
 import { HttpError, type Svc } from '../lib/http.ts';

@@ -171,9 +171,9 @@ Plain HTML, CSS and ES modules in `public/` (no framework, no build step). One w
 
 ## Compare in the app
 
-Under the results, **Compare: same AI, no Qloo** asks the model Tasteloom writes with for four gift ideas from the favourites alone: no Qloo, shop or web lookup, only the favourites and the budget are sent to Workers AI, and the server stores nothing. Ideas whose text names a favourite are tagged by a whole-word name match (full name; last name too for a favourite typed as a person); albums or characters are not detected, so the count is a hint.
-It also works on the saved example (the plain ideas are asked live, the example is a recording). Each click is one model call, counted by `LIMIT_IP_PLAIN` (8 a day per visitor) and `LIMIT_GLOBAL_PLAIN` (40 a day for everyone) on top of the model's own limits; at a limit the panel says so, and with no model connected it shows a fixed demo answer.
-Part of the difference is by design: Tasteloom does not offer the favourites themselves as ideas. The prompt is the plain one from the project's measured comparison, word for word; the name rule is a port of its rule with the same test cases (`test/plain.test.ts`).
+Under the results, **Compare: same AI, no Qloo** asks the model Tasteloom writes with for four gift ideas from the favourites alone: no Qloo, shop or web lookup, only the favourites and the budget are sent to Workers AI, and the favourites are not stored. Ideas whose text names a favourite are tagged by a whole-word name match (full name; last name too for a favourite typed as a person); albums or characters are not detected, so the count is a hint.
+It also works on the saved example (the plain ideas are asked live, the example is a recording). Each click is counted once by `LIMIT_IP_PLAIN` (8 a day per visitor) and `LIMIT_GLOBAL_PLAIN` (40 a day for everyone) on top of the model's own limits; at a limit the panel says so, and with no model connected it shows a fixed demo answer.
+Part of the difference is by design: Tasteloom does not offer the favourites themselves as ideas. The prompt follows the template of the project's measured comparison (a type it did not use gets its own label); the name rule is a port of its rule with the same test cases (`test/plain.test.ts`).
 
 ## Known limits
 
