@@ -1,4 +1,4 @@
-// Re-records src/sample-data.ts, the saved session behind "Try an example".
+// Re-records src/sample-data.ts, the saved session behind "Replay the saved example".
 // It runs the real /api/ideas pipeline once: Qloo and model fakes (forced, so the recording is stable even when they are live),
 // live Channel3 and Tavily. Responses are cached on disk outside the repo so re-runs do not spend the call budgets.
 // Usage: node --experimental-strip-types scripts/record-sample.ts [budget_usd]

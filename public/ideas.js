@@ -398,7 +398,7 @@ export function mountIdeas(root) {
     const actions = [];
     if (code === 'bad_input') actions.push(h('a', { class: 'btn', href: '#/' }, icon('back', 16), 'Change favourites'));
     if (live) actions.push(h('button', { type: 'button', class: 'btn', onclick: () => restart('live') }, 'Try again'));
-    actions.push(h('button', { type: 'button', class: 'btn', onclick: () => restart('example') }, 'Try an example'));
+    actions.push(h('button', { type: 'button', class: 'btn', onclick: () => restart('example') }, 'Replay the saved example'));
     if (code === 'upstream') actions.reverse(); // a service is down (or a contest key has ended): the saved example is the sure way on
     if (!partial) actions[0].classList.add('primary'); // one filled button; with ideas on screen the "Review and pay" bar is the main action
     const text = partial ? 'Some ideas arrived before it stopped.' : err.message + (code === 'upstream' ? ' The saved example always works.' : '');
@@ -413,7 +413,7 @@ export function mountIdeas(root) {
   }
 
   function restart(mode) {
-    state.pending = { mode };
+    state.pending = mode === 'live' && run.liveExample ? { mode, example: true } : { mode };
     window.dispatchEvent(new Event('tasteloom:reroute'));
   }
 
@@ -502,7 +502,7 @@ export function mountIdeas(root) {
 
   function showEmpty() {
     notices.append(
-      h('section', { class: 'panel', role: 'status' }, h('div', { class: 'panel-body' }, h('h2', {}, 'No ideas to show'), h('p', {}, 'Try a higher budget or different favourites, or look at the example.'), h('div', { class: 'panel-actions' }, h('a', { class: 'btn primary', href: '#/' }, 'Change favourites'), h('button', { type: 'button', class: 'btn', onclick: () => restart('example') }, 'Try an example')))),
+      h('section', { class: 'panel', role: 'status' }, h('div', { class: 'panel-body' }, h('h2', {}, 'No ideas to show'), h('p', {}, 'Try a higher budget or different favourites, or look at the saved example.'), h('div', { class: 'panel-actions' }, h('a', { class: 'btn primary', href: '#/' }, 'Change favourites'), h('button', { type: 'button', class: 'btn', onclick: () => restart('example') }, 'Replay the saved example')))),
     );
   }
 
@@ -543,6 +543,9 @@ export function mountIdeas(root) {
     if (run.example) {
       notices.prepend(h('p', { class: 'note info example-note' }, icon('info', 18), h('span', {}, `Saved example${run.asOf ? `, recorded ${run.asOf}` : ''}. Its products and prices were live that day; its taste matches and reasons are stand-ins, not live Qloo or model output. The checkout is a live PayPal sandbox order.`)));
     }
+    if (run.liveExample) {
+      notices.prepend(h('p', { class: 'note info example-note' }, icon('info', 18), h('span', {}, 'Example set. The favourites and the budget above were picked for this demo, not typed by you. The search is a normal one, within the same daily limits as any other.')));
+    }
     if (run.mocks.length) {
       demoNote.hidden = false;
       demoNote.textContent = mockNote(run.mocks, run.example ? null : state.status && state.status.modes); // the saved example's products were recorded, so no "live" claim there
@@ -581,10 +584,10 @@ export function mountIdeas(root) {
   }
 
   if (state.pending) {
-    const mode = state.pending.mode;
+    const { mode, example: fixedSet } = state.pending;
     state.pending = null;
     state.selected = [];
-    run = newRun(mode === 'example' ? { favorites: [], budget_cents: 0, example: true } : { favorites: state.favorites, budget_cents: Math.round(state.budget * 100), example: false });
+    run = newRun(mode === 'example' ? { favorites: [], budget_cents: 0, example: true } : { favorites: state.favorites, budget_cents: Math.round(state.budget * 100), example: false, liveExample: !!fixedSet });
     state.run = run;
     buildPhases();
     showHeader();

@@ -5,12 +5,13 @@
 // are produced by answering the app's own fetch calls inside the page (see pagePatch in browser.mjs), so no real service is touched.
 import fs from 'node:fs';
 import path from 'node:path';
+import { EXAMPLE } from '../../public/example.js';
 import { LIVE_DIR, LIVE_SHOTS } from './live.mjs';
 import { BASE, FIREFOX, audit, check, cls, fresh, mock, newPage, overflowSweep, release, sandboxMentions, say, shot, sleep, tabWalk } from './browser.mjs';
 
 const KEY = 'tasteloom.v1';
 const UPSTREAM_MSG = 'Please try again in a minute.'; // the texts the server sends (src/app.ts, src/commerce.ts)
-const LIMIT_MSG = 'You have reached today’s allowance for live lookups. The example still works, or come back tomorrow.';
+const LIMIT_MSG = 'You have reached today’s allowance for live lookups. The saved example still works, or come back tomorrow.';
 const LABEL = { COMPLETED: 'Completed', CAPTURE_FAILED: 'Not completed', NOT_APPROVED: 'Not approved yet', CREATED: 'Waiting for approval', CANCELLED: 'Cancelled' };
 const ORDER_ID = '7EX35260AB123456C'; // synthetic ids for the scripted receipts
 const CAPTURE_ID = '3C679366HH908993F';
@@ -240,6 +241,48 @@ function states(fx) {
     await c.snap();
   });
 
+  // "Run a live example": the fixed set is posted like a typed run, the page says it is the example set (also after an error), and "Try again" posts the same set
+  add('home-live-example', true, async (c) => {
+    const { page } = c;
+    const key = 'POST /api/ideas';
+    const body = JSON.stringify({ favorites: EXAMPLE.favorites, budget_usd: EXAMPLE.budget });
+    const events = fx.live.map((e) => (e.t === 'meta' ? { ...e, favorites: EXAMPLE.favorites, budget_cents: EXAMPLE.budget * 100 } : e));
+    await open(c, '#/', { mocks: { [key]: { events: [events[0], { t: 'error', code: 'upstream', message: UPSTREAM_MSG }] } } });
+    await page.evaluate(() => { // what the page posts, recorded on top of the scripted fetch
+      window.__posted = [];
+      const f = window.fetch;
+      window.fetch = (i, init) => { if (init && init.body) window.__posted.push(String(init.body)); return f(i, init); };
+    });
+    const ways = await page.$$eval('#ask-btn, form .actions button, .hint button', (l) => l.map((b) => b.textContent.trim()));
+    check(`${c.name}/home: the ways in are all named: Ask them, Find gift ideas, Run a live example and Replay the saved example`, ways.join('|') === 'Ask them|Find gift ideas|Run a live example|Replay the saved example', ways.join('|'));
+    check(`${c.name}/home: the lead names both ways to start`, /three to five things they love, or send them a link and let them tell you/.test((await text(page, '.taste .lead')) || ''));
+    await tapText(page, /^Run a live example$/);
+    await release(page, key, 2);
+    await until(page, () => !!document.querySelector('section.panel.bad, section.panel.warn'), null, 8000);
+    const posts = await page.evaluate(() => window.__posted);
+    check(`${c.name}/home: "Run a live example" posts the fixed example set and its budget, like a typed run`, posts.length === 1 && posts[0] === body, posts[0]);
+    const acts = await page.$$eval('section.panel .panel-actions .btn', (l) => l.map((b) => b.textContent.trim()));
+    check(`${c.name}/ideas: when the example run fails, the saved example is offered first, Try again second, and the page still says it is the example set`, acts.join('|') === 'Replay the saved example|Try again' && /^Example set\./.test((await text(page, '.example-note')) || ''), `${acts.join('|')} / ${await text(page, '.example-note')}`);
+    await mock(page, key, { events });
+    await tapText(page, /^Try again$/);
+    await release(page, key, fx.firstIdea + 1);
+    await sleep(500);
+    const after = await page.evaluate(() => ({
+      posts: window.__posted,
+      pills: [...document.querySelectorAll('.loves .pill-soft')].map((p) => p.textContent.trim()).join('|'),
+      budget: document.querySelector('.loves .budget')?.textContent.trim(),
+      notes: [...document.querySelectorAll('.example-note')].map((n) => n.textContent.replace(/\s+/g, ' ').trim()),
+    }));
+    check(`${c.name}/ideas: "Try again" posts the same example set again`, after.posts.length === 2 && after.posts[1] === body, `${after.posts.length} posts`);
+    check(`${c.name}/ideas: the page shows the example favourites and budget, and one note saying they were picked for the demo, not typed, and that the search is a normal one`,
+      after.pills === EXAMPLE.favorites.map((f) => f.text).join('|') && after.budget === `Budget $${EXAMPLE.budget}.00` && after.notes.length === 1 && /^Example set\. The favourites and the budget above were picked for this demo, not typed by you\. The search is a normal one, within the same daily limits as any other\.$/.test(after.notes[0]), `${after.pills} / ${after.budget} / ${after.notes.join(' // ')}`);
+    await c.audit('ideas live example');
+    await c.snap();
+    await page.evaluate(() => { location.hash = '#/'; });
+    await page.waitForSelector('#fav-input');
+    check(`${c.name}/home: back on the first screen the example favourites are filled in, ready to change`, (await page.$$eval('ul.chips li.chip', (l) => l.length)) === EXAMPLE.favorites.length && (await page.$eval('#budget', (e) => Number(e.value))) === EXAMPLE.budget);
+  });
+
   // one scripted stream gives three states: early (skeletons), mid (two ideas) and stopped early
   add('ideas-running-early', true, async (c) => {
     const { page } = c;
@@ -282,7 +325,7 @@ function states(fx) {
     await page.waitForSelector('section.panel.warn[role=alert]', { timeout: 8000 });
     const acts = await actionsOf(page, 'section.panel.warn .panel-actions');
     const body = (await text(page, 'section.panel.warn .panel-body p')) || '';
-    check(`${c.name}/ideas: stopping early keeps the ideas, says so, and offers to try again`, (await text(page, 'section.panel.warn h2')) === 'The agent stopped early' && (await count(page, '.ideas-list article.idea:not(.skeleton)')) >= 2 && acts.names.join('|') === 'Try an example|Try again', `${await text(page, 'section.panel.warn h2')} / ${acts.names.join(', ')}`); // a service is down: the saved example comes first (75bb9a0)
+    check(`${c.name}/ideas: stopping early keeps the ideas, says so, and offers to try again`, (await text(page, 'section.panel.warn h2')) === 'The agent stopped early' && (await count(page, '.ideas-list article.idea:not(.skeleton)')) >= 2 && acts.names.join('|') === 'Replay the saved example|Try again', `${await text(page, 'section.panel.warn h2')} / ${acts.names.join(', ')}`); // a service is down: the saved example comes first (75bb9a0)
     check(`${c.name}/ideas: stopping early has no filled button (the Review and pay bar stays the main action) and its text does not say "try again" twice`, acts.filled.length === 0 && !/try again/i.test(body) && body.length > 20, `${acts.filled.join(',')} / ${body}`);
     check(`${c.name}/ideas: no placeholder is left spinning after the error`, (await count(page, '.idea.skeleton')) === 0 && (await count(page, '.phases li.phase[data-state=running]')) === 0);
     check(`${c.name}/ideas: the step list tells the truth (unfinished steps are not ticked) and the status says Stopped`, (await count(page, '.phases li.phase[data-state=done]')) < (await count(page, '.phases li.phase')) && (await count(page, '.phases li.phase[data-state=error]')) >= 1 && (await text(page, '.agent-status')) === 'Stopped', await text(page, '.agent-status'));
@@ -296,7 +339,7 @@ function states(fx) {
     const { page } = c;
     await fresh(page);
     await cls(page, true);
-    await tapText(page, /^Try an example$/);
+    await tapText(page, /^Replay the saved example$/);
     await hashIs(page, '#/ideas');
     await until(page, () => document.title === 'Gift ideas · Tasteloom' && document.activeElement?.tagName === 'H1', null, 5000).catch(() => {}); // the router runs on the hashchange event, a moment after the hash changes
     check(`${c.name}/ideas: the page title and focus follow the route`, (await page.title()) === 'Gift ideas · Tasteloom' && (await page.evaluate(() => document.activeElement?.tagName)) === 'H1', await page.title());
@@ -399,10 +442,10 @@ function states(fx) {
       if (key === 'ideas-error-limit') await c.audit('ideas error');
       await c.snap();
     });
-  ideasError('ideas-error-network', 'server unreachable', { reject: true }, 'We could not reach the server', ['Try again', 'Try an example'], 'Try again');
-  ideasError('ideas-error-limit', 'daily limit reached', err(429, 'limit', LIMIT_MSG), 'Live lookups are used up for now', ['Try an example'], 'Try an example');
-  ideasError('ideas-error-upstream', 'a service is down', err(502, 'upstream', UPSTREAM_MSG), 'A service we depend on is not answering', ['Try an example', 'Try again'], 'Try an example', 'The saved example always works.');
-  ideasError('ideas-error-bad-input', 'input refused by the server', err(400, 'bad_input', 'Nothing we found fits that budget. Try a higher budget or different favourites.'), 'Nothing to suggest yet', ['Change favourites', 'Try an example'], 'Change favourites');
+  ideasError('ideas-error-network', 'server unreachable', { reject: true }, 'We could not reach the server', ['Try again', 'Replay the saved example'], 'Try again');
+  ideasError('ideas-error-limit', 'daily limit reached', err(429, 'limit', LIMIT_MSG), 'Live lookups are used up for now', ['Replay the saved example'], 'Replay the saved example');
+  ideasError('ideas-error-upstream', 'a service is down', err(502, 'upstream', UPSTREAM_MSG), 'A service we depend on is not answering', ['Replay the saved example', 'Try again'], 'Replay the saved example', 'The saved example always works.');
+  ideasError('ideas-error-bad-input', 'input refused by the server', err(400, 'bad_input', 'Nothing we found fits that budget. Try a higher budget or different favourites.'), 'Nothing to suggest yet', ['Change favourites', 'Replay the saved example'], 'Change favourites');
 
   add('ideas-empty', false, async (c) => {
     const { page } = c;
@@ -411,7 +454,7 @@ function states(fx) {
     await release(page, 'POST /api/ideas', fx.empty.length);
     await page.waitForFunction(() => /No ideas to show/.test(document.body.textContent), { timeout: 8000 });
     const acts = await actionsOf(page, 'section.panel .panel-actions');
-    check(`${c.name}/ideas: no results gives an explanation and two ways forward, one of them filled`, acts.names.join('|') === 'Change favourites|Try an example' && acts.filled.join('|') === 'Change favourites', acts.names.join(', '));
+    check(`${c.name}/ideas: no results gives an explanation and two ways forward, one of them filled`, acts.names.join('|') === 'Change favourites|Replay the saved example' && acts.filled.join('|') === 'Change favourites', acts.names.join(', '));
     check(`${c.name}/ideas: the status row says "Finished without ideas" instead of a green Done`, (await text(page, '.agent-status')) === 'Finished without ideas' && (await page.$eval('.agent-status', (e) => e.dataset.state)) === 'empty', await text(page, '.agent-status'));
     await c.snap();
   });
@@ -564,7 +607,7 @@ function states(fx) {
     await sleep(200);
     check(`${c.name}/checkout: removing an item clears a refusal that removing can fix`, (await count(page, 'section.panel.bad')) === 0 && !(await page.$eval('button.pay-btn', (e) => e.disabled)), `${await count(page, '.summary li.line')} item left`);
   });
-  payError('checkout-error-session', err(404, 'session_expired', 'The saved prices are gone, so this gift cannot be ordered. Start over, or try the example.'), 'Your session expired', ['Start over', 'Try an example'], 'Start over');
+  payError('checkout-error-session', err(404, 'session_expired', 'The saved prices are gone, so this gift cannot be ordered. Start over, or replay the saved example.'), 'Your session expired', ['Start over', 'Replay the saved example'], 'Start over');
   payError('checkout-error-network', { reject: true }, 'We could not reach the server', ['Try again', 'Back to ideas'], '');
 
   add('checkout-cancelled', false, async (c) => {
@@ -752,7 +795,7 @@ export async function tourRound(browser, round, sample, liveRun) {
     c.snap = () => shot(page, `${String(i + 1).padStart(2, '0')}-${s.key}`, s.live ? LIVE_SHOTS : undefined);
     const step = s.build ? s.build(c) : s;
     try {
-      if (!c.done && !['home-empty', 'home-filled', 'home-error-favs', 'home-error-budget', 'ideas-running-early', 'ideas-running-mid', 'ideas-error-partial', 'ideas-example'].includes(s.key)) throw new Error('needs the example run first');
+      if (!c.done && !['home-empty', 'home-filled', 'home-error-favs', 'home-error-budget', 'ideas-running-early', 'ideas-running-mid', 'ideas-error-partial', 'ideas-example', 'home-live-example'].includes(s.key)) throw new Error('needs the example run first');
       await step.run(c);
     } catch (e) {
       check(`${round.name}/${s.key}: state completed without an unexpected error`, false, String(e.message).slice(0, 160));

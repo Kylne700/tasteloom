@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { MEMORY, noteFor } from '../public/note.js';
+import { parseIdeasInput } from '../src/agent/ideas.ts';
+import { EXAMPLE } from '../public/example.js';
+import { MAX, MIN, TYPES, cleanText } from '../public/loves.js';
 import { mockNote } from '../public/state.js';
 
 const read = (p: string) => readFileSync(new URL('../' + p, import.meta.url), 'utf8');
@@ -27,7 +30,7 @@ test('a card leads with its reason: "Because they love X" is set larger than the
   const title = size('.idea h2');
   assert.ok(size('.because.named .because-lbl') > title && size('.because.named .pill-soft') > title, 'the reason line outranks the title');
   assert.equal(css.match(/\.idea h2 \{[^}]*font-size/g)?.length, 1, 'no other width resizes the title');
-  for (const line of css.split('\n').filter((l) => /^\.(because\.named|note-row|note-status|note-box|principle|own-link)\b/.test(l))) assert.doesNotMatch(line, /#[0-9a-f]{3,8}\b/i, line);
+  for (const line of css.split('\n').filter((l) => /^\.(because\.named|note-row|note-status|note-box|principle|own-link|ask-link|ask-row|ask-text|ask-panel|hint\.replay)\b/.test(l))) assert.doesNotMatch(line, /#[0-9a-f]{3,8}\b/i, line);
   assert.match(read('public/ideas.js'), /class: 'because named'/);
 });
 
@@ -59,6 +62,36 @@ test('"What is sent where" names what the code does: Qloo’s tags go to the mod
   assert.match(read('src/lib/http.ts'), /\(await sha256Hex\(JSON\.stringify\(keyParts\)\)\)\.slice\(0, 32\)/);
   // up to four shared tags per idea (sharedTags' default) and only the strongest favourite's: what the model is given as "in_common"
   assert.match(read('src/agent/evidence.ts'), /export function sharedTags\(favourite: string\[\] \| undefined, idea: string\[\] \| undefined, max = 4\)/);
+});
+
+test('the live example set is an input the server accepts as it is: 3 to 5 favourites with known types, clean text, a budget within the limits', () => {
+  const r = parseIdeasInput({ favorites: EXAMPLE.favorites, budget_usd: EXAMPLE.budget }, { minBudgetCents: 1000, maxBudgetCents: 50000 });
+  assert.ok(r.ok, JSON.stringify(r));
+  if (!r.ok) return;
+  assert.deepEqual(r.value.favorites, EXAMPLE.favorites, 'nothing is cut, merged or dropped on the way in');
+  assert.equal(r.value.budget_cents, EXAMPLE.budget * 100);
+  assert.ok(EXAMPLE.favorites.length >= MIN && EXAMPLE.favorites.length <= MAX);
+  const known = new Set(TYPES.map(([value]) => value));
+  for (const f of EXAMPLE.favorites) assert.ok(f.type && known.has(f.type) && cleanText(f.text) === f.text, f.text);
+});
+
+test('the first screen: two ways to start (type, or Ask them), a live example and a labelled saved replay; the Ask them box uses the existing colours only', () => {
+  const taste = read('public/taste.js');
+  for (const label of ['Find gift ideas', 'Run a live example', 'Replay the saved example', 'Ask them']) assert.ok(taste.includes(`'${label}'`), label);
+  assert.match(taste, /three to five things they love, or send them a link and let them tell you/);
+  assert.match(taste, /id: 'ask-btn', class: 'btn small', 'aria-expanded': 'false', 'aria-controls': 'ask-panel'/);
+  assert.match(taste, /state\.pending = \{ mode: 'live', example: true \}/, 'the example is a live run of the normal kind, flagged only so the next screen can label it');
+  assert.match(taste, /state\.pending = \{ mode: 'example' \}/, 'the saved replay stays reachable');
+  assert.doesNotMatch(taste, /Try an example/, 'one name for the saved replay everywhere');
+  // the screen after it says what the set is, and what is offered when the run cannot go on
+  const ideas = read('public/ideas.js');
+  assert.match(ideas, /Example set\. The favourites and the budget above were picked for this demo, not typed by you\./);
+  assert.equal(ideas.match(/'Replay the saved example'/g)?.length, 2, 'offered after an error and when nothing was found');
+  assert.match(ideas, /mode === 'live' && run\.liveExample \? \{ mode, example: true \}/, '"Try again" keeps the example set');
+  const css = read('public/styles.css');
+  for (const l of css.split('\n').filter((l) => /^\.ask-(link|row|text|panel)\b/.test(l))) assert.doesNotMatch(l, /#[0-9a-f]{3,8}\b|rgb\(/i, l);
+  assert.match(css, /\.linkrow \.link-box \{[^}]*width: 100%/, 'an input keeps its own width unless told otherwise, and that pushed the nested Ask them boxes past a 320 px screen');
+  assert.doesNotMatch(css, /\.hint \.link-btn/, 'the replay button keeps its tap size (the audit wants 24 px)');
 });
 
 test('mockNote says "live" only when the server status backs it', () => {
