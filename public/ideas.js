@@ -45,6 +45,19 @@ function noteRow(idea) {
   return h('div', { class: 'note-row' }, copy, status, box);
 }
 
+// What Qloo's data says behind the reason, as text from the idea event: Qloo's split of its link by favourite (zero shares are left out, and
+// nothing shows unless two remain, so it never reads as a single "match") and the tags it gives both the strongest favourite and the idea.
+const evidenceRow = (label, value) => h('p', { class: 'evidence' }, h('span', { class: 'ev-lbl' }, label), h('span', { class: 'ev-val' }, value));
+function evidenceRows(idea) {
+  const names = idea.because ?? [];
+  const parts = (Array.isArray(idea.shares) ? idea.shares : []).map((share, i) => [share, names[i]]).filter(([share, name]) => share > 0 && name);
+  const tags = Array.isArray(idea.shared) ? idea.shared : [];
+  return [
+    parts.length > 1 && evidenceRow('How Qloo splits its link to this idea (adds up to 100%): ', parts.map(([share, name]) => `${share}% ${name}`).join(' · ')),
+    tags.length > 0 && names[0] && evidenceRow(`Tags Qloo gives to both ${names[0]} and ${idea.entity.name}: `, tags.join(' · ')),
+  ];
+}
+
 // A link card whose page gave no blurb shows where the link goes, built only from its own address (path words, no query or fragment).
 // It never describes the product: the page itself is the only source for that.
 function addressWords(url) {
@@ -328,7 +341,7 @@ export function mountIdeas(root) {
     const section = h(
       'article',
       { class: 'idea', 'aria-labelledby': `idea-${idea.id}` },
-      h('header', { class: 'idea-head' }, h('p', { class: 'kind' }, idea.kind === 'experience' ? 'Experience' : 'Gift'), h('h2', { id: `idea-${idea.id}` }, idea.title), because, reason, noteRow(idea)),
+      h('header', { class: 'idea-head' }, h('p', { class: 'kind' }, idea.kind === 'experience' ? 'Experience' : 'Gift'), h('h2', { id: `idea-${idea.id}` }, idea.title), because, reason, evidenceRows(idea), noteRow(idea)),
       idea.paused ? h('p', { class: 'note info paused', role: 'status' }, icon('info', 18), h('span', {}, PAUSED_NOTE[idea.paused])) : h('ul', { class: 'cards' }, cards.map((c) => cardEl(c, idea))),
     );
     ideaEls.set(idea.id, { reason, section });

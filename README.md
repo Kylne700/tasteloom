@@ -2,7 +2,7 @@
 
 Real gifts for what someone loves, with the reason.
 
-The reason on every gift idea that Qloo links to a favourite is a contract: it must name the favourite that Qloo links most strongly to the idea, or the server replaces it with a template built from that link. An idea Qloo links to none of the favourites says "Fits their overall taste" and claims nothing more. Every live run in which the model takes part lists "N of M reasons kept" in the agent's lookups, so you can check the contract yourself.
+The reason on every gift idea that Qloo links to a favourite is a contract: it must name the favourite that Qloo links most strongly to the idea and use a tag Qloo gives to both, or the server replaces it with a fixed sentence built from that link: "Qloo tags both X and Y as ...", or, when Qloo's data gives the two nothing in common, only "Qloo links X to Y." (the model is not asked about such an idea, so it cannot invent a quality). An idea Qloo links to none of the favourites says "Fits their overall taste" and claims nothing more. Under the reason the card shows Qloo's evidence: how Qloo splits its link to the idea between the favourites it names (shares that add up to 100%, not a chance of a match) and the tags it gives both. Every live run in which the model takes part lists "N of M reasons kept" in the agent's lookups, so you can check the contract yourself.
 
 Type three to five things a person loves (a book, a band, a shop, a place) and a budget. Qloo reads their taste, an AI agent finds real products with real prices, every idea says "Because they love X" (or "Fits their overall taste" when Qloo links it to none of them), and you can pay in the PayPal sandbox as a guest. No account, and Tasteloom does not store the favourites you type.
 
@@ -30,7 +30,7 @@ Qloo is the only thing in the app that decides what fits a person's taste.
 
 1. **Search.** `GET /search` turns each favourite into a Qloo entity. A type hint (book, artist, brand, place and so on) is sent as `types=urn:entity:<type>`.
 2. **Insights with explainability.** `GET /v2/insights` is called once per gift category (brand, book, artist, place, destination) with `signal.interests.entities` (the ids of every favourite from step 1, in every call), `filter.type` and `feature.explainability=true`. It returns entities the person is likely to like and, for each one, which of the favourites drove it (`query.explainability`), strongest first. Anything the person typed is dropped from the results.
-3. **"Because they love X".** That explanation is the line on every idea card. The model writes the reason in its own words, but a reason that does not name the favourite Qloo links most strongly is replaced by a template sentence.
+3. **"Because they love X".** That explanation is the line on every idea card, with Qloo's evidence under it: Qloo's split of its link by favourite (for example 62% Nujabes · 38% Muji) and the tags Qloo gives to both the favourite and the idea. The model writes the reason in its own words from those tags, but a reason that does not name the favourite Qloo links most strongly, or uses none of the shared tags, is replaced by a fixed sentence.
 4. **From taste to things to buy.** A suggestion such as a brand or a book becomes a product search at Channel3, which returns real products with prices. A place or destination becomes experience links found with Tavily; those are links, never buyable cards.
 
 One live run makes about 9 Qloo calls with four favourites (4 searches and 5 insight calls, one per gift category; measured 8 to 10 on 2026-10-22). The raw Qloo answers are used inside the request and not stored. `npm run contract:qloo` checks the real API against the shapes the code expects (5 calls).
@@ -50,7 +50,7 @@ One live run makes 5 to 6 model calls and uses up to about 110 neurons (Cloudfla
 ## The flow
 
 1. **Loves and budget.** Add 3 to 5 favourites (an optional type hint such as book or artist sharpens the match) and a budget from $10 to $500. Or press **Try an example**: a saved run replays without any key.
-2. **Gift ideas.** A live list shows what the agent is doing (reading taste, finding products, writing reasons, checking prices) while idea cards arrive. Each idea says which favourite it comes from. Product cards show title, price, shop and a link. Product images are off until you turn on the image switch (`?images=on` starts with them on), because a shop's image server sees your IP.
+2. **Gift ideas.** A live list shows what the agent is doing (reading taste, finding products, writing reasons, checking prices) while idea cards arrive. Each idea says which favourite it comes from and, under the reason, shows Qloo's evidence for the link: the split of the link between the favourites Qloo names (when it names two or three) and the tags it gives both the favourite and the idea (when there are any). Product cards show title, price, shop and a link. Product images are off until you turn on the image switch (`?images=on` starts with them on), because a shop's image server sees your IP.
 3. **Pick and pay.** Pick up to 6 items within the budget, review, and press **Pay with PayPal**. The page shows PayPal's documented sandbox test card with copy buttons; you pay as a guest on PayPal's own page, no PayPal account needed.
 4. **Receipt.** After PayPal approves, the server captures once and shows the order id, the final status and the items. The receipt carries the sandbox badge and one "Mode: PayPal sandbox, no real money" row.
 
@@ -73,12 +73,12 @@ A reply is untrusted input, decoded whole or not at all: at most 5 items, each a
 | Service | What it receives | Why |
 | --- | --- | --- |
 | **Qloo** | the favourites as typed (and the type hint), then Qloo's own entity ids | to read taste |
-| **Cloudflare Workers AI** | the favourites and budget, the entities Qloo returned, product titles and prices, and at checkout the ids of the picked items and the order's id, status and total | the model that drives the tools and writes the reasons |
+| **Cloudflare Workers AI** | the favourites and budget, the entities Qloo returned, the tags Qloo gives both an idea and the favourite it links most strongly (up to four per idea), product titles and prices, and at checkout the ids of the picked items and the order's id, status and total | the model that drives the tools and writes the reasons |
 | **Channel3** | product searches built from Qloo's suggestions and the model's wording, with a price ceiling | real products and prices |
 | **Tavily** | searches for an experience idea (a place or destination Qloo suggested) and price checks of a product on its shop's domain | experience links, informational price checks |
 | **PayPal sandbox** | the order (items, total) and the buyer's return | the test payment; no real money moves |
 
-Tasteloom does not store the favourites you type (the Privacy section lists the little it keeps). The other services keep what they receive under their own terms, which this project does not control.
+Tasteloom does not store the favourites you type (the Privacy section lists the little it keeps). The answers of Channel3 and Tavily searches (product cards, experience links) are stored for 12 hours under a hash of the search, so the same search within 12 hours is answered from that store and not sent again. The other services keep what they receive under their own terms, which this project does not control.
 
 ## Live versus demo data
 

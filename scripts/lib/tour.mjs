@@ -328,6 +328,22 @@ function states(fx) {
     check(`${c.name}/ideas: the picks survive a reload`, await (async () => { await page.reload({ waitUntil: 'load' }); await page.waitForSelector('ul.cards'); return (await count(page, 'ul.cards li.card[data-selected="true"]')) === 2; })());
   });
 
+  add('ideas-evidence', true, async (c) => {
+    const { page } = c;
+    // Invented numbers and tags: a card shows exactly what its idea event carries from Qloo, and nothing when the event carries nothing.
+    const extra = [{ shares: [62, 25, 13], shared: ['Calm', 'Jazz'] }, { shares: [100, 0], shared: [] }, {}];
+    const ideas = c.done.run.ideas.map((x, i) => ({ ...x, idea: { ...x.idea, because: ['Nujabes', 'Muji', 'Kafka on the Shore'].slice(0, i === 2 ? 1 : 3), ...(extra[i] ?? {}) } }));
+    await open(c, '#/ideas', { st: { ...c.done, run: { ...c.done.run, ideas } } });
+    await page.waitForSelector('article.idea .evidence');
+    const rows = await page.$$eval('article.idea:not(.skeleton)', (l) => l.map((a) => [...a.querySelectorAll('.evidence')].map((e) => e.textContent)));
+    const entity = ideas[0].idea.entity.name;
+    check(`${c.name}/ideas: a card shows how Qloo splits its link by favourite (adding up to 100%) and the tags Qloo gives both`, rows[0]?.length === 2 && rows[0][0] === 'How Qloo splits its link to this idea (adds up to 100%): 62% Nujabes · 25% Muji · 13% Kafka on the Shore' && rows[0][1] === `Tags Qloo gives to both Nujabes and ${entity}: Calm · Jazz`, JSON.stringify(rows[0]));
+    check(`${c.name}/ideas: a split with one favourite left shows nothing, and neither does an idea that carries no Qloo evidence`, rows[1]?.length === 0 && rows[2]?.length === 0, JSON.stringify(rows.slice(1, 3)));
+    check(`${c.name}/ideas: the evidence is quieter than the reason`, await page.$eval('article.idea', (a) => parseFloat(getComputedStyle(a.querySelector('.evidence')).fontSize) < parseFloat(getComputedStyle(a.querySelector('.reason')).fontSize)));
+    await c.audit('ideas evidence');
+    await c.snap();
+  });
+
   add('ideas-over-budget', false, async (c) => {
     const cheapest = purchasable(c.done).sort((a, b) => a.price_cents - b.price_cents)[0];
     await open(c, '#/ideas', { st: withRun(c.done, { budget_cents: cheapest.price_cents + 300, selected: [cheapest.id] }) });
