@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { groundedReason, templateReason } from '../src/agent/ideas.ts';
-import { runLoop, ToolError, toolSpec, type Tool } from '../src/agent/loop.ts';
+import { Refusal, runLoop, ToolError, toolSpec, type Tool } from '../src/agent/loop.ts';
 import { SAMPLE } from '../src/sample-data.ts';
 import type { FetchFn } from '../src/types.ts';
 import { card, chatReply, FAVS, json, makeHarness, makeSvc, readEvents, seedSession, taskOf, toolCall, watchWrites } from './helpers.ts';
@@ -332,6 +332,7 @@ const echo: Tool = {
   spec: toolSpec('echo', 'echo a value', { v: { type: 'string' } }, ['v']),
   run: async (a) => {
     if (a.v === 'bad') throw new ToolError('v is not allowed');
+    if (a.v === 'no') throw new Refusal('not now');
     if (a.v === 'boom') throw new Error('boom');
     return { v: a.v };
   },
@@ -359,6 +360,25 @@ test('runLoop: a ToolError goes back to the model, which can correct itself', as
 test('runLoop: unknown tools and non-object arguments count as bad, and three bad calls stop the loop', async () => {
   const res = await loop(model({ t: (n) => (n === 1 ? calls(toolCall('nope', {}, 'a'), toolCall('echo', '"just a string"', 'b')) : calls(toolCall('nope2', {}, 'c'))) }));
   assert.deepEqual(res, { turns: 2, calls: 0, bad: 3, stopped: 'bad_calls' });
+});
+
+test('runLoop: a Refusal is told to the model like a ToolError but is not a strike, so the model can still correct itself', async () => {
+  const seen: string[] = [];
+  const res = await loop(
+    model({
+      t: (n, body) => {
+        seen.push(body.messages.at(-1).content);
+        return n === 1 ? calls(...['a', 'b', 'c', 'd'].map((id) => toolCall('echo', { v: 'no' }, id))) : n === 2 ? calls(toolCall('echo', { v: 'good' })) : DONE();
+      },
+    }),
+  );
+  assert.deepEqual(res, { turns: 3, calls: 5, bad: 0, stopped: 'done' });
+  assert.match(seen[1]!, /not now/);
+});
+
+test('runLoop: refusals do not hide real mistakes: a Refusal, a ToolError, an unknown tool and bad arguments in one turn are three strikes', async () => {
+  const res = await loop(model({ t: () => calls(toolCall('echo', { v: 'no' }, 'a'), toolCall('echo', { v: 'bad' }, 'b'), toolCall('nope', {}, 'c'), toolCall('echo', '"str"', 'd')) }));
+  assert.deepEqual(res, { turns: 1, calls: 2, bad: 3, stopped: 'bad_calls' });
 });
 
 test('runLoop: stopAfter ends right after that tool, and max_turns bounds a model that never stops', async () => {
