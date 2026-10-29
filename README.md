@@ -54,6 +54,18 @@ One live run makes 5 to 6 model calls and uses up to about 110 neurons (Cloudfla
 3. **Pick and pay.** Pick up to 6 items within the budget, review, and press **Pay with PayPal**. The page shows PayPal's documented sandbox test card with copy buttons; you pay as a guest on PayPal's own page, no PayPal account needed.
 4. **Receipt.** After PayPal approves, the server captures once and shows the order id, the final status and the items. The receipt carries the sandbox badge and one "Mode: PayPal sandbox, no real money" row.
 
+## Ask them without spoiling it
+
+Not sure what they love? Under the favourites, press **Not sure what they love? Ask them**. It shows one link to send, with Copy, and Share where the browser has it. The link is the same for everyone: no name, no email, no account.
+
+1. **They answer.** The link opens `/ask`: one line ("A friend wants to know what you love lately. Nothing is stored: your answer travels inside the link you send back."), the same favourites input (3 to 5, an optional type hint) and **Make my reply link**. The page does not mention a gift, a budget or a shop.
+2. **The answer is the link.** The reply link is `/#loves=` plus base64url of UTF-8 JSON. Everything after the `#` stays in the browser, which never sends it to a server. It is encoded, not encrypted: anyone who holds the link can read the answer, and the messenger that carries it keeps its own copy.
+3. **You open it.** The favourites are filled in (replacing the ones on that screen and the tab's earlier run), the `#...` part is removed from the address bar with `history.replaceState`, and one line says "Filled from their reply". The reply carries no budget and starts nothing: you set the budget and press **Find gift ideas** as usual.
+
+A reply is untrusted input, decoded whole or not at all: at most 5 items, each at most 80 characters after trimming, only the known type hints, control characters turned into spaces, no duplicates, at most 2048 characters of fragment. Anything else is ignored with one plain line, "That reply link could not be read, so nothing was filled in.", and your own favourites stay as they were.
+
+**Stored:** nothing. The server never receives the answer, the `/ask` page makes no request after it loads, and it writes nothing to browser storage or cookies (a filled-in reply on the giver's screen is kept like anything typed there, in `sessionStorage` for that tab, as the Privacy section says). **Sent:** nothing, until the giver presses **Find gift ideas**; then the favourites go where they go today ("What is sent where"). `npm run e2e -- ask` checks this in a browser behind a recording proxy that refuses every billed route: no request carries the reply link, and `/ask` sends none of its own.
+
 ## What is sent where
 
 | Service | What it receives | Why |
@@ -134,7 +146,7 @@ Deploying is not part of this repository's checks. A deployment needs the five k
 | `npm test` | unit tests (money rules, adapters on documented fixtures, malformed model JSON, spend counters, contrast of the stylesheet, static checks) |
 | `npm run typecheck` | `tsc --noEmit` on `src/` |
 | `npm run build` | `wrangler deploy --dry-run`: bundles the Worker without deploying |
-| `npm run e2e` | real Chromium against `wrangler dev`: the full flow with a PayPal sandbox guest payment to COMPLETED, then a tour of every screen and error state at 1280 and 390 px (key screens also at 768 and 320 px); the screens go to `evidence/screens/` (git-ignored). Everything captured from live services (run data, live screenshots, the dev server's log and state) goes to a folder outside the repository, `tasteloom-live` in the temp folder or `TASTELOOM_LIVE_DIR`. No run rewrites a tracked file: `npm run e2e -- --evidence` (both phases) refreshes `evidence/e2e.txt`. `npm run e2e -- tour` runs the tour alone and makes no billed call. `TOUR_BROWSER=firefox node scripts/e2e.mjs tour` runs it in Firefox (`/usr/bin/firefox`, no downloads; shots go to `evidence/debug/firefox/`) |
+| `npm run e2e` | real Chromium against `wrangler dev`: the full flow with a PayPal sandbox guest payment to COMPLETED, then a tour of every screen and error state at 1280 and 390 px (key screens also at 768 and 320 px), then the ask-them check (the `/ask` page and the reply link, at 1280 and 390 px); the screens go to `evidence/screens/` (git-ignored). Everything captured from live services (run data, live screenshots, the dev server's log and state) goes to a folder outside the repository, `tasteloom-live` in the temp folder or `TASTELOOM_LIVE_DIR`. No run rewrites a tracked file: `npm run e2e -- --evidence` (both phases) refreshes `evidence/e2e.txt`. `npm run e2e -- tour` runs the tour alone and makes no billed call; `npm run e2e -- ask` runs the ask-them check alone and makes none either (a recording proxy lets through only static files, the status route and the saved example). `TOUR_BROWSER=firefox node scripts/e2e.mjs tour` runs it in Firefox (`/usr/bin/firefox`, no downloads; shots go to `evidence/debug/firefox/`) |
 | `npm run contract:qloo` | cheap live check of the Qloo API against the shapes the code expects |
 | `npm run scan` | secret and privacy scan of the tracked files, built assets and git history; it only prints, and `npm run scan -- --write` also saves the report as `evidence/scan.txt` |
 

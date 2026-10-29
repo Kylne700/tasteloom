@@ -1,7 +1,8 @@
 // Tasteloom front end: hash routes, step indicator and the four screens. No framework, no build step.
 import { h, icon } from './dom.js';
 import { getJson } from './api.js';
-import { load, state } from './state.js';
+import { decodeLoves } from './loves.js';
+import { load, save, startOver, state } from './state.js';
 import { mountTaste } from './taste.js';
 import { mountIdeas } from './ideas.js';
 import { mountCheckout } from './checkout.js';
@@ -47,16 +48,31 @@ function go(hash) {
   location.replace(hash);
 }
 
+// A reply link (#loves=…) carries what a friend loves. Read it once, take it out of the address bar at once, and fill in the first screen.
+// A reply that cannot be read changes nothing: the favourites already on the page stay as they are.
+function takeReply() {
+  if (!location.hash.startsWith('#loves=')) return null;
+  const r = decodeLoves(location.hash.slice(1));
+  history.replaceState(null, '', location.pathname + location.search);
+  if (r.ok) {
+    startOver(); // a run made for other favourites would not match
+    state.favorites = r.items;
+    save();
+  }
+  return { ok: r.ok };
+}
+
 function route() {
   if (unmount) {
     unmount();
     unmount = null;
   }
+  const reply = takeReply();
   const { path, params } = parse();
   let title = 'Gifts that understand them';
   let step = 1;
   let mount = mountTaste;
-  let arg = {};
+  let arg = { reply };
   const receipt = path.match(/^#\/receipt\/([A-Za-z0-9]+)$/);
   if (path === '#/ideas') {
     if (!state.pending && !state.run) return go('#/');

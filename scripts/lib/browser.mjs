@@ -40,7 +40,7 @@ export function watch(page, label) {
   page.on('console', (m) => {
     if (m.type() !== 'error') return;
     const url = m.location()?.url || '';
-    (!url || url.startsWith(BASE) ? consoleErrors : thirdParty).push(`${label}: ${m.text().slice(0, 140)}`);
+    (!url || url.startsWith('http://localhost:') ? consoleErrors : thirdParty).push(`${label}: ${m.text().slice(0, 140)}`);
   });
   page.on('pageerror', (e) => consoleErrors.push(`${label}: uncaught ${String(e.message).slice(0, 140)}`));
 }
@@ -94,12 +94,12 @@ export async function newPage(ctx, viewport, label) {
   return page;
 }
 
-/** Empty session, empty first screen. */
-export async function fresh(page) {
-  await page.goto(BASE + '/', { waitUntil: 'load' });
+/** Empty session, empty first screen (base: another origin that serves the same app, such as the ask phase's recording proxy). */
+export async function fresh(page, base = BASE) {
+  await page.goto(base + '/', { waitUntil: 'load' });
   await page.evaluate(() => sessionStorage.clear());
   await page.goto('about:blank');
-  await page.goto(BASE + '/', { waitUntil: 'load' });
+  await page.goto(base + '/', { waitUntil: 'load' });
   await page.waitForSelector('#fav-input');
 }
 
