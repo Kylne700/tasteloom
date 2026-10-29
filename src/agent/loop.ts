@@ -7,6 +7,9 @@ import type { Svc } from '../lib/http.ts';
 /** Thrown by a handler for a bad call; the message goes back to the model so it can correct itself. */
 export class ToolError extends Error {}
 
+/** A ToolError for a call that was not wrong but is not possible now (a duplicate, a limit, something not ready): told to the model, but not counted as one of its mistakes. */
+export class Refusal extends ToolError {}
+
 export interface Tool {
   spec: ToolSpec;
   run: (args: Record<string, unknown>) => Promise<unknown>;
@@ -82,7 +85,7 @@ export async function runLoop(svc: Svc, o: LoopOpts): Promise<LoopResult> {
           return { id: c.id, content: clipResult(await tool.run(c.args)) };
         } catch (e) {
           if (!(e instanceof ToolError)) throw e;
-          bad++;
+          if (!(e instanceof Refusal)) bad++;
           return { id: c.id, content: clipResult({ error: e.message }) };
         }
       }),

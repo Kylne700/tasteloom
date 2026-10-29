@@ -85,8 +85,11 @@ export function parseExplainability(x: unknown, seeds: Seed[]): { seedId: string
   return [...best].map(([seedId, score]) => ({ seedId, score })).sort((a, b) => b.score - a.score);
 }
 
-export function parseInsights(json: unknown, seeds: Seed[], type: string): Candidate[] {
-  const out: Candidate[] = [];
+/** An insights result with Qloo's popularity percentile (0 to 1, higher is more popular), when the answer carries a number. */
+export type Ranked = Candidate & { popularity?: number };
+
+export function parseInsights(json: unknown, seeds: Seed[], type: string): Ranked[] {
+  const out: Ranked[] = [];
   for (const e of entityList(json)) {
     const id = entityId(e);
     const name = typeof e.name === 'string' ? e.name.trim() : '';
@@ -94,7 +97,8 @@ export function parseInsights(json: unknown, seeds: Seed[], type: string): Candi
     const q = asObject(e.query);
     const raw = q?.explainability ?? e.explainability;
     const because = parseExplainability(raw, seeds);
-    out.push({ id, name: name.slice(0, 80), type: entityType(e, type), because, explained: because.length > 0 });
+    const popularity = typeof e.popularity === 'number' && Number.isFinite(e.popularity) ? { popularity: e.popularity } : {};
+    out.push({ id, name: name.slice(0, 80), type: entityType(e, type), because, explained: because.length > 0, ...popularity });
   }
   return out;
 }
@@ -111,7 +115,7 @@ export async function searchEntity(svc: Svc, q: { query: string; type?: string }
   return { seed: value.seeds[0] ?? null, via: hit ? 'cache' : value.via };
 }
 
-export async function insights(svc: Svc, q: { type: string; seeds: Seed[]; take?: number }): Promise<{ cands: Candidate[]; via: 'live' | 'mock' | 'cache' }> {
+export async function insights(svc: Svc, q: { type: string; seeds: Seed[]; take?: number }): Promise<{ cands: Ranked[]; via: 'live' | 'mock' | 'cache' }> {
   const params = new URLSearchParams({
     'filter.type': `urn:entity:${q.type}`,
     'signal.interests.entities': q.seeds.map((s) => s.id).join(','),

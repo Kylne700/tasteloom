@@ -233,6 +233,11 @@ test('qloo: /v2/insights entities carry their explainability', () => {
   assert.deepEqual(c.map((x) => [x.id, x.type, x.explained, x.because]), [['B1', 'brand', true, [{ seedId: 'S1', score: 0.7 }]], ['B2', 'brand', false, []]]);
 });
 
+test('qloo: an insights entity keeps Qloo’s popularity percentile when it is a number, and none otherwise', () => {
+  const pop = (popularity: unknown) => parseInsights({ results: { entities: [{ entity_id: 'B1', name: 'Hario', types: ['urn:entity:brand'], popularity }] } }, seeds, 'brand')[0]!.popularity;
+  assert.deepEqual([0.42, 1, 0, '0.9', null, NaN, undefined].map(pop), [0.42, 1, 0, undefined, undefined, undefined, undefined]);
+});
+
 test('qloo: the shapes seen live parse (synthetic stand-ins): kind in subtype, scores in an array under the signal key, no success flag on search', () => {
   const hit = { name: 'Nujabes', entity_id: '00000000-0000-0000-0000-000000000001', types: ['urn:entity:artist'], properties: { short_description: 'x' }, popularity: 0.9, disambiguation: 'd', tags: [{ name: 't', tag_id: 'u', type: 'v', value: 'w' }] };
   assert.deepEqual(parseSearch({ results: [hit] }, 'artist'), [{ id: hit.entity_id, name: 'Nujabes', type: 'artist' }]);
