@@ -264,7 +264,7 @@ export const SAMPLE: { asOf: string; budget_cents: number; favorites: { text: st
    "idea": {
     "id": "i3",
     "kind": "product",
-    "title": "For a Ryuichi Sakamoto fan",
+    "title": "Music by Ryuichi Sakamoto",
     "entity": {
      "id": "MOCK2B2B1546",
      "name": "Ryuichi Sakamoto",

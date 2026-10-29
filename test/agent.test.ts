@@ -70,6 +70,7 @@ test('ideas: a model that never calls a tool and answers in prose is replaced by
 });
 
 test('ideas: a hostile model cannot invent ids, lift the price cap or plant prices and links in the reasons', async () => {
+  let asked: { id: string; because: string[]; in_common: string[] }[] = []; // the ideas the reasons model was put (only those with tags Qloo gives both)
   const candidates = (body: any): string[] => {
     const tool = body.messages.filter((m: any) => m.role === 'tool').map((m: any) => JSON.parse(m.content)).find((v: any) => Array.isArray(v.candidates));
     return tool ? tool.candidates.map((c: any) => c.id) : [];
@@ -94,8 +95,9 @@ test('ideas: a hostile model cannot invent ids, lift the price cap or plant pric
           },
           picks: () => chatReply({ content: JSON.stringify({ picks: [{ entity_id: 'E-INVENTED', query: 'x' }, { entity_id: 'also-not-real', query: 'y' }] }) }),
           reasons: (_n, body) => {
-            const ideas = JSON.parse(body.messages[1].content).ideas as { id: string; because: string[] }[];
-            const out = Object.fromEntries(ideas.map((i, k) => [i.id, k === 0 ? `Because they love ${i.because[0]}, this is a thoughtful pick.` : k % 2 ? 'Only $5 at https://evil.example/buy now, hurry!' : 'A wonderful present that anybody would adore.']));
+            const ideas = JSON.parse(body.messages[1].content).ideas as { id: string; because: string[]; in_common: string[] }[];
+            asked = ideas;
+            const out = Object.fromEntries(ideas.map((i, k) => [i.id, k === 0 ? `Because they love ${i.because[0]}, this is a thoughtful ${i.in_common[0]} pick.` : k % 2 ? 'Only $5 at https://evil.example/buy now, hurry!' : 'A wonderful present that anybody would adore.']));
             return chatReply({ content: JSON.stringify({ reasons: out }) });
           },
         }),
@@ -117,8 +119,10 @@ test('ideas: a hostile model cannot invent ids, lift the price cap or plant pric
     assert.ok(groundedReason(r, idea), r);
     assert.ok(!/\$|evil|anybody would adore/.test(r), r);
   }
-  const first = ideas[0].idea;
-  assert.equal(reasons[first.id], `Because they love ${first.because[0]}, this is a thoughtful pick.`, 'a grounded model sentence is kept');
+  assert.ok(asked.length > 0 && asked.every((i) => i.in_common.length > 0), 'the model is put only ideas that have a tag in common');
+  const first = ideas.find((i) => i.idea.id === asked[0]!.id)!.idea;
+  assert.equal(reasons[first.id], `Because they love ${first.because[0]}, this is a thoughtful ${asked[0]!.in_common[0]} pick.`, 'a grounded model sentence that names a shared tag is kept');
+  for (const { idea } of ideas.filter((i) => !asked.some((a) => a.id === i.idea.id))) assert.equal(reasons[idea.id], templateReason(idea), 'an idea with nothing in common gets the plain line');
 });
 
 test('ideas: names Qloo cannot place end in a plain bad_input error and spend nothing on products', async () => {

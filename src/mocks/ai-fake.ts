@@ -91,15 +91,17 @@ export function makeAiFake(opts: { delayMs?: number } = {}) {
         const name = String(i.entity);
         const [a, b] = because;
         const loved = b ? `${a} and ${b}` : a;
+        const tag = (Array.isArray(i.in_common) ? i.in_common : []).map(String)[0]; // a word Qloo gives both, which the real server insists a reason uses
+        const both = tag ? ` Both are about ${tag.toLowerCase()}.` : '';
         // first product title, cut at a separator so it reads like a name ("Kew Gardens Tickets 2026 | Book Now" -> "Kew Gardens Tickets 2026")
         const prod = (Array.isArray(i.products) ? i.products : []).map(String).map((t) => t.split(/\s[|\u2013-]\s/)[0]!.trim()).find((t) => t.length >= 3 && t.length <= 52);
         reasons[String(i.id)] = !a
           ? `${name} matches the overall taste in what they love.`
           : [
-              `Since they love ${loved}, ${name} is a safe bet${prod ? `: ${prod} is a good place to start` : ''}.`,
-              `${name} sits close to ${loved} in taste${prod ? `, and ${prod} shows why` : ', so it should land well'}.`,
-              `A gift in the spirit of ${loved}: ${prod ?? name} feels chosen, not generic.`,
-              `Fans of ${loved} tend to like ${name}${prod ? `, and ${prod} makes an easy first pick` : ', so start with the first product'}.`,
+              `Since they love ${loved}, ${name} is a safe bet${prod ? `: ${prod} is a good place to start` : ''}.${both}`,
+              `${name} sits close to ${loved} in taste${prod ? `, and ${prod} shows why` : ', so it should land well'}.${both}`,
+              `A gift in the spirit of ${loved}: ${prod ?? name} feels chosen, not generic.${both}`,
+              `Fans of ${loved} tend to like ${name}${prod ? `, and ${prod} makes an easy first pick` : ', so start with the first product'}.${both}`,
             ][n % 4]!;
       });
       return reply(model, { content: '<think>writing short reasons</think>\n```json\n' + JSON.stringify({ reasons }) + '\n```' }, 'stop', len);
