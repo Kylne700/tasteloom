@@ -1,10 +1,12 @@
 // End-to-end check in a real browser (puppeteer-core + /usr/bin/chromium) against `wrangler dev` on port 8791.
-//   node scripts/e2e.mjs [live] [tour] [ask] [--keep]
+//   node scripts/e2e.mjs [live] [tour] [ask] [compare] [--keep]   (no argument = live tour ask; compare runs only when named)
 // live: the full judge flow with the real Tavily, Channel3 and PayPal sandbox (guest card -> capture COMPLETED); Qloo and the model run on their
 //       documented-shape stand-ins unless the Qloo key and the AI binding exist. Costs about 6 Channel3 and 7 Tavily calls per run on a fresh state.
 // tour: every screen and error/empty state at 1280, 390 and 768 px, with accessibility, focus, layout-shift and overflow checks. No billed calls.
 // ask: "Ask them without spoiling it" (the /ask page and the reply link) at 1280 and 390 px, behind a recording proxy that refuses every billed route
 //      and proves no request carries the reply link. No billed calls.
+// compare: the "Same AI, without Qloo" panel under the results at 1280 and 390 px, with the model on its stand-in (FORCE_MOCK=ai or qloo,ai;
+//      without it the phase clicks nothing). No billed calls.
 // --keep reuses the dev server's state (and with it the cached Channel3/Tavily answers) so a debugging re-run costs nothing.
 // Everything captured from live services (run JSON, live screenshots, dev server state and log) goes to the capture folder outside the repo
 // (TASTELOOM_LIVE_DIR, default <system temp>/tasteloom-live; see scripts/lib/live.mjs). Nothing live is written inside the repository.
@@ -20,6 +22,7 @@ import { payAsGuest } from './lib/paypal-guest.mjs';
 import { APP, BASE, DESKTOP, EVIDENCE, FIREFOX, MOBILE, PORT, SHOTS, TABLET, audit, check, consoleErrors, fresh, newPage, overflowSweep, report, sandboxMentions, say, shot, shots, sleep, strayText, tabWalk, thirdParty, waitUrl } from './lib/browser.mjs';
 import { tourRound } from './lib/tour.mjs';
 import { ask } from './lib/ask.mjs';
+import { compare } from './lib/compare.mjs';
 
 const args = process.argv.slice(2);
 const keep = args.includes('--keep');
@@ -254,6 +257,7 @@ try {
       if (ph === 'live') await live(browser);
       else if (ph === 'tour') await tour(browser);
       else if (ph === 'ask') await ask(browser);
+      else if (ph === 'compare') await compare(browser);
       else check(`unknown phase ${ph}`, false);
     } catch (e) {
       check(`${ph}: finished without an unexpected error`, false, String(e.stack || e).split('\n').slice(0, 3).join(' | ').slice(0, 300));

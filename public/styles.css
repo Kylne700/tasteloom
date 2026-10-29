@@ -484,3 +484,21 @@ html[data-images='off'] .media img, html[data-images='off'] .thumb img { display
 .result h2:focus { outline: none; }
 .result-lead { margin: 6px 0 16px; color: var(--ink-2); }
 @media (pointer: coarse) { .link-btn { min-height: 44px; } }
+
+/* ---- compare: the same AI without Qloo (public/compare.js) ------------------------------------------------------------ */
+.compare { margin-top: 44px; padding: 22px 24px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow-sm); }
+.compare h2 { font-size: 1.25rem; }
+.compare h2, .compare .btn, .compare a { scroll-margin-bottom: 140px; } /* the sticky bar must not cover what has focus */
+.compare-lead, .compare-count, .compare-note, .compare-list { max-width: 72ch; }
+.compare-lead { margin: 8px 0 14px; color: var(--ink-2); }
+.compare-wait, .compare-problem { display: flex; align-items: center; gap: 10px; margin: 12px 0; }
+.compare-count { margin: 10px 0 12px; font-weight: 700; }
+.compare-list { display: grid; gap: 14px; margin: 0 0 16px; padding-left: 1.4em; }
+.compare-gift { margin: 0; font-weight: 600; }
+.compare-tag { display: inline-block; margin-left: 8px; padding: 1px 10px; font-size: 0.8125rem; font-weight: 600; color: var(--accent-strong); background: var(--accent-soft); border-radius: 999px; }
+.compare-why { margin: 2px 0 0; color: var(--ink-2); font-size: 0.9375rem; }
+.compare-note { margin: 0; color: var(--ink-2); font-size: 0.9375rem; }
+.compare .btn + .compare-note { margin-top: 14px; }
+.compare .demo-note { max-width: 72ch; margin: 0 0 12px; }
+.compare-gift, .compare-why, .compare-note, .compare-problem { overflow-wrap: anywhere; }
+@media (max-width: 560px) { .compare { padding: 18px 16px; } .compare-tag { display: block; width: fit-content; margin: 4px 0 0; } }

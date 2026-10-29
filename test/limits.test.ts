@@ -105,8 +105,8 @@ test('meter: an IPv6 visitor is its /64; IPv4 is the address', () => {
 test('config: documented defaults', () => {
   const l = lim();
   assert.deepEqual([l.maxItems, l.minBudgetCents, l.maxBudgetCents, l.dailyCapCents], [6, 1000, 50000, 200000]);
-  assert.deepEqual(l.ip, { ideas: 8, qloo: 60, ai: 80, neurons: 1500, tavily: 20, channel3: 24, orders: 8, returns: 20 });
-  assert.deepEqual(l.global, { ideas: 100, qloo: 600, ai: 600, neurons: 8000, tavily: 25, channel3: 25, orders: 100, returns: 150 });
+  assert.deepEqual(l.ip, { ideas: 8, qloo: 60, ai: 80, neurons: 1500, tavily: 20, channel3: 24, orders: 8, returns: 20, plain: 8 });
+  assert.deepEqual(l.global, { ideas: 100, qloo: 600, ai: 600, neurons: 8000, tavily: 25, channel3: 25, orders: 100, returns: 150, plain: 40 });
 });
 
 test('config: every cap is set in wrangler.jsonc (a deploy replaces dashboard vars) and equals the default in code', () => {

@@ -5,6 +5,7 @@
 //   task "reasons":  JSON-only: one grounded sentence per idea
 //   task "checkout": create_order for the buyer's selection -> DONE
 //   task "return":   get_order -> capture_order when APPROVED -> DONE
+//   plain prompt ("Compare: same AI, no Qloo", no task marker): four fixed gift ideas, two of them naming the first two favourites in the prompt
 // The task is read from a [task:...] marker in the system prompt. This is demo data, not model output.
 import { asObject, parseLooseJson } from '../lib/json.ts';
 import { sleep } from '../lib/util.ts';
@@ -78,6 +79,17 @@ export function makeAiFake(opts: { delayMs?: number } = {}) {
     const len = JSON.stringify(msgs).length;
     turnNo = msgs.filter((m) => m.role === 'assistant').length + 1;
 
+    const loves = /^I need gift ideas for someone\. They love: (.+)\. My budget per gift is /.exec(msgs.filter((m) => m.role === 'user').at(-1)?.content ?? '')?.[1];
+    if (loves) {
+      const [a, b = a] = loves.split(', ').map((f) => f.replace(/ \([^()]*\)$/, ''));
+      const gifts = [
+        { gift: `Framed poster of ${a}`, reason: 'A wall piece for something they already love.' },
+        { gift: `Illustrated book about ${b}`, reason: 'A gift to read slowly and keep on a shelf.' },
+        { gift: 'Scented candle set', reason: 'Easy to enjoy and a safe choice for most homes.' },
+        { gift: 'Cosy throw blanket', reason: 'Warm and useful all year.' },
+      ];
+      return reply(model, { content: JSON.stringify(gifts) }, 'stop', len);
+    }
     if (task === 'picks') {
       const cands = (Array.isArray(user.candidates) ? user.candidates : []).map(asObject).filter(Boolean) as Record<string, string>[];
       const picks = diversePicks(cands as { id: string; name: string; type: string }[], 5).map((c) => ({ entity_id: c.id, query: (QUERY[c.type] ?? QUERY.brand!)(c.name) }));

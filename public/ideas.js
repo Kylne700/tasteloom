@@ -3,6 +3,7 @@ import { h, icon, money, safeUrl, shopImage, announce, spinner, copyText } from 
 import { MEMORY, noteFor } from './note.js';
 import { ApiError, streamNdjson } from './api.js';
 import { budgetCents, lookupCount, mockNote, newRun, save, selectedCards, state, totalCents } from './state.js';
+import { mountCompare } from './compare.js';
 
 // Product images come from the shops' servers, which see the visitor's IP, so none loads until the switch (or ?images=on) turns
 // them on; ?images=off keeps them off. Cards stay complete without them.
@@ -122,6 +123,7 @@ export function mountIdeas(root) {
   const notices = h('div', { class: 'notices' });
   const list = h('div', { class: 'ideas-list' });
   const barRoot = h('div', { class: 'bar', hidden: true });
+  const compare = mountCompare(() => run);
   const agentStatus = h('span', { class: 'agent-status' });
   const phasesEl = h('ol', { class: 'phases' });
   const demoNote = h('p', { class: 'demo-note', hidden: true });
@@ -161,7 +163,7 @@ export function mountIdeas(root) {
       'div',
       { class: 'screen ideas' },
       h('div', { class: 'screen-head' }, h('div', {}, h('h1', { tabindex: '-1' }, 'Gift ideas'), lovesEl), h('div', { class: 'head-actions' }, h('a', { class: 'btn small', href: '#/' }, icon('back', 16), 'Edit favourites'), imagesSwitch)),
-      h('div', { class: 'ideas-layout' }, agent, h('div', { class: 'col-main' }, notices, list, barRoot)),
+      h('div', { class: 'ideas-layout' }, agent, h('div', { class: 'col-main' }, notices, list, compare.el, barRoot)),
     ),
   );
 
@@ -483,6 +485,7 @@ export function mountIdeas(root) {
     showHeader();
     renderBar(); // the bar was drawn while running: enable "Review and pay" now (the server saves the session only at the end)
     save();
+    compare.update();
     announce(run.ideas.length ? `Done. ${run.ideas.length} gift ideas. ${run.ideas.some(({ cards }) => cards.some((c) => c.purchasable)) ? 'Pick the items you like.' : 'None has a buy button right now.'}` : 'Finished without any gift ideas.');
     if (!run.ideas.length) showEmpty();
   }
@@ -564,6 +567,7 @@ export function mountIdeas(root) {
     });
     setAgentStatus();
     renderBar();
+    compare.update();
     cardEls.forEach(refreshCard);
   }
 
