@@ -33,7 +33,7 @@ function noteRow(idea) {
   box.value = note;
   const copy = h('button', { type: 'button', class: 'btn small copy', 'aria-label': `Copy note: ${idea.title}`, onclick: async () => {
     const ok = await copyText(note);
-    status.textContent = ok ? `Copied. ${MEMORY}` : `Could not copy by itself. Press Ctrl+C to copy the note above. ${MEMORY}`;
+    status.textContent = ok ? `Copied. ${MEMORY}` : `Could not copy by itself. Press Ctrl+C to copy the note below. ${MEMORY}`;
     status.hidden = false;
     box.hidden = ok;
     if (!ok) {
