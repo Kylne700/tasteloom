@@ -3,11 +3,11 @@
 // No DOM in here, so the unit tests import it directly.
 export const EXAMPLE = {
   favorites: [
-    { text: 'The Hobbit', type: 'book' },
-    { text: 'A Game of Thrones', type: 'book' },
-    { text: 'Howard Shore', type: 'artist' },
-    { text: 'Hans Zimmer', type: 'artist' },
-    { text: 'Lego', type: 'brand' },
+    { text: "One Flew Over the Cuckoo's Nest", type: 'book' },
+    { text: 'The Catcher in the Rye', type: 'book' },
+    { text: 'Bob Dylan', type: 'artist' },
+    { text: 'The Velvet Underground', type: 'artist' },
+    { text: 'Polaroid', type: 'brand' },
   ],
   budget: 120,
 };
