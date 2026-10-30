@@ -78,6 +78,8 @@ A reply is untrusted input, decoded whole or not at all: at most 5 items, each a
 | **Tavily** | searches for an experience idea (a place or destination Qloo suggested) and price checks of a product on its shop's domain | experience links, informational price checks |
 | **PayPal sandbox** | the order (items, total) and the buyer's return | the test payment; no real money moves |
 
+**Compare button**, only when you press it: your favourites and your budget go to Cloudflare Workers AI, to the model Tasteloom writes its ideas with, with no Qloo data; nothing else is sent and the favourites are not stored.
+
 Tasteloom does not store the favourites you type (the Privacy section lists the little it keeps). The answers of Channel3 and Tavily searches (product cards, experience links) are stored for 12 hours under a hash of the search, so the same search within 12 hours is answered from that store and not sent again. The other services keep what they receive under their own terms, which this project does not control.
 
 ## Live versus demo data
