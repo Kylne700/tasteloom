@@ -10,7 +10,7 @@ Try it: https://tasteloom.kylne700.workers.dev/?images=on (free, no sign-in; **R
 
 Project page and demo video: https://devpost.com/software/tasteloom.
 
-Test logs: [unit tests](evidence/unit.txt), [end-to-end run](evidence/e2e.txt), [Qloo contract check](evidence/contract-qloo.txt).
+Test logs: [unit tests](evidence/unit.txt) (2026-10-30), [end-to-end run with a PayPal sandbox order](evidence/e2e.txt) (2026-10-22, live), [end-to-end run of the screens on the current build](evidence/e2e-mock.txt) (2026-10-30, Qloo and the model faked), [Qloo contract check](evidence/contract-qloo.txt).
 
 ![The ideas screen on the saved example: the first gift idea, its "Because they love" line and two picked products, with the agent's lookups on the left](evidence/saved-example.png)
 

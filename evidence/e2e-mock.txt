@@ -1,0 +1,1144 @@
+# FORCE_MOCK=qloo,ai node scripts/e2e.mjs tour ask compare (2026-10-30 02:23 UTC, node v24.18.0)
+# Qloo and the model are the built-in fakes (src/mocks/). Phases tour, ask and compare: the screens and states at 1280 and 390 px, key screens also at 768 and 320. The live run with the PayPal sandbox order is e2e.txt (2026-10-22).
+
+dev-vars: wrote 4 key(s) to .dev.vars (chmod 600): TAVILY_API_KEY, PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, CHANNEL3_API_KEY; missing: QLOO_API_KEY
+e2e 2026-10-30T02:23:45.130Z phases: tour, ask, compare
+dev server up on :8791; mocks: qloo,ai; usage at start: {}
+browser: Chrome/154.0.8037.92
+  PASS  tour: the saved example streams meta, events and a done event without a key (45 events)
+TOUR desktop 1280x800: every state
+  PASS  desktop/home: heading, title and focus on the heading (Gifts that understand them · Tasteloom)
+  PASS  desktop/home: one principle line sits right under the heading, before the lead ({"text":"No age, no gender, no account: only what they love.","order":true,"count":1})
+  PASS  desktop/home: the principle is true of the form: its only fields are the favourites (name, type) and the budget, and no label asks for an age, gender, account or email (budget,fav-input,fav-type; Things they love | Type of thing | Budget in US dollars | For example: Nujabes)
+  PASS  desktop/home: one small link "Make your own taste link" to /ask?for=me, outside the form (Make your own taste link|outside the form)
+  PASS  desktop/home: the "Demo data" badge is shown exactly while a mock is active (mocks: qloo,ai)
+  PASS  desktop/home: sandbox label in the header, three steps with step 1 current (1Their taste)
+  PASS  desktop/home: no third-party image on the first screen
+  PASS  desktop/home: lang and a page title (en, "Gifts that understand them · Tasteloom")
+  PASS  desktop/home: every control has an accessible name
+  PASS  desktop/home: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  desktop/home: touch targets at least 24x24 px (inline links excepted)
+  PASS  desktop/home: header, nav, main, footer landmarks and a live region (1111)
+  PASS  desktop/home: no horizontal scrolling from 320 to 1440 px wide
+  PASS  desktop/home: 16 keyboard stops, each with a visible focus ring
+  PASS  01-home-empty-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  01-home-empty-1280.png: the brand and the badges do not overlap
+  PASS  desktop/home: four chips with their type hints, count line and budget (4 of 5 added.)
+  PASS  desktop/home: the chips show the type hint the user chose
+  PASS  02-home-filled-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  02-home-filled-1280.png: the brand and the badges do not overlap
+  PASS  desktop/home: a fifth chip is accepted (5 of 5 added.)
+  PASS  desktop/home: a sixth chip is refused with a plain sentence (You can add up to 5. Remove one to add another.)
+  PASS  desktop/home: removing a chip works and the count follows (4 of 5 added.)
+  PASS  desktop/home: a repeated favourite is refused (You already added muji.)
+  PASS  desktop/home: fewer than three favourites gives a clear error and stays on the first screen (Add at least 3 things they love, so the taste reading has something to work with.)
+  PASS  03-home-error-favs-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  03-home-error-favs-1280.png: the brand and the badges do not overlap
+  PASS  desktop/home: a budget below $10 gives a clear error and stays on the first screen (The budget must be at least $10.)
+  PASS  04-home-error-budget-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  04-home-error-budget-1280.png: the brand and the badges do not overlap
+  PASS  desktop/home: the ways in are all named: Ask them, Find gift ideas, Run a live example and Replay the saved example (Run a live example|Ask them|Find gift ideas|Replay the saved example)
+  PASS  desktop/home: the lead names both ways to start
+  PASS  desktop/home: "Run a live example" posts the fixed example set and its budget, like a typed run ({"favorites":[{"text":"One Flew Over the Cuckoo's Nest","type":"book"},{"text":"The Catcher in the Rye","type":"book"},{"text":"Bob Dylan","type":"artist"},{"text":"The Velvet Underground","type":"artist"},{"text":"Polaroid","type":"brand"}],"budget_usd":120})
+  PASS  desktop/ideas: when the example run fails, the saved example is offered first, Try again second, and the page still says it is the example set (Replay the saved example|Try again / Example set. The favourites and the budget above were picked for this demo, not typed by you. The search is a normal one, within the same daily limits as any other.)
+  PASS  desktop/ideas: "Try again" posts the same example set again (2 posts)
+  PASS  desktop/ideas: the page shows the example favourites and budget, and one note saying they were picked for the demo, not typed, and that the search is a normal one (One Flew Over the Cuckoo's Nest|The Catcher in the Rye|Bob Dylan|The Velvet Underground|Polaroid / Budget $120.00 / Example set. The favourites and the budget above were picked for this demo, not typed by you. The search is a normal one, within the same daily limits as any other.)
+  PASS  desktop/ideas live example: lang and a page title (en, "Gift ideas · Tasteloom")
+  PASS  desktop/ideas live example: every control has an accessible name
+  PASS  desktop/ideas live example: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  desktop/ideas live example: touch targets at least 24x24 px (inline links excepted)
+  PASS  desktop/ideas live example: header, nav, main, footer landmarks and a live region (1111)
+  PASS  05-home-live-example-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  05-home-live-example-1280.png: the brand and the badges do not overlap
+  PASS  desktop/home: back on the first screen the example favourites are filled in, ready to change
+  PASS  desktop/ideas: while running, the heading, step 2, a running phase, tool calls and skeleton cards
+  PASS  desktop/ideas: the demo-data note is shown for a run on mocks (Demo data: Qloo and the AI model run on built-in stand-ins w)
+  PASS  desktop/ideas running: lang and a page title (en, "Gift ideas · Tasteloom")
+  PASS  desktop/ideas running: every control has an accessible name
+  PASS  desktop/ideas running: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  desktop/ideas running: touch targets at least 24x24 px (inline links excepted)
+  PASS  desktop/ideas running: header, nav, main, footer landmarks and a live region (1111)
+  PASS  06-ideas-running-early-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  06-ideas-running-early-1280.png: the brand and the badges do not overlap
+  PASS  desktop/ideas: two idea cards have arrived and the loading placeholders for the others remain
+  PASS  desktop/ideas: while running, the step panel scrolls to show the newest step and the page does not move ({"wide":true,"scrolls":true,"visible":true,"pageY":0})
+  PASS  desktop/ideas: layout shift while steps and ideas stream in is at most 0.1 (CLS 0)
+  PASS  07-ideas-running-mid-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  07-ideas-running-mid-1280.png: the brand and the badges do not overlap
+  PASS  desktop/ideas: stopping early keeps the ideas, says so, and offers to try again (The agent stopped early / Replay the saved example, Try again)
+  PASS  desktop/ideas: stopping early has no filled button (the Review and pay bar stays the main action) and its text does not say "try again" twice ( / Some ideas arrived before it stopped.)
+  PASS  desktop/ideas: no placeholder is left spinning after the error
+  PASS  desktop/ideas: the step list tells the truth (unfinished steps are not ticked) and the status says Stopped (Stopped)
+  PASS  desktop/ideas: the error card is in the first screens, not below an opened trace
+  PASS  desktop/ideas partial: lang and a page title (en, "Gift ideas · Tasteloom")
+  PASS  desktop/ideas partial: every control has an accessible name
+  PASS  desktop/ideas partial: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  desktop/ideas partial: touch targets at least 24x24 px (inline links excepted)
+  PASS  desktop/ideas partial: header, nav, main, footer landmarks and a live region (1111)
+  PASS  08-ideas-error-partial-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  08-ideas-error-partial-1280.png: the brand and the badges do not overlap
+  PASS  desktop/ideas: the page title and focus follow the route (Gift ideas · Tasteloom)
+  PASS  desktop/ideas: example run finished with ideas, product cards and the saved-example note (4 ideas, 9 buyable cards)
+  PASS  desktop/ideas: each idea says why ("Because they love ..." or the overall-taste line)
+  PASS  desktop/ideas: each product card shows a price, a shop and a link that opens safely
+  PASS  desktop/ideas: gifts come first: the first card has an "Add to gift" button and no gift idea comes after an experience
+  PASS  desktop/ideas: layout shift while the example loads is at most 0.1 (CLS 0.014)
+  PASS  desktop/ideas: lang and a page title (en, "Gift ideas · Tasteloom")
+  PASS  desktop/ideas: every control has an accessible name
+  PASS  desktop/ideas: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  desktop/ideas: touch targets at least 24x24 px (inline links excepted)
+  PASS  desktop/ideas: header, nav, main, footer landmarks and a live region (1111)
+  PASS  desktop/ideas: no horizontal scrolling from 320 to 1440 px wide
+  PASS  desktop/ideas: 32 keyboard stops, each with a visible focus ring
+  PASS  09-ideas-example-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  09-ideas-example-1280.png: the brand and the badges do not overlap
+  PASS  desktop/ideas: a restored run has the same order: gifts first, the first card has an "Add to gift" button
+  PASS  desktop/ideas: "Review and pay" is disabled until something is picked
+  PASS  desktop/ideas: two picks update the card state, the bar count and the budget meter (2 items · $76.90 of $120.00, meter 7690)
+  PASS  desktop/ideas: "Review and pay" is now enabled
+  PASS  10-ideas-selected-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  10-ideas-selected-1280.png: the brand and the badges do not overlap
+  PASS  desktop/ideas: the picks survive a reload
+  PASS  desktop/ideas: a card shows how Qloo splits its link by favourite (adding up to 100%) and the tags Qloo gives both (["How Qloo splits its link to this idea (adds up to 100%): 62% Nujabes · 25% Muji · 13% Kafka on the Shore","Tags Qloo gives to both Nujabes and Ryuichi Sakamoto: Calm · Jazz"])
+  PASS  desktop/ideas: a split with one favourite left shows nothing, and neither does an idea that carries no Qloo evidence ([[],[]])
+  PASS  desktop/ideas: the evidence is quieter than the reason
+  PASS  desktop/ideas evidence: lang and a page title (en, "Gift ideas · Tasteloom")
+  PASS  desktop/ideas evidence: every control has an accessible name
+  PASS  desktop/ideas evidence: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  desktop/ideas evidence: touch targets at least 24x24 px (inline links excepted)
+  PASS  desktop/ideas evidence: header, nav, main, footer landmarks and a live region (1111)
+  PASS  11-ideas-evidence-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  11-ideas-evidence-1280.png: the brand and the badges do not overlap
+  PASS  desktop/ideas: cards that would break the budget say "Over budget" and cannot be added (Over budget | Over budget | Over budget | Remove | Over budget | Over budget | Over budget | Over budget | Over budget)
+  PASS  12-ideas-over-budget-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  12-ideas-over-budget-1280.png: the brand and the badges do not overlap
+  PASS  desktop/ideas: with six picked the others say "Gift is full" (6 picked)
+  PASS  13-ideas-gift-full-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  13-ideas-gift-full-1280.png: the brand and the badges do not overlap
+  PASS  desktop/ideas: ?images=off hides every product image and the switch says off ({"attr":"off","shown":0,"sw":"false"})
+  PASS  14-ideas-images-off-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  14-ideas-images-off-1280.png: the brand and the badges do not overlap
+  PASS  desktop/ideas: a fresh visit asks no shop for an image until the images switch is turned on (0 third-party image requests and 0 image sources before the switch, 9 sources after)
+  PASS  desktop/ideas: server unreachable: title "We could not reach the server" with a plain message and the actions Try again, Replay the saved example (We could not reach the server / Try again, Replay the saved example)
+  PASS  desktop/ideas: server unreachable: one filled button ("Try again") and a message that does not repeat the title (Try again / Check your connection and try again.)
+  PASS  desktop/ideas: server unreachable: the status row says Stopped, in the same red as the card icon (Stopped)
+  PASS  16-ideas-error-network-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  16-ideas-error-network-1280.png: the brand and the badges do not overlap
+  PASS  desktop/ideas: daily limit reached: title "Live lookups are used up for now" with a plain message and the actions Replay the saved example (Live lookups are used up for now / Replay the saved example)
+  PASS  desktop/ideas: daily limit reached: one filled button ("Replay the saved example") and a message that does not repeat the title (Replay the saved example / You have reached today’s allowance for live lookups. The saved example still works, or come back tomorrow.)
+  PASS  desktop/ideas: daily limit reached: the status row says Stopped, in the same red as the card icon (Stopped)
+  PASS  desktop/ideas error: lang and a page title (en, "Gift ideas · Tasteloom")
+  PASS  desktop/ideas error: every control has an accessible name
+  PASS  desktop/ideas error: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  desktop/ideas error: touch targets at least 24x24 px (inline links excepted)
+  PASS  desktop/ideas error: header, nav, main, footer landmarks and a live region (1111)
+  PASS  17-ideas-error-limit-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  17-ideas-error-limit-1280.png: the brand and the badges do not overlap
+  PASS  desktop/ideas: a service is down: title "A service we depend on is not answering" with a plain message and the actions Replay the saved example, Try again (A service we depend on is not answering / Replay the saved example, Try again)
+  PASS  desktop/ideas: a service is down: one filled button ("Replay the saved example") and a message that does not repeat the title and ends with "The saved example always works." (Replay the saved example / Please try again in a minute. The saved example always works.)
+  PASS  desktop/ideas: a service is down: the status row says Stopped, in the same red as the card icon (Stopped)
+  PASS  18-ideas-error-upstream-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  18-ideas-error-upstream-1280.png: the brand and the badges do not overlap
+  PASS  desktop/ideas: input refused by the server: title "Nothing to suggest yet" with a plain message and the actions Change favourites, Replay the saved example (Nothing to suggest yet / Change favourites, Replay the saved example)
+  PASS  desktop/ideas: input refused by the server: one filled button ("Change favourites") and a message that does not repeat the title (Change favourites / Nothing we found fits that budget. Try a higher budget or different favourites.)
+  PASS  desktop/ideas: input refused by the server: the status row says Stopped, in the same red as the card icon (Stopped)
+  PASS  19-ideas-error-bad-input-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  19-ideas-error-bad-input-1280.png: the brand and the badges do not overlap
+  PASS  desktop/ideas: no results gives an explanation and two ways forward, one of them filled (Change favourites, Replay the saved example)
+  PASS  desktop/ideas: the status row says "Finished without ideas" instead of a green Done (Finished without ideas)
+  PASS  20-ideas-empty-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  20-ideas-empty-1280.png: the brand and the badges do not overlap
+  PASS  desktop/ideas: when the model did not take part, a plain note says so and the ideas are still there (The AI model did not take part in this run (its daily allowance is used up, or i)
+  PASS  desktop/ideas: when shop search ran out mid-run, a plain note says it is paused until 00:00 UTC and the example still works (Shop search is paused until 00:00 UTC, so some ideas come from Qloo alone, without a buy button. The saved example alway)
+  PASS  desktop/ideas: the product ideas after the cap say "No buy button", keep their reasons, and the first idea keeps its buy buttons and the Review and pay bar (2 paused, 3 buy buttons)
+  PASS  22-ideas-limited-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  22-ideas-limited-1280.png: the brand and the badges do not overlap
+  PASS  desktop/ideas: with both searches over their cap, the note says so for each and the example still works (Shop search is paused until 00:00 UTC, so some ideas come from Qloo alone, without a buy button. Web search is paused un)
+  PASS  desktop/ideas: every idea stays with its reason and says what is paused (three "No buy button", one "No links"); nothing can be bought, so no buy buttons and no Review and pay bar (4 notes, 0 buy buttons)
+  PASS  desktop/ideas limited: lang and a page title (en, "Gift ideas · Tasteloom")
+  PASS  desktop/ideas limited: every control has an accessible name
+  PASS  desktop/ideas limited: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  desktop/ideas limited: touch targets at least 24x24 px (inline links excepted)
+  PASS  desktop/ideas limited: header, nav, main, footer landmarks and a live region (1111)
+  PASS  23-ideas-limited-all-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  23-ideas-limited-all-1280.png: the brand and the badges do not overlap
+  PASS  desktop/ideas: when web search ran out, the note says prices were not checked and place links are missing (Web search is paused until 00:00 UTC, so prices were not checked against shop pages and place links are missing. The sav)
+  PASS  desktop/ideas: the buy buttons stay and each price line says its check was paused, not that the price matches (9 buy buttons, 3 paused lines)
+  PASS  24-ideas-limited-prices-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  24-ideas-limited-prices-1280.png: the brand and the badges do not overlap
+  PASS  desktop/checkout: heading, title, step 3, both items and the totals (Total$76.90Your budget$120.00Left over$43.10)
+  PASS  desktop/checkout: the sandbox label and the working test card are on screen
+  PASS  desktop/checkout: the only filled button on the screen is Pay (the way back is an outline button)
+  PASS  desktop/checkout: the pay button names the exact total (Pay $76.90 with PayPal)
+  PASS  desktop/checkout: pressing Copy moves nothing on the page (the label changes, the layout does not) (Pay button at 907 px, then 907 px)
+  PASS  desktop/checkout: "Copy card number" puts the test card on the clipboard and says Copied (4005519200000004)
+  PASS  desktop/checkout: the Copied label goes back to Copy by itself
+  PASS  desktop/checkout: lang and a page title (en, "Checkout · Tasteloom")
+  PASS  desktop/checkout: every control has an accessible name
+  PASS  desktop/checkout: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  desktop/checkout: touch targets at least 24x24 px (inline links excepted)
+  PASS  desktop/checkout: header, nav, main, footer landmarks and a live region (1111)
+  PASS  desktop/checkout: no horizontal scrolling from 320 to 1440 px wide
+  PASS  desktop/checkout: 11 keyboard stops, each with a visible focus ring
+  PASS  25-checkout-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  25-checkout-1280.png: the brand and the badges do not overlap
+  PASS  desktop/checkout: removing an item updates the list, the total and the pay button (Pay $39.95 with PayPal)
+  PASS  desktop/checkout: while the order is created the button is busy and disabled, and a status line says so
+  PASS  26-checkout-loading-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  26-checkout-loading-1280.png: the brand and the badges do not overlap
+  PASS  desktop/checkout: a different server total is explained before leaving, naming both amounts (Our server priced this gift at $81.90, not $76.90. The server’s price is the one PayPal will charge. Continue only if that is fine.)
+  PASS  desktop/checkout: the list, the Total row and the button all show the server's price, so nothing contradicts the note (Total$81.90 / Pay $81.90 with PayPal)
+  PASS  desktop/checkout: the button label stays on one line
+  PASS  27-checkout-mismatch-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  27-checkout-mismatch-1280.png: the brand and the badges do not overlap
+  PASS  desktop/checkout: upstream: one "Back to ideas" on the screen, not two (1 visible)
+  PASS  desktop/checkout: upstream: title "PayPal is not answering" and actions Try again, Back to ideas (PayPal is not answering / Try again, Back to ideas)
+  PASS  desktop/checkout: upstream: Pay stays the one filled button and stays on; the message does not repeat the title ( / pay off false / Please try again in a minute.)
+  PASS  desktop/checkout error: lang and a page title (en, "Checkout · Tasteloom")
+  PASS  desktop/checkout error: every control has an accessible name
+  PASS  desktop/checkout error: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  desktop/checkout error: touch targets at least 24x24 px (inline links excepted)
+  PASS  desktop/checkout error: header, nav, main, footer landmarks and a live region (1111)
+  PASS  28-checkout-error-upstream-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  28-checkout-error-upstream-1280.png: the brand and the badges do not overlap
+  PASS  desktop/checkout: upstream: with no :has() support (rule dropped, @supports fallback applied) there is still exactly one "Back to ideas" (1 visible)
+  PASS  desktop/checkout: over budget: one "Back to ideas" on the screen, not two
+  PASS  desktop/checkout: over budget (counted on the page): the banner, the "Over budget by" row and the Pay button agree (Over budget by$5.00 / Back to ideas)
+  PASS  desktop/checkout over budget: lang and a page title (en, "Checkout · Tasteloom")
+  PASS  desktop/checkout over budget: every control has an accessible name
+  PASS  desktop/checkout over budget: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  desktop/checkout over budget: touch targets at least 24x24 px (inline links excepted)
+  PASS  desktop/checkout over budget: header, nav, main, footer landmarks and a live region (1111)
+  PASS  29-checkout-error-over-budget-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  29-checkout-error-over-budget-1280.png: the brand and the badges do not overlap
+  PASS  desktop/checkout: removing the dearest item clears the over-budget banner and switches Pay on (removed 3995 cents)
+  PASS  desktop/checkout: when the server refuses a total, Pay is off with a reason and "Back to ideas" is the one filled button
+  PASS  desktop/checkout: over budget: with no :has() support there is still exactly one "Back to ideas" (1 visible)
+  PASS  desktop/checkout: removing an item clears a refusal that removing can fix (1 item left)
+  PASS  desktop/checkout: session: one "Back to ideas" on the screen, not two (1 visible)
+  PASS  desktop/checkout: session: title "Your session expired" and actions Start over, Replay the saved example (Your session expired / Start over, Replay the saved example)
+  PASS  desktop/checkout: session: one filled button ("Start over") and Pay is switched off with a reason; the message does not repeat the title (Start over / pay off true / The saved prices are gone, so this gift cannot be ordered. Start over, or replay the saved example.)
+  PASS  30-checkout-error-session-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  30-checkout-error-session-1280.png: the brand and the badges do not overlap
+  PASS  desktop/checkout: session: with no :has() support (rule dropped, @supports fallback applied) there is still exactly one "Back to ideas" (1 visible)
+  PASS  desktop/checkout: network: one "Back to ideas" on the screen, not two (1 visible)
+  PASS  desktop/checkout: network: title "We could not reach the server" and actions Try again, Back to ideas (We could not reach the server / Try again, Back to ideas)
+  PASS  desktop/checkout: network: Pay stays the one filled button and stays on; the message does not repeat the title ( / pay off false / Check your connection and try again.)
+  PASS  31-checkout-error-network-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  31-checkout-error-network-1280.png: the brand and the badges do not overlap
+  PASS  desktop/checkout: network: with no :has() support (rule dropped, @supports fallback applied) there is still exactly one "Back to ideas" (1 visible)
+  PASS  desktop/checkout: after cancelling on PayPal the page says nothing was charged and keeps the gift (You cancelled on PayPal’s page, so nothing was charged. Your gift is still here.)
+  PASS  32-checkout-cancelled-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  32-checkout-cancelled-1280.png: the brand and the badges do not overlap
+  PASS  desktop/receipt: while loading it says so, shows a placeholder and does not tick the last step
+  PASS  33-receipt-loading-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  33-receipt-loading-1280.png: the brand and the badges do not overlap
+  PASS  desktop/receipt-completed: heading "Order confirmed" and the order id shown (Order confirmed)
+  PASS  desktop/receipt-completed: status pill says "Completed" (the raw COMPLETED stays in the page data only), the page names the sandbox twice (header badge, Mode row), once more only where the server's own error text says it
+  PASS  desktop/receipt-completed: no raw codes in the text and "Nothing was charged" is said at most once (Order confirmedPayment approved and captured.Order id7EX35260AB123456CCopyStatus)
+  PASS  desktop/receipt-completed: the step bar ticks all three steps (3 done, current null)
+  PASS  desktop/receipt-completed: exactly one filled button ("Start a new gift") among Start a new gift (Start a new gift)
+  PASS  desktop/receipt-completed: no extra banner repeats the subtitle (none)
+  PASS  desktop/receipt-completed: payment id, total and both items on the receipt
+  PASS  desktop/receipt: lang and a page title (en, "Receipt · Tasteloom")
+  PASS  desktop/receipt: every control has an accessible name
+  PASS  desktop/receipt: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  desktop/receipt: touch targets at least 24x24 px (inline links excepted)
+  PASS  desktop/receipt: header, nav, main, footer landmarks and a live region (1111)
+  PASS  desktop/receipt: no horizontal scrolling from 320 to 1440 px wide
+  PASS  desktop/receipt: 8 keyboard stops, each with a visible focus ring
+  PASS  34-receipt-completed-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  34-receipt-completed-1280.png: the brand and the badges do not overlap
+  PASS  desktop/receipt-capture-failed: heading "Payment not completed" and the order id shown (Payment not completed)
+  PASS  desktop/receipt-capture-failed: status pill says "Not completed" (the raw CAPTURE_FAILED stays in the page data only), the page names the sandbox twice (header badge, Mode row), once more only where the server's own error text says it
+  PASS  desktop/receipt-capture-failed: no raw codes in the text and "Nothing was charged" is said at most once (Payment not completedPayPal did not finish the payment. Nothing was charged.The )
+  PASS  desktop/receipt-capture-failed: the step bar keeps Checkout as the current step instead of ticking it (2 done, current 3Checkout)
+  PASS  desktop/receipt-capture-failed: exactly one filled button ("Check and try again") among Check and try again, Start a new gift (Check and try again)
+  PASS  desktop/receipt-capture-failed: the failure reason is shown once, in plain words (The card was declined. Go back to checkout and use the sandbox test card.)
+  PASS  35-receipt-capture-failed-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  35-receipt-capture-failed-1280.png: the brand and the badges do not overlap
+  PASS  desktop/receipt-not-approved: heading "Payment not approved yet" and the order id shown (Payment not approved yet)
+  PASS  desktop/receipt-not-approved: status pill says "Not approved yet" (the raw NOT_APPROVED stays in the page data only), the page names the sandbox twice (header badge, Mode row), once more only where the server's own error text says it
+  PASS  desktop/receipt-not-approved: no raw codes in the text and "Nothing was charged" is said at most once (Payment not approved yetPayPal does not show this order as approved. Nothing was)
+  PASS  desktop/receipt-not-approved: the step bar keeps Checkout as the current step instead of ticking it (2 done, current 3Checkout)
+  PASS  desktop/receipt-not-approved: exactly one filled button ("Back to checkout") among Back to checkout, I approved it, check again (Back to checkout)
+  PASS  desktop/receipt-not-approved: no extra banner repeats the subtitle (none)
+  PASS  36-receipt-not-approved-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  36-receipt-not-approved-1280.png: the brand and the badges do not overlap
+  PASS  desktop/receipt-created: heading "Waiting for your approval on PayPal" and the order id shown (Waiting for your approval on PayPal)
+  PASS  desktop/receipt-created: status pill says "Waiting for approval" (the raw CREATED stays in the page data only), the page names the sandbox twice (header badge, Mode row), once more only where the server's own error text says it
+  PASS  desktop/receipt-created: no raw codes in the text and "Nothing was charged" is said at most once (Waiting for your approval on PayPalThe order exists, but it has not been approve)
+  PASS  desktop/receipt-created: the step bar keeps Checkout as the current step instead of ticking it (2 done, current 3Checkout)
+  PASS  desktop/receipt-created: exactly one filled button ("I approved it, check again") among I approved it, check again, Start a new gift (I approved it, check again)
+  PASS  desktop/receipt-created: no extra banner repeats the subtitle (none)
+  PASS  37-receipt-created-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  37-receipt-created-1280.png: the brand and the badges do not overlap
+  PASS  desktop/receipt-cancelled: heading "Payment cancelled" and the order id shown (Payment cancelled)
+  PASS  desktop/receipt-cancelled: status pill says "Cancelled" (the raw CANCELLED stays in the page data only), the page names the sandbox twice (header badge, Mode row), once more only where the server's own error text says it
+  PASS  desktop/receipt-cancelled: no raw codes in the text and "Nothing was charged" is said at most once (Payment cancelledYou cancelled on PayPal’s page. Nothing was charged.Order id7EX)
+  PASS  desktop/receipt-cancelled: the step bar keeps Checkout as the current step instead of ticking it (2 done, current 3Checkout)
+  PASS  desktop/receipt-cancelled: exactly one filled button ("Start a new gift") among Start a new gift (Start a new gift)
+  PASS  desktop/receipt-cancelled: no extra banner repeats the subtitle (none)
+  PASS  38-receipt-cancelled-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  38-receipt-cancelled-1280.png: the brand and the badges do not overlap
+  PASS  desktop/receipt: an unknown order says so, offers a new start as the one filled button, and the last step is not ticked (We could not find that order)
+  PASS  39-receipt-not-found-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  39-receipt-not-found-1280.png: the brand and the badges do not overlap
+  PASS  desktop/receipt: a network failure says so, with Try again as the one filled button and a plain reason under the heading (Try again, Start a new gift / Check your connection and try again.)
+  PASS  40-receipt-error-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  40-receipt-error-1280.png: the brand and the badges do not overlap
+  PASS  desktop/checkout: ?images=off hides the line photos (0 shown)
+  PASS  43-checkout-images-off-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  43-checkout-images-off-1280.png: the brand and the badges do not overlap
+  PASS  desktop/ideas: every idea that names a favourite has a "Copy note" button named after it, and no other idea has one (3:Copy note: Music by Ryuichi Sakamoto | 3:Copy note: Something from Muji | 3:Copy note: Something from Lodge | 3:Copy note: A visit to Kew Gardens)
+  PASS  desktop/ideas: "Add one memory only you can write." is not on screen until a note is copied
+  PASS  desktop/ideas: on every card that names a favourite, "Because they love X" is bigger than the title, the reason and the kind label ({"label":22,"pill":22,"title":20,"reason":17,"kind":12})
+  PASS  desktop/ideas: Enter on a focused "Copy note" button copies "I picked this because you love Nujabes, Kafka on the Shore and Kyoto." and a blank line (real clipboard) ("I picked this because you love Nujabes, Kafka on the Shore and Kyoto.\n\n")
+  PASS  desktop/ideas: Space on another card's button copies that card's note, which names 3 favourites, all of them (real clipboard) ("I picked this because you love Nujabes, Kyoto and Hario.\n\n")
+  PASS  desktop/ideas: after the copy the card says "Copied. Add one memory only you can write." (the live region carries the last card's words) (Copied. Add one memory only you can write. / Copied. Add one memory only you can write.)
+  PASS  desktop/ideas: when copying fails, the note shows in a focused, selected, read-only box that has a name, below the Ctrl+C line (which says "below") and the memory line ({"shown":true,"readOnly":true,"value":"I picked this because you love Stardew Valley, Hario and Kyoto.\n\n","label":"Note for Something from Lodge","focused":true,"all":true,"status":"Could not copy by itself. Press Ctrl+C to copy the note below. Add one memory only you can write.","statusShown":true,"below":true})
+  PASS  desktop/ideas copy note: lang and a page title (en, "Gift ideas · Tasteloom")
+  PASS  desktop/ideas copy note: every control has an accessible name
+  PASS  desktop/ideas copy note: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  desktop/ideas copy note: touch targets at least 24x24 px (inline links excepted)
+  PASS  desktop/ideas copy note: header, nav, main, footer landmarks and a live region (1111)
+  PASS  desktop/ideas copy note: no horizontal scrolling from 320 to 1440 px wide
+  PASS  44-ideas-copy-note-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  44-ideas-copy-note-1280.png: the brand and the badges do not overlap
+  journeys (desktop)
+  PASS  desktop/keyboard: Tab reaches the favourites field; Enter and comma add chips (3 chips)
+  PASS  desktop/keyboard: Tab reaches the budget; Enter in it submits
+  PASS  desktop/keyboard: a product card can be reached and picked with Tab and Enter
+  PASS  desktop/keyboard: "Review and pay" opens checkout and moves focus to its heading (reached true, checkout true, focus on H1)
+  PASS  desktop/history: Back from checkout returns to the ideas with the pick kept (#/ideas)
+  PASS  desktop/history: Forward returns to checkout
+  PASS  desktop/reload: reloading during a run returns to the first screen and keeps the favourites (Gifts that understand them, 3 chips)
+TOUR mobile 390x844: every state
+  PASS  mobile/home: heading, title and focus on the heading (Gifts that understand them · Tasteloom)
+  PASS  mobile/home: one principle line sits right under the heading, before the lead ({"text":"No age, no gender, no account: only what they love.","order":true,"count":1})
+  PASS  mobile/home: the principle is true of the form: its only fields are the favourites (name, type) and the budget, and no label asks for an age, gender, account or email (budget,fav-input,fav-type; Things they love | Type of thing | Budget in US dollars | For example: Nujabes)
+  PASS  mobile/home: one small link "Make your own taste link" to /ask?for=me, outside the form (Make your own taste link|outside the form)
+  PASS  mobile/home: the "Demo data" badge is shown exactly while a mock is active (mocks: qloo,ai)
+  PASS  mobile/home: sandbox label in the header, three steps with step 1 current (1Their taste)
+  PASS  mobile/home: no third-party image on the first screen
+  PASS  mobile/home: lang and a page title (en, "Gifts that understand them · Tasteloom")
+  PASS  mobile/home: every control has an accessible name
+  PASS  mobile/home: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  mobile/home: touch targets at least 24x24 px (inline links excepted)
+  PASS  mobile/home: header, nav, main, footer landmarks and a live region (1111)
+  PASS  mobile/home: 16 keyboard stops, each with a visible focus ring
+  PASS  01-home-empty-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  01-home-empty-390.png: the brand and the badges do not overlap
+  PASS  mobile/home: four chips with their type hints, count line and budget (4 of 5 added.)
+  PASS  mobile/home: the chips show the type hint the user chose
+  PASS  02-home-filled-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  02-home-filled-390.png: the brand and the badges do not overlap
+  PASS  mobile/home: a fifth chip is accepted (5 of 5 added.)
+  PASS  mobile/home: a sixth chip is refused with a plain sentence (You can add up to 5. Remove one to add another.)
+  PASS  mobile/home: removing a chip works and the count follows (4 of 5 added.)
+  PASS  mobile/home: a repeated favourite is refused (You already added muji.)
+  PASS  mobile/home: fewer than three favourites gives a clear error and stays on the first screen (Add at least 3 things they love, so the taste reading has something to work with.)
+  PASS  03-home-error-favs-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  03-home-error-favs-390.png: the brand and the badges do not overlap
+  PASS  mobile/home: a budget below $10 gives a clear error and stays on the first screen (The budget must be at least $10.)
+  PASS  04-home-error-budget-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  04-home-error-budget-390.png: the brand and the badges do not overlap
+  PASS  mobile/home: the ways in are all named: Ask them, Find gift ideas, Run a live example and Replay the saved example (Run a live example|Ask them|Find gift ideas|Replay the saved example)
+  PASS  mobile/home: the lead names both ways to start
+  PASS  mobile/home: "Run a live example" posts the fixed example set and its budget, like a typed run ({"favorites":[{"text":"One Flew Over the Cuckoo's Nest","type":"book"},{"text":"The Catcher in the Rye","type":"book"},{"text":"Bob Dylan","type":"artist"},{"text":"The Velvet Underground","type":"artist"},{"text":"Polaroid","type":"brand"}],"budget_usd":120})
+  PASS  mobile/ideas: when the example run fails, the saved example is offered first, Try again second, and the page still says it is the example set (Replay the saved example|Try again / Example set. The favourites and the budget above were picked for this demo, not typed by you. The search is a normal one, within the same daily limits as any other.)
+  PASS  mobile/ideas: "Try again" posts the same example set again (2 posts)
+  PASS  mobile/ideas: the page shows the example favourites and budget, and one note saying they were picked for the demo, not typed, and that the search is a normal one (One Flew Over the Cuckoo's Nest|The Catcher in the Rye|Bob Dylan|The Velvet Underground|Polaroid / Budget $120.00 / Example set. The favourites and the budget above were picked for this demo, not typed by you. The search is a normal one, within the same daily limits as any other.)
+  PASS  mobile/ideas live example: lang and a page title (en, "Gift ideas · Tasteloom")
+  PASS  mobile/ideas live example: every control has an accessible name
+  PASS  mobile/ideas live example: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  mobile/ideas live example: touch targets at least 24x24 px (inline links excepted)
+  PASS  mobile/ideas live example: header, nav, main, footer landmarks and a live region (1111)
+  PASS  05-home-live-example-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  05-home-live-example-390.png: the brand and the badges do not overlap
+  PASS  mobile/home: back on the first screen the example favourites are filled in, ready to change
+  PASS  mobile/ideas: while running, the heading, step 2, a running phase, tool calls and skeleton cards
+  PASS  mobile/ideas: the demo-data note is shown for a run on mocks (Demo data: Qloo and the AI model run on built-in stand-ins w)
+  PASS  mobile/ideas running: lang and a page title (en, "Gift ideas · Tasteloom")
+  PASS  mobile/ideas running: every control has an accessible name
+  PASS  mobile/ideas running: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  mobile/ideas running: touch targets at least 24x24 px (inline links excepted)
+  PASS  mobile/ideas running: header, nav, main, footer landmarks and a live region (1111)
+  PASS  06-ideas-running-early-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  06-ideas-running-early-390.png: the brand and the badges do not overlap
+  PASS  mobile/ideas: two idea cards have arrived and the loading placeholders for the others remain
+  PASS  mobile/ideas: layout shift while steps and ideas stream in is at most 0.1 (CLS 0)
+  PASS  07-ideas-running-mid-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  07-ideas-running-mid-390.png: the brand and the badges do not overlap
+  PASS  mobile/ideas: stopping early keeps the ideas, says so, and offers to try again (The agent stopped early / Replay the saved example, Try again)
+  PASS  mobile/ideas: stopping early has no filled button (the Review and pay bar stays the main action) and its text does not say "try again" twice ( / Some ideas arrived before it stopped.)
+  PASS  mobile/ideas: no placeholder is left spinning after the error
+  PASS  mobile/ideas: the step list tells the truth (unfinished steps are not ticked) and the status says Stopped (Stopped)
+  PASS  mobile/ideas: the error card is in the first screens, not below an opened trace
+  PASS  mobile/ideas partial: lang and a page title (en, "Gift ideas · Tasteloom")
+  PASS  mobile/ideas partial: every control has an accessible name
+  PASS  mobile/ideas partial: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  mobile/ideas partial: touch targets at least 24x24 px (inline links excepted)
+  PASS  mobile/ideas partial: header, nav, main, footer landmarks and a live region (1111)
+  PASS  08-ideas-error-partial-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  08-ideas-error-partial-390.png: the brand and the badges do not overlap
+  PASS  mobile/ideas: the page title and focus follow the route (Gift ideas · Tasteloom)
+  PASS  mobile/ideas: example run finished with ideas, product cards and the saved-example note (4 ideas, 9 buyable cards)
+  PASS  mobile/ideas: each idea says why ("Because they love ..." or the overall-taste line)
+  PASS  mobile/ideas: each product card shows a price, a shop and a link that opens safely
+  PASS  mobile/ideas: gifts come first: the first card has an "Add to gift" button and no gift idea comes after an experience
+  PASS  mobile/ideas: layout shift while the example loads is at most 0.1 (CLS 0)
+  PASS  mobile/ideas: lang and a page title (en, "Gift ideas · Tasteloom")
+  PASS  mobile/ideas: every control has an accessible name
+  PASS  mobile/ideas: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  mobile/ideas: touch targets at least 24x24 px (inline links excepted)
+  PASS  mobile/ideas: header, nav, main, footer landmarks and a live region (1111)
+  PASS  mobile/ideas: 33 keyboard stops, each with a visible focus ring
+  PASS  09-ideas-example-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  09-ideas-example-390.png: the brand and the badges do not overlap
+  PASS  mobile/ideas: a restored run has the same order: gifts first, the first card has an "Add to gift" button
+  PASS  mobile/ideas: "Review and pay" is disabled until something is picked
+  PASS  mobile/ideas: two picks update the card state, the bar count and the budget meter (2 items · $76.90 of $120.00, meter 7690)
+  PASS  mobile/ideas: "Review and pay" is now enabled
+  PASS  10-ideas-selected-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  10-ideas-selected-390.png: the brand and the badges do not overlap
+  PASS  mobile/ideas: the picks survive a reload
+  PASS  mobile/ideas: a card shows how Qloo splits its link by favourite (adding up to 100%) and the tags Qloo gives both (["How Qloo splits its link to this idea (adds up to 100%): 62% Nujabes · 25% Muji · 13% Kafka on the Shore","Tags Qloo gives to both Nujabes and Ryuichi Sakamoto: Calm · Jazz"])
+  PASS  mobile/ideas: a split with one favourite left shows nothing, and neither does an idea that carries no Qloo evidence ([[],[]])
+  PASS  mobile/ideas: the evidence is quieter than the reason
+  PASS  mobile/ideas evidence: lang and a page title (en, "Gift ideas · Tasteloom")
+  PASS  mobile/ideas evidence: every control has an accessible name
+  PASS  mobile/ideas evidence: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  mobile/ideas evidence: touch targets at least 24x24 px (inline links excepted)
+  PASS  mobile/ideas evidence: header, nav, main, footer landmarks and a live region (1111)
+  PASS  11-ideas-evidence-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  11-ideas-evidence-390.png: the brand and the badges do not overlap
+  PASS  mobile/ideas: cards that would break the budget say "Over budget" and cannot be added (Over budget | Over budget | Over budget | Remove | Over budget | Over budget | Over budget | Over budget | Over budget)
+  PASS  12-ideas-over-budget-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  12-ideas-over-budget-390.png: the brand and the badges do not overlap
+  PASS  mobile/ideas: with six picked the others say "Gift is full" (6 picked)
+  PASS  13-ideas-gift-full-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  13-ideas-gift-full-390.png: the brand and the badges do not overlap
+  PASS  mobile/ideas: ?images=off hides every product image and the switch says off ({"attr":"off","shown":0,"sw":"false"})
+  PASS  14-ideas-images-off-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  14-ideas-images-off-390.png: the brand and the badges do not overlap
+  PASS  mobile/ideas: a fresh visit asks no shop for an image until the images switch is turned on (0 third-party image requests and 0 image sources before the switch, 9 sources after)
+  PASS  mobile/ideas: server unreachable: title "We could not reach the server" with a plain message and the actions Try again, Replay the saved example (We could not reach the server / Try again, Replay the saved example)
+  PASS  mobile/ideas: server unreachable: one filled button ("Try again") and a message that does not repeat the title (Try again / Check your connection and try again.)
+  PASS  mobile/ideas: server unreachable: the status row says Stopped, in the same red as the card icon (Stopped)
+  PASS  16-ideas-error-network-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  16-ideas-error-network-390.png: the brand and the badges do not overlap
+  PASS  mobile/ideas: daily limit reached: title "Live lookups are used up for now" with a plain message and the actions Replay the saved example (Live lookups are used up for now / Replay the saved example)
+  PASS  mobile/ideas: daily limit reached: one filled button ("Replay the saved example") and a message that does not repeat the title (Replay the saved example / You have reached today’s allowance for live lookups. The saved example still works, or come back tomorrow.)
+  PASS  mobile/ideas: daily limit reached: the status row says Stopped, in the same red as the card icon (Stopped)
+  PASS  mobile/ideas error: lang and a page title (en, "Gift ideas · Tasteloom")
+  PASS  mobile/ideas error: every control has an accessible name
+  PASS  mobile/ideas error: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  mobile/ideas error: touch targets at least 24x24 px (inline links excepted)
+  PASS  mobile/ideas error: header, nav, main, footer landmarks and a live region (1111)
+  PASS  17-ideas-error-limit-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  17-ideas-error-limit-390.png: the brand and the badges do not overlap
+  PASS  mobile/ideas: a service is down: title "A service we depend on is not answering" with a plain message and the actions Replay the saved example, Try again (A service we depend on is not answering / Replay the saved example, Try again)
+  PASS  mobile/ideas: a service is down: one filled button ("Replay the saved example") and a message that does not repeat the title and ends with "The saved example always works." (Replay the saved example / Please try again in a minute. The saved example always works.)
+  PASS  mobile/ideas: a service is down: the status row says Stopped, in the same red as the card icon (Stopped)
+  PASS  18-ideas-error-upstream-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  18-ideas-error-upstream-390.png: the brand and the badges do not overlap
+  PASS  mobile/ideas: input refused by the server: title "Nothing to suggest yet" with a plain message and the actions Change favourites, Replay the saved example (Nothing to suggest yet / Change favourites, Replay the saved example)
+  PASS  mobile/ideas: input refused by the server: one filled button ("Change favourites") and a message that does not repeat the title (Change favourites / Nothing we found fits that budget. Try a higher budget or different favourites.)
+  PASS  mobile/ideas: input refused by the server: the status row says Stopped, in the same red as the card icon (Stopped)
+  PASS  19-ideas-error-bad-input-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  19-ideas-error-bad-input-390.png: the brand and the badges do not overlap
+  PASS  mobile/ideas: no results gives an explanation and two ways forward, one of them filled (Change favourites, Replay the saved example)
+  PASS  mobile/ideas: the status row says "Finished without ideas" instead of a green Done (Finished without ideas)
+  PASS  20-ideas-empty-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  20-ideas-empty-390.png: the brand and the badges do not overlap
+  PASS  mobile/ideas: when the model did not take part, a plain note says so and the ideas are still there (The AI model did not take part in this run (its daily allowance is used up, or i)
+  PASS  mobile/ideas: when shop search ran out mid-run, a plain note says it is paused until 00:00 UTC and the example still works (Shop search is paused until 00:00 UTC, so some ideas come from Qloo alone, without a buy button. The saved example alway)
+  PASS  mobile/ideas: the product ideas after the cap say "No buy button", keep their reasons, and the first idea keeps its buy buttons and the Review and pay bar (2 paused, 3 buy buttons)
+  PASS  22-ideas-limited-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  22-ideas-limited-390.png: the brand and the badges do not overlap
+  PASS  mobile/ideas: with both searches over their cap, the note says so for each and the example still works (Shop search is paused until 00:00 UTC, so some ideas come from Qloo alone, without a buy button. Web search is paused un)
+  PASS  mobile/ideas: every idea stays with its reason and says what is paused (three "No buy button", one "No links"); nothing can be bought, so no buy buttons and no Review and pay bar (4 notes, 0 buy buttons)
+  PASS  mobile/ideas limited: lang and a page title (en, "Gift ideas · Tasteloom")
+  PASS  mobile/ideas limited: every control has an accessible name
+  PASS  mobile/ideas limited: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  mobile/ideas limited: touch targets at least 24x24 px (inline links excepted)
+  PASS  mobile/ideas limited: header, nav, main, footer landmarks and a live region (1111)
+  PASS  23-ideas-limited-all-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  23-ideas-limited-all-390.png: the brand and the badges do not overlap
+  PASS  mobile/ideas: when web search ran out, the note says prices were not checked and place links are missing (Web search is paused until 00:00 UTC, so prices were not checked against shop pages and place links are missing. The sav)
+  PASS  mobile/ideas: the buy buttons stay and each price line says its check was paused, not that the price matches (9 buy buttons, 3 paused lines)
+  PASS  24-ideas-limited-prices-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  24-ideas-limited-prices-390.png: the brand and the badges do not overlap
+  PASS  mobile/checkout: heading, title, step 3, both items and the totals (Total$76.90Your budget$120.00Left over$43.10)
+  PASS  mobile/checkout: the sandbox label and the working test card are on screen
+  PASS  mobile/checkout: the only filled button on the screen is Pay (the way back is an outline button)
+  PASS  mobile/checkout: the pay button names the exact total (Pay $76.90 with PayPal)
+  PASS  mobile/checkout: pressing Copy moves nothing on the page (the label changes, the layout does not) (Pay button at 1525 px, then 1525 px)
+  PASS  mobile/checkout: the Copied label goes back to Copy by itself
+  PASS  mobile/checkout: lang and a page title (en, "Checkout · Tasteloom")
+  PASS  mobile/checkout: every control has an accessible name
+  PASS  mobile/checkout: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  mobile/checkout: touch targets at least 24x24 px (inline links excepted)
+  PASS  mobile/checkout: header, nav, main, footer landmarks and a live region (1111)
+  PASS  mobile/checkout: 11 keyboard stops, each with a visible focus ring
+  PASS  25-checkout-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  25-checkout-390.png: the brand and the badges do not overlap
+  PASS  mobile/checkout: removing an item updates the list, the total and the pay button (Pay $39.95 with PayPal)
+  PASS  mobile/checkout: while the order is created the button is busy and disabled, and a status line says so
+  PASS  26-checkout-loading-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  26-checkout-loading-390.png: the brand and the badges do not overlap
+  PASS  mobile/checkout: a different server total is explained before leaving, naming both amounts (Our server priced this gift at $81.90, not $76.90. The server’s price is the one PayPal will charge. Continue only if that is fine.)
+  PASS  mobile/checkout: the list, the Total row and the button all show the server's price, so nothing contradicts the note (Total$81.90 / Pay $81.90 with PayPal)
+  PASS  mobile/checkout: the button label stays on one line
+  PASS  27-checkout-mismatch-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  27-checkout-mismatch-390.png: the brand and the badges do not overlap
+  PASS  mobile/checkout: upstream: one "Back to ideas" on the screen, not two (1 visible)
+  PASS  mobile/checkout: upstream: title "PayPal is not answering" and actions Try again, Back to ideas (PayPal is not answering / Try again, Back to ideas)
+  PASS  mobile/checkout: upstream: Pay stays the one filled button and stays on; the message does not repeat the title ( / pay off false / Please try again in a minute.)
+  PASS  mobile/checkout error: lang and a page title (en, "Checkout · Tasteloom")
+  PASS  mobile/checkout error: every control has an accessible name
+  PASS  mobile/checkout error: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  mobile/checkout error: touch targets at least 24x24 px (inline links excepted)
+  PASS  mobile/checkout error: header, nav, main, footer landmarks and a live region (1111)
+  PASS  28-checkout-error-upstream-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  28-checkout-error-upstream-390.png: the brand and the badges do not overlap
+  PASS  mobile/checkout: upstream: with no :has() support (rule dropped, @supports fallback applied) there is still exactly one "Back to ideas" (1 visible)
+  PASS  mobile/checkout: over budget: one "Back to ideas" on the screen, not two
+  PASS  mobile/checkout: over budget (counted on the page): the banner, the "Over budget by" row and the Pay button agree (Over budget by$5.00 / Back to ideas)
+  PASS  mobile/checkout over budget: lang and a page title (en, "Checkout · Tasteloom")
+  PASS  mobile/checkout over budget: every control has an accessible name
+  PASS  mobile/checkout over budget: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  mobile/checkout over budget: touch targets at least 24x24 px (inline links excepted)
+  PASS  mobile/checkout over budget: header, nav, main, footer landmarks and a live region (1111)
+  PASS  29-checkout-error-over-budget-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  29-checkout-error-over-budget-390.png: the brand and the badges do not overlap
+  PASS  mobile/checkout: removing the dearest item clears the over-budget banner and switches Pay on (removed 3995 cents)
+  PASS  mobile/checkout: when the server refuses a total, Pay is off with a reason and "Back to ideas" is the one filled button
+  PASS  mobile/checkout: over budget: with no :has() support there is still exactly one "Back to ideas" (1 visible)
+  PASS  mobile/checkout: removing an item clears a refusal that removing can fix (1 item left)
+  PASS  mobile/checkout: session: one "Back to ideas" on the screen, not two (1 visible)
+  PASS  mobile/checkout: session: title "Your session expired" and actions Start over, Replay the saved example (Your session expired / Start over, Replay the saved example)
+  PASS  mobile/checkout: session: one filled button ("Start over") and Pay is switched off with a reason; the message does not repeat the title (Start over / pay off true / The saved prices are gone, so this gift cannot be ordered. Start over, or replay the saved example.)
+  PASS  30-checkout-error-session-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  30-checkout-error-session-390.png: the brand and the badges do not overlap
+  PASS  mobile/checkout: session: with no :has() support (rule dropped, @supports fallback applied) there is still exactly one "Back to ideas" (1 visible)
+  PASS  mobile/checkout: network: one "Back to ideas" on the screen, not two (1 visible)
+  PASS  mobile/checkout: network: title "We could not reach the server" and actions Try again, Back to ideas (We could not reach the server / Try again, Back to ideas)
+  PASS  mobile/checkout: network: Pay stays the one filled button and stays on; the message does not repeat the title ( / pay off false / Check your connection and try again.)
+  PASS  31-checkout-error-network-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  31-checkout-error-network-390.png: the brand and the badges do not overlap
+  PASS  mobile/checkout: network: with no :has() support (rule dropped, @supports fallback applied) there is still exactly one "Back to ideas" (1 visible)
+  PASS  mobile/checkout: after cancelling on PayPal the page says nothing was charged and keeps the gift (You cancelled on PayPal’s page, so nothing was charged. Your gift is still here.)
+  PASS  32-checkout-cancelled-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  32-checkout-cancelled-390.png: the brand and the badges do not overlap
+  PASS  mobile/receipt: while loading it says so, shows a placeholder and does not tick the last step
+  PASS  33-receipt-loading-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  33-receipt-loading-390.png: the brand and the badges do not overlap
+  PASS  mobile/receipt-completed: heading "Order confirmed" and the order id shown (Order confirmed)
+  PASS  mobile/receipt-completed: status pill says "Completed" (the raw COMPLETED stays in the page data only), the page names the sandbox twice (header badge, Mode row), once more only where the server's own error text says it
+  PASS  mobile/receipt-completed: no raw codes in the text and "Nothing was charged" is said at most once (Order confirmedPayment approved and captured.Order id7EX35260AB123456CCopyStatus)
+  PASS  mobile/receipt-completed: the step bar ticks all three steps (3 done, current null)
+  PASS  mobile/receipt-completed: exactly one filled button ("Start a new gift") among Start a new gift (Start a new gift)
+  PASS  mobile/receipt-completed: no extra banner repeats the subtitle (none)
+  PASS  mobile/receipt-completed: payment id, total and both items on the receipt
+  PASS  mobile/receipt: lang and a page title (en, "Receipt · Tasteloom")
+  PASS  mobile/receipt: every control has an accessible name
+  PASS  mobile/receipt: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  mobile/receipt: touch targets at least 24x24 px (inline links excepted)
+  PASS  mobile/receipt: header, nav, main, footer landmarks and a live region (1111)
+  PASS  mobile/receipt: 8 keyboard stops, each with a visible focus ring
+  PASS  34-receipt-completed-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  34-receipt-completed-390.png: the brand and the badges do not overlap
+  PASS  mobile/receipt-capture-failed: heading "Payment not completed" and the order id shown (Payment not completed)
+  PASS  mobile/receipt-capture-failed: status pill says "Not completed" (the raw CAPTURE_FAILED stays in the page data only), the page names the sandbox twice (header badge, Mode row), once more only where the server's own error text says it
+  PASS  mobile/receipt-capture-failed: no raw codes in the text and "Nothing was charged" is said at most once (Payment not completedPayPal did not finish the payment. Nothing was charged.The )
+  PASS  mobile/receipt-capture-failed: the step bar keeps Checkout as the current step instead of ticking it (2 done, current 3Checkout)
+  PASS  mobile/receipt-capture-failed: exactly one filled button ("Check and try again") among Check and try again, Start a new gift (Check and try again)
+  PASS  mobile/receipt-capture-failed: the failure reason is shown once, in plain words (The card was declined. Go back to checkout and use the sandbox test card.)
+  PASS  35-receipt-capture-failed-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  35-receipt-capture-failed-390.png: the brand and the badges do not overlap
+  PASS  mobile/receipt-not-approved: heading "Payment not approved yet" and the order id shown (Payment not approved yet)
+  PASS  mobile/receipt-not-approved: status pill says "Not approved yet" (the raw NOT_APPROVED stays in the page data only), the page names the sandbox twice (header badge, Mode row), once more only where the server's own error text says it
+  PASS  mobile/receipt-not-approved: no raw codes in the text and "Nothing was charged" is said at most once (Payment not approved yetPayPal does not show this order as approved. Nothing was)
+  PASS  mobile/receipt-not-approved: the step bar keeps Checkout as the current step instead of ticking it (2 done, current 3Checkout)
+  PASS  mobile/receipt-not-approved: exactly one filled button ("Back to checkout") among Back to checkout, I approved it, check again (Back to checkout)
+  PASS  mobile/receipt-not-approved: no extra banner repeats the subtitle (none)
+  PASS  36-receipt-not-approved-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  36-receipt-not-approved-390.png: the brand and the badges do not overlap
+  PASS  mobile/receipt-created: heading "Waiting for your approval on PayPal" and the order id shown (Waiting for your approval on PayPal)
+  PASS  mobile/receipt-created: status pill says "Waiting for approval" (the raw CREATED stays in the page data only), the page names the sandbox twice (header badge, Mode row), once more only where the server's own error text says it
+  PASS  mobile/receipt-created: no raw codes in the text and "Nothing was charged" is said at most once (Waiting for your approval on PayPalThe order exists, but it has not been approve)
+  PASS  mobile/receipt-created: the step bar keeps Checkout as the current step instead of ticking it (2 done, current 3Checkout)
+  PASS  mobile/receipt-created: exactly one filled button ("I approved it, check again") among I approved it, check again, Start a new gift (I approved it, check again)
+  PASS  mobile/receipt-created: no extra banner repeats the subtitle (none)
+  PASS  37-receipt-created-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  37-receipt-created-390.png: the brand and the badges do not overlap
+  PASS  mobile/receipt-cancelled: heading "Payment cancelled" and the order id shown (Payment cancelled)
+  PASS  mobile/receipt-cancelled: status pill says "Cancelled" (the raw CANCELLED stays in the page data only), the page names the sandbox twice (header badge, Mode row), once more only where the server's own error text says it
+  PASS  mobile/receipt-cancelled: no raw codes in the text and "Nothing was charged" is said at most once (Payment cancelledYou cancelled on PayPal’s page. Nothing was charged.Order id7EX)
+  PASS  mobile/receipt-cancelled: the step bar keeps Checkout as the current step instead of ticking it (2 done, current 3Checkout)
+  PASS  mobile/receipt-cancelled: exactly one filled button ("Start a new gift") among Start a new gift (Start a new gift)
+  PASS  mobile/receipt-cancelled: no extra banner repeats the subtitle (none)
+  PASS  38-receipt-cancelled-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  38-receipt-cancelled-390.png: the brand and the badges do not overlap
+  PASS  mobile/receipt: an unknown order says so, offers a new start as the one filled button, and the last step is not ticked (We could not find that order)
+  PASS  39-receipt-not-found-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  39-receipt-not-found-390.png: the brand and the badges do not overlap
+  PASS  mobile/receipt: a network failure says so, with Try again as the one filled button and a plain reason under the heading (Try again, Start a new gift / Check your connection and try again.)
+  PASS  40-receipt-error-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  40-receipt-error-390.png: the brand and the badges do not overlap
+  PASS  mobile/checkout: ?images=off hides the line photos (0 shown)
+  PASS  43-checkout-images-off-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  43-checkout-images-off-390.png: the brand and the badges do not overlap
+  PASS  mobile/ideas: every idea that names a favourite has a "Copy note" button named after it, and no other idea has one (3:Copy note: Music by Ryuichi Sakamoto | 3:Copy note: Something from Muji | 3:Copy note: Something from Lodge | 3:Copy note: A visit to Kew Gardens)
+  PASS  mobile/ideas: "Add one memory only you can write." is not on screen until a note is copied
+  PASS  mobile/ideas: on every card that names a favourite, "Because they love X" is bigger than the title, the reason and the kind label ({"label":22,"pill":22,"title":20,"reason":17,"kind":12})
+  PASS  mobile/ideas: Enter on a focused "Copy note" button copies "I picked this because you love Nujabes, Kafka on the Shore and Kyoto." and a blank line (recorded write) ("I picked this because you love Nujabes, Kafka on the Shore and Kyoto.\n\n")
+  PASS  mobile/ideas: Space on another card's button copies that card's note, which names 3 favourites, all of them (recorded write) ("I picked this because you love Nujabes, Kyoto and Hario.\n\n")
+  PASS  mobile/ideas: after the copy the card says "Copied. Add one memory only you can write." (the live region carries the last card's words) (Copied. Add one memory only you can write. / Copied. Add one memory only you can write.)
+  PASS  mobile/ideas: when copying fails, the note shows in a focused, selected, read-only box that has a name, below the Ctrl+C line (which says "below") and the memory line ({"shown":true,"readOnly":true,"value":"I picked this because you love Stardew Valley, Hario and Kyoto.\n\n","label":"Note for Something from Lodge","focused":true,"all":true,"status":"Could not copy by itself. Press Ctrl+C to copy the note below. Add one memory only you can write.","statusShown":true,"below":true})
+  PASS  mobile/ideas copy note: lang and a page title (en, "Gift ideas · Tasteloom")
+  PASS  mobile/ideas copy note: every control has an accessible name
+  PASS  mobile/ideas copy note: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  mobile/ideas copy note: touch targets at least 24x24 px (inline links excepted)
+  PASS  mobile/ideas copy note: header, nav, main, footer landmarks and a live region (1111)
+  PASS  44-ideas-copy-note-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  44-ideas-copy-note-390.png: the brand and the badges do not overlap
+  journeys (mobile)
+  PASS  mobile/keyboard: Tab reaches the favourites field; Enter and comma add chips (3 chips)
+  PASS  mobile/keyboard: Tab reaches the budget; Enter in it submits
+  PASS  mobile/keyboard: a product card can be reached and picked with Tab and Enter
+  PASS  mobile/keyboard: "Review and pay" opens checkout and moves focus to its heading (reached true, checkout true, focus on H1)
+  PASS  mobile/history: Back from checkout returns to the ideas with the pick kept (#/ideas)
+  PASS  mobile/history: Forward returns to checkout
+  PASS  mobile/reload: reloading during a run returns to the first screen and keeps the favourites (Gifts that understand them, 3 chips)
+TOUR tablet 768x1024: key screens
+  PASS  tablet/home: heading, title and focus on the heading (Gifts that understand them · Tasteloom)
+  PASS  tablet/home: one principle line sits right under the heading, before the lead ({"text":"No age, no gender, no account: only what they love.","order":true,"count":1})
+  PASS  tablet/home: the principle is true of the form: its only fields are the favourites (name, type) and the budget, and no label asks for an age, gender, account or email (budget,fav-input,fav-type; Things they love | Type of thing | Budget in US dollars | For example: Nujabes)
+  PASS  tablet/home: one small link "Make your own taste link" to /ask?for=me, outside the form (Make your own taste link|outside the form)
+  PASS  tablet/home: the "Demo data" badge is shown exactly while a mock is active (mocks: qloo,ai)
+  PASS  tablet/home: sandbox label in the header, three steps with step 1 current (1Their taste)
+  PASS  tablet/home: no third-party image on the first screen
+  PASS  tablet/home: lang and a page title (en, "Gifts that understand them · Tasteloom")
+  PASS  tablet/home: every control has an accessible name
+  PASS  tablet/home: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  tablet/home: touch targets at least 24x24 px (inline links excepted)
+  PASS  tablet/home: header, nav, main, footer landmarks and a live region (1111)
+  PASS  tablet/home: 16 keyboard stops, each with a visible focus ring
+  PASS  01-home-empty-768.png: no sideways scroll (753 px wide in a 768 px window)
+  PASS  01-home-empty-768.png: the brand and the badges do not overlap
+  PASS  tablet/home: the ways in are all named: Ask them, Find gift ideas, Run a live example and Replay the saved example (Run a live example|Ask them|Find gift ideas|Replay the saved example)
+  PASS  tablet/home: the lead names both ways to start
+  PASS  tablet/home: "Run a live example" posts the fixed example set and its budget, like a typed run ({"favorites":[{"text":"One Flew Over the Cuckoo's Nest","type":"book"},{"text":"The Catcher in the Rye","type":"book"},{"text":"Bob Dylan","type":"artist"},{"text":"The Velvet Underground","type":"artist"},{"text":"Polaroid","type":"brand"}],"budget_usd":120})
+  PASS  tablet/ideas: when the example run fails, the saved example is offered first, Try again second, and the page still says it is the example set (Replay the saved example|Try again / Example set. The favourites and the budget above were picked for this demo, not typed by you. The search is a normal one, within the same daily limits as any other.)
+  PASS  tablet/ideas: "Try again" posts the same example set again (2 posts)
+  PASS  tablet/ideas: the page shows the example favourites and budget, and one note saying they were picked for the demo, not typed, and that the search is a normal one (One Flew Over the Cuckoo's Nest|The Catcher in the Rye|Bob Dylan|The Velvet Underground|Polaroid / Budget $120.00 / Example set. The favourites and the budget above were picked for this demo, not typed by you. The search is a normal one, within the same daily limits as any other.)
+  PASS  tablet/ideas live example: lang and a page title (en, "Gift ideas · Tasteloom")
+  PASS  tablet/ideas live example: every control has an accessible name
+  PASS  tablet/ideas live example: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  tablet/ideas live example: touch targets at least 24x24 px (inline links excepted)
+  PASS  tablet/ideas live example: header, nav, main, footer landmarks and a live region (1111)
+  PASS  05-home-live-example-768.png: no sideways scroll (753 px wide in a 768 px window)
+  PASS  05-home-live-example-768.png: the brand and the badges do not overlap
+  PASS  tablet/home: back on the first screen the example favourites are filled in, ready to change
+  PASS  tablet/ideas: while running, the heading, step 2, a running phase, tool calls and skeleton cards
+  PASS  tablet/ideas: the demo-data note is shown for a run on mocks (Demo data: Qloo and the AI model run on built-in stand-ins w)
+  PASS  tablet/ideas running: lang and a page title (en, "Gift ideas · Tasteloom")
+  PASS  tablet/ideas running: every control has an accessible name
+  PASS  tablet/ideas running: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  tablet/ideas running: touch targets at least 24x24 px (inline links excepted)
+  PASS  tablet/ideas running: header, nav, main, footer landmarks and a live region (1111)
+  PASS  06-ideas-running-early-768.png: no sideways scroll (753 px wide in a 768 px window)
+  PASS  06-ideas-running-early-768.png: the brand and the badges do not overlap
+  PASS  tablet/ideas: the page title and focus follow the route (Gift ideas · Tasteloom)
+  PASS  tablet/ideas: example run finished with ideas, product cards and the saved-example note (4 ideas, 9 buyable cards)
+  PASS  tablet/ideas: each idea says why ("Because they love ..." or the overall-taste line)
+  PASS  tablet/ideas: each product card shows a price, a shop and a link that opens safely
+  PASS  tablet/ideas: gifts come first: the first card has an "Add to gift" button and no gift idea comes after an experience
+  PASS  tablet/ideas: layout shift while the example loads is at most 0.1 (CLS 0.006)
+  PASS  tablet/ideas: lang and a page title (en, "Gift ideas · Tasteloom")
+  PASS  tablet/ideas: every control has an accessible name
+  PASS  tablet/ideas: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  tablet/ideas: touch targets at least 24x24 px (inline links excepted)
+  PASS  tablet/ideas: header, nav, main, footer landmarks and a live region (1111)
+  PASS  tablet/ideas: 33 keyboard stops, each with a visible focus ring
+  PASS  09-ideas-example-768.png: no sideways scroll (753 px wide in a 768 px window)
+  PASS  09-ideas-example-768.png: the brand and the badges do not overlap
+  PASS  tablet/ideas: a restored run has the same order: gifts first, the first card has an "Add to gift" button
+  PASS  tablet/ideas: "Review and pay" is disabled until something is picked
+  PASS  tablet/ideas: two picks update the card state, the bar count and the budget meter (2 items · $76.90 of $120.00, meter 7690)
+  PASS  tablet/ideas: "Review and pay" is now enabled
+  PASS  10-ideas-selected-768.png: no sideways scroll (753 px wide in a 768 px window)
+  PASS  10-ideas-selected-768.png: the brand and the badges do not overlap
+  PASS  tablet/ideas: the picks survive a reload
+  PASS  tablet/ideas: a card shows how Qloo splits its link by favourite (adding up to 100%) and the tags Qloo gives both (["How Qloo splits its link to this idea (adds up to 100%): 62% Nujabes · 25% Muji · 13% Kafka on the Shore","Tags Qloo gives to both Nujabes and Ryuichi Sakamoto: Calm · Jazz"])
+  PASS  tablet/ideas: a split with one favourite left shows nothing, and neither does an idea that carries no Qloo evidence ([[],[]])
+  PASS  tablet/ideas: the evidence is quieter than the reason
+  PASS  tablet/ideas evidence: lang and a page title (en, "Gift ideas · Tasteloom")
+  PASS  tablet/ideas evidence: every control has an accessible name
+  PASS  tablet/ideas evidence: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  tablet/ideas evidence: touch targets at least 24x24 px (inline links excepted)
+  PASS  tablet/ideas evidence: header, nav, main, footer landmarks and a live region (1111)
+  PASS  11-ideas-evidence-768.png: no sideways scroll (753 px wide in a 768 px window)
+  PASS  11-ideas-evidence-768.png: the brand and the badges do not overlap
+  PASS  tablet/ideas: ?images=off hides every product image and the switch says off ({"attr":"off","shown":0,"sw":"false"})
+  PASS  14-ideas-images-off-768.png: no sideways scroll (753 px wide in a 768 px window)
+  PASS  14-ideas-images-off-768.png: the brand and the badges do not overlap
+  PASS  tablet/ideas: a fresh visit asks no shop for an image until the images switch is turned on (0 third-party image requests and 0 image sources before the switch, 9 sources after)
+  PASS  tablet/ideas: daily limit reached: title "Live lookups are used up for now" with a plain message and the actions Replay the saved example (Live lookups are used up for now / Replay the saved example)
+  PASS  tablet/ideas: daily limit reached: one filled button ("Replay the saved example") and a message that does not repeat the title (Replay the saved example / You have reached today’s allowance for live lookups. The saved example still works, or come back tomorrow.)
+  PASS  tablet/ideas: daily limit reached: the status row says Stopped, in the same red as the card icon (Stopped)
+  PASS  tablet/ideas error: lang and a page title (en, "Gift ideas · Tasteloom")
+  PASS  tablet/ideas error: every control has an accessible name
+  PASS  tablet/ideas error: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  tablet/ideas error: touch targets at least 24x24 px (inline links excepted)
+  PASS  tablet/ideas error: header, nav, main, footer landmarks and a live region (1111)
+  PASS  17-ideas-error-limit-768.png: no sideways scroll (753 px wide in a 768 px window)
+  PASS  17-ideas-error-limit-768.png: the brand and the badges do not overlap
+  PASS  tablet/ideas: with both searches over their cap, the note says so for each and the example still works (Shop search is paused until 00:00 UTC, so some ideas come from Qloo alone, without a buy button. Web search is paused un)
+  PASS  tablet/ideas: every idea stays with its reason and says what is paused (three "No buy button", one "No links"); nothing can be bought, so no buy buttons and no Review and pay bar (4 notes, 0 buy buttons)
+  PASS  tablet/ideas limited: lang and a page title (en, "Gift ideas · Tasteloom")
+  PASS  tablet/ideas limited: every control has an accessible name
+  PASS  tablet/ideas limited: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  tablet/ideas limited: touch targets at least 24x24 px (inline links excepted)
+  PASS  tablet/ideas limited: header, nav, main, footer landmarks and a live region (1111)
+  PASS  23-ideas-limited-all-768.png: no sideways scroll (753 px wide in a 768 px window)
+  PASS  23-ideas-limited-all-768.png: the brand and the badges do not overlap
+  PASS  tablet/checkout: heading, title, step 3, both items and the totals (Total$76.90Your budget$120.00Left over$43.10)
+  PASS  tablet/checkout: the sandbox label and the working test card are on screen
+  PASS  tablet/checkout: the only filled button on the screen is Pay (the way back is an outline button)
+  PASS  tablet/checkout: the pay button names the exact total (Pay $76.90 with PayPal)
+  PASS  tablet/checkout: pressing Copy moves nothing on the page (the label changes, the layout does not) (Pay button at 1285 px, then 1285 px)
+  PASS  tablet/checkout: the Copied label goes back to Copy by itself
+  PASS  tablet/checkout: lang and a page title (en, "Checkout · Tasteloom")
+  PASS  tablet/checkout: every control has an accessible name
+  PASS  tablet/checkout: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  tablet/checkout: touch targets at least 24x24 px (inline links excepted)
+  PASS  tablet/checkout: header, nav, main, footer landmarks and a live region (1111)
+  PASS  tablet/checkout: 11 keyboard stops, each with a visible focus ring
+  PASS  25-checkout-768.png: no sideways scroll (753 px wide in a 768 px window)
+  PASS  25-checkout-768.png: the brand and the badges do not overlap
+  PASS  tablet/checkout: removing an item updates the list, the total and the pay button (Pay $39.95 with PayPal)
+  PASS  tablet/receipt-completed: heading "Order confirmed" and the order id shown (Order confirmed)
+  PASS  tablet/receipt-completed: status pill says "Completed" (the raw COMPLETED stays in the page data only), the page names the sandbox twice (header badge, Mode row), once more only where the server's own error text says it
+  PASS  tablet/receipt-completed: no raw codes in the text and "Nothing was charged" is said at most once (Order confirmedPayment approved and captured.Order id7EX35260AB123456CCopyStatus)
+  PASS  tablet/receipt-completed: the step bar ticks all three steps (3 done, current null)
+  PASS  tablet/receipt-completed: exactly one filled button ("Start a new gift") among Start a new gift (Start a new gift)
+  PASS  tablet/receipt-completed: no extra banner repeats the subtitle (none)
+  PASS  tablet/receipt-completed: payment id, total and both items on the receipt
+  PASS  tablet/receipt: lang and a page title (en, "Receipt · Tasteloom")
+  PASS  tablet/receipt: every control has an accessible name
+  PASS  tablet/receipt: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  tablet/receipt: touch targets at least 24x24 px (inline links excepted)
+  PASS  tablet/receipt: header, nav, main, footer landmarks and a live region (1111)
+  PASS  tablet/receipt: 8 keyboard stops, each with a visible focus ring
+  PASS  34-receipt-completed-768.png: no sideways scroll (753 px wide in a 768 px window)
+  PASS  34-receipt-completed-768.png: the brand and the badges do not overlap
+TOUR narrow 320x640: key screens
+  PASS  narrow/home: heading, title and focus on the heading (Gifts that understand them · Tasteloom)
+  PASS  narrow/home: one principle line sits right under the heading, before the lead ({"text":"No age, no gender, no account: only what they love.","order":true,"count":1})
+  PASS  narrow/home: the principle is true of the form: its only fields are the favourites (name, type) and the budget, and no label asks for an age, gender, account or email (budget,fav-input,fav-type; Things they love | Type of thing | Budget in US dollars | For example: Nujabes)
+  PASS  narrow/home: one small link "Make your own taste link" to /ask?for=me, outside the form (Make your own taste link|outside the form)
+  PASS  narrow/home: the "Demo data" badge is shown exactly while a mock is active (mocks: qloo,ai)
+  PASS  narrow/home: sandbox label in the header, three steps with step 1 current (1Their taste)
+  PASS  narrow/home: no third-party image on the first screen
+  PASS  narrow/home: lang and a page title (en, "Gifts that understand them · Tasteloom")
+  PASS  narrow/home: every control has an accessible name
+  PASS  narrow/home: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  narrow/home: touch targets at least 24x24 px (inline links excepted)
+  PASS  narrow/home: header, nav, main, footer landmarks and a live region (1111)
+  PASS  narrow/home: 16 keyboard stops, each with a visible focus ring
+  PASS  01-home-empty-320.png: no sideways scroll (320 px wide in a 320 px window)
+  PASS  01-home-empty-320.png: the brand and the badges do not overlap
+  PASS  narrow/home: the ways in are all named: Ask them, Find gift ideas, Run a live example and Replay the saved example (Run a live example|Ask them|Find gift ideas|Replay the saved example)
+  PASS  narrow/home: the lead names both ways to start
+  PASS  narrow/home: "Run a live example" posts the fixed example set and its budget, like a typed run ({"favorites":[{"text":"One Flew Over the Cuckoo's Nest","type":"book"},{"text":"The Catcher in the Rye","type":"book"},{"text":"Bob Dylan","type":"artist"},{"text":"The Velvet Underground","type":"artist"},{"text":"Polaroid","type":"brand"}],"budget_usd":120})
+  PASS  narrow/ideas: when the example run fails, the saved example is offered first, Try again second, and the page still says it is the example set (Replay the saved example|Try again / Example set. The favourites and the budget above were picked for this demo, not typed by you. The search is a normal one, within the same daily limits as any other.)
+  PASS  narrow/ideas: "Try again" posts the same example set again (2 posts)
+  PASS  narrow/ideas: the page shows the example favourites and budget, and one note saying they were picked for the demo, not typed, and that the search is a normal one (One Flew Over the Cuckoo's Nest|The Catcher in the Rye|Bob Dylan|The Velvet Underground|Polaroid / Budget $120.00 / Example set. The favourites and the budget above were picked for this demo, not typed by you. The search is a normal one, within the same daily limits as any other.)
+  PASS  narrow/ideas live example: lang and a page title (en, "Gift ideas · Tasteloom")
+  PASS  narrow/ideas live example: every control has an accessible name
+  PASS  narrow/ideas live example: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  narrow/ideas live example: touch targets at least 24x24 px (inline links excepted)
+  PASS  narrow/ideas live example: header, nav, main, footer landmarks and a live region (1111)
+  PASS  05-home-live-example-320.png: no sideways scroll (320 px wide in a 320 px window)
+  PASS  05-home-live-example-320.png: the brand and the badges do not overlap
+  PASS  narrow/home: back on the first screen the example favourites are filled in, ready to change
+  PASS  narrow/ideas: while running, the heading, step 2, a running phase, tool calls and skeleton cards
+  PASS  narrow/ideas: the demo-data note is shown for a run on mocks (Demo data: Qloo and the AI model run on built-in stand-ins w)
+  PASS  narrow/ideas running: lang and a page title (en, "Gift ideas · Tasteloom")
+  PASS  narrow/ideas running: every control has an accessible name
+  PASS  narrow/ideas running: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  narrow/ideas running: touch targets at least 24x24 px (inline links excepted)
+  PASS  narrow/ideas running: header, nav, main, footer landmarks and a live region (1111)
+  PASS  06-ideas-running-early-320.png: no sideways scroll (320 px wide in a 320 px window)
+  PASS  06-ideas-running-early-320.png: the brand and the badges do not overlap
+  PASS  narrow/ideas: the page title and focus follow the route (Gift ideas · Tasteloom)
+  PASS  narrow/ideas: example run finished with ideas, product cards and the saved-example note (4 ideas, 9 buyable cards)
+  PASS  narrow/ideas: each idea says why ("Because they love ..." or the overall-taste line)
+  PASS  narrow/ideas: each product card shows a price, a shop and a link that opens safely
+  PASS  narrow/ideas: gifts come first: the first card has an "Add to gift" button and no gift idea comes after an experience
+  PASS  narrow/ideas: layout shift while the example loads is at most 0.1 (CLS 0.006)
+  PASS  narrow/ideas: lang and a page title (en, "Gift ideas · Tasteloom")
+  PASS  narrow/ideas: every control has an accessible name
+  PASS  narrow/ideas: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  narrow/ideas: touch targets at least 24x24 px (inline links excepted)
+  PASS  narrow/ideas: header, nav, main, footer landmarks and a live region (1111)
+  PASS  narrow/ideas: 33 keyboard stops, each with a visible focus ring
+  PASS  09-ideas-example-320.png: no sideways scroll (320 px wide in a 320 px window)
+  PASS  09-ideas-example-320.png: the brand and the badges do not overlap
+  PASS  narrow/ideas: a restored run has the same order: gifts first, the first card has an "Add to gift" button
+  PASS  narrow/ideas: "Review and pay" is disabled until something is picked
+  PASS  narrow/ideas: two picks update the card state, the bar count and the budget meter (2 items · $76.90 of $120.00, meter 7690)
+  PASS  narrow/ideas: "Review and pay" is now enabled
+  PASS  10-ideas-selected-320.png: no sideways scroll (320 px wide in a 320 px window)
+  PASS  10-ideas-selected-320.png: the brand and the badges do not overlap
+  PASS  narrow/ideas: the picks survive a reload
+  PASS  narrow/ideas: a card shows how Qloo splits its link by favourite (adding up to 100%) and the tags Qloo gives both (["How Qloo splits its link to this idea (adds up to 100%): 62% Nujabes · 25% Muji · 13% Kafka on the Shore","Tags Qloo gives to both Nujabes and Ryuichi Sakamoto: Calm · Jazz"])
+  PASS  narrow/ideas: a split with one favourite left shows nothing, and neither does an idea that carries no Qloo evidence ([[],[]])
+  PASS  narrow/ideas: the evidence is quieter than the reason
+  PASS  narrow/ideas evidence: lang and a page title (en, "Gift ideas · Tasteloom")
+  PASS  narrow/ideas evidence: every control has an accessible name
+  PASS  narrow/ideas evidence: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  narrow/ideas evidence: touch targets at least 24x24 px (inline links excepted)
+  PASS  narrow/ideas evidence: header, nav, main, footer landmarks and a live region (1111)
+  PASS  11-ideas-evidence-320.png: no sideways scroll (320 px wide in a 320 px window)
+  PASS  11-ideas-evidence-320.png: the brand and the badges do not overlap
+  PASS  narrow/ideas: ?images=off hides every product image and the switch says off ({"attr":"off","shown":0,"sw":"false"})
+  PASS  14-ideas-images-off-320.png: no sideways scroll (320 px wide in a 320 px window)
+  PASS  14-ideas-images-off-320.png: the brand and the badges do not overlap
+  PASS  narrow/ideas: a fresh visit asks no shop for an image until the images switch is turned on (0 third-party image requests and 0 image sources before the switch, 9 sources after)
+  PASS  narrow/ideas: daily limit reached: title "Live lookups are used up for now" with a plain message and the actions Replay the saved example (Live lookups are used up for now / Replay the saved example)
+  PASS  narrow/ideas: daily limit reached: one filled button ("Replay the saved example") and a message that does not repeat the title (Replay the saved example / You have reached today’s allowance for live lookups. The saved example still works, or come back tomorrow.)
+  PASS  narrow/ideas: daily limit reached: the status row says Stopped, in the same red as the card icon (Stopped)
+  PASS  narrow/ideas error: lang and a page title (en, "Gift ideas · Tasteloom")
+  PASS  narrow/ideas error: every control has an accessible name
+  PASS  narrow/ideas error: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  narrow/ideas error: touch targets at least 24x24 px (inline links excepted)
+  PASS  narrow/ideas error: header, nav, main, footer landmarks and a live region (1111)
+  PASS  17-ideas-error-limit-320.png: no sideways scroll (320 px wide in a 320 px window)
+  PASS  17-ideas-error-limit-320.png: the brand and the badges do not overlap
+  PASS  narrow/ideas: with both searches over their cap, the note says so for each and the example still works (Shop search is paused until 00:00 UTC, so some ideas come from Qloo alone, without a buy button. Web search is paused un)
+  PASS  narrow/ideas: every idea stays with its reason and says what is paused (three "No buy button", one "No links"); nothing can be bought, so no buy buttons and no Review and pay bar (4 notes, 0 buy buttons)
+  PASS  narrow/ideas limited: lang and a page title (en, "Gift ideas · Tasteloom")
+  PASS  narrow/ideas limited: every control has an accessible name
+  PASS  narrow/ideas limited: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  narrow/ideas limited: touch targets at least 24x24 px (inline links excepted)
+  PASS  narrow/ideas limited: header, nav, main, footer landmarks and a live region (1111)
+  PASS  23-ideas-limited-all-320.png: no sideways scroll (320 px wide in a 320 px window)
+  PASS  23-ideas-limited-all-320.png: the brand and the badges do not overlap
+  PASS  narrow/checkout: heading, title, step 3, both items and the totals (Total$76.90Your budget$120.00Left over$43.10)
+  PASS  narrow/checkout: the sandbox label and the working test card are on screen
+  PASS  narrow/checkout: the only filled button on the screen is Pay (the way back is an outline button)
+  PASS  narrow/checkout: the pay button names the exact total (Pay $76.90 with PayPal)
+  PASS  narrow/checkout: pressing Copy moves nothing on the page (the label changes, the layout does not) (Pay button at 1767 px, then 1767 px)
+  PASS  narrow/checkout: the Copied label goes back to Copy by itself
+  PASS  narrow/checkout: lang and a page title (en, "Checkout · Tasteloom")
+  PASS  narrow/checkout: every control has an accessible name
+  PASS  narrow/checkout: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  narrow/checkout: touch targets at least 24x24 px (inline links excepted)
+  PASS  narrow/checkout: header, nav, main, footer landmarks and a live region (1111)
+  PASS  narrow/checkout: 11 keyboard stops, each with a visible focus ring
+  PASS  25-checkout-320.png: no sideways scroll (320 px wide in a 320 px window)
+  PASS  25-checkout-320.png: the brand and the badges do not overlap
+  PASS  narrow/checkout: removing an item updates the list, the total and the pay button (Pay $39.95 with PayPal)
+  PASS  narrow/receipt-completed: heading "Order confirmed" and the order id shown (Order confirmed)
+  PASS  narrow/receipt-completed: status pill says "Completed" (the raw COMPLETED stays in the page data only), the page names the sandbox twice (header badge, Mode row), once more only where the server's own error text says it
+  PASS  narrow/receipt-completed: no raw codes in the text and "Nothing was charged" is said at most once (Order confirmedPayment approved and captured.Order id7EX35260AB123456CCopyStatus)
+  PASS  narrow/receipt-completed: the step bar ticks all three steps (3 done, current null)
+  PASS  narrow/receipt-completed: exactly one filled button ("Start a new gift") among Start a new gift (Start a new gift)
+  PASS  narrow/receipt-completed: no extra banner repeats the subtitle (none)
+  PASS  narrow/receipt-completed: payment id, total and both items on the receipt
+  PASS  narrow/receipt: lang and a page title (en, "Receipt · Tasteloom")
+  PASS  narrow/receipt: every control has an accessible name
+  PASS  narrow/receipt: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  narrow/receipt: touch targets at least 24x24 px (inline links excepted)
+  PASS  narrow/receipt: header, nav, main, footer landmarks and a live region (1111)
+  PASS  narrow/receipt: 8 keyboard stops, each with a visible focus ring
+  PASS  34-receipt-completed-320.png: no sideways scroll (320 px wide in a 320 px window)
+  PASS  34-receipt-completed-320.png: the brand and the badges do not overlap
+  PASS  tour: no billed call (Qloo, the model, Tavily, Channel3) was made by the tour (deltas 0/0/0/0)
+ASK THEM WITHOUT SPOILING IT (desktop 1280 and phone 390, through a recording proxy; no billed service can be reached)
+  PASS  ask/giver 1280: a second way to start, "Not sure what they love? Send them a link and let them tell you." with an "Ask them" button, on the favourites step, closed at first
+  PASS  ask/giver 1280: the link sits in the favourites field
+  PASS  ask/giver 1280: it opens a link to send, http://localhost:37713/ask, with no name, no email, no account (http://localhost:37713/ask; fields: text readonly)
+  PASS  ask/giver 1280: "Copy" puts the link on the clipboard and says Copied (http://localhost:37713/ask)
+  PASS  ask/giver 1280: a Share button shows exactly where the browser has Web Share (Share button false)
+  PASS  ask/giver 1280 with the link open: lang and a page title (en, "Gifts that understand them · Tasteloom")
+  PASS  ask/giver 1280 with the link open: every control has an accessible name
+  PASS  ask/giver 1280 with the link open: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  ask/giver 1280 with the link open: touch targets at least 24x24 px (inline links excepted)
+  PASS  ask/giver 1280 with the link open: header, nav, main, footer landmarks and a live region (1111)
+  PASS  ask/giver 1280 with the link open: no horizontal scrolling from 320 to 1440 px wide
+  PASS  ask-giver-panel-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  ask-giver-panel-1280.png: the brand and the badges do not overlap
+  PASS  ask/friend 1280: /ask comes with the site's security headers (script-src 'self', no inline code, no referrer) (200)
+  PASS  ask/friend 1280: the page loads from static files only (9 requests, none to /api) (/ask /styles.css /ask.js /favicon.svg /dom.js /favs.js /linkrow.js /loves.js /favicon.svg)
+  PASS  ask/friend 1280: a friend's page never loads the taste-link words (own.js) (/ask /styles.css /ask.js /favicon.svg /dom.js /favs.js /linkrow.js /loves.js /favicon.svg)
+  PASS  ask/friend 1280: the one line of copy is the brief's, word for word (A friend wants to know what you love lately. Nothing is stored: your answer travels inside the link you send back.)
+  PASS  ask/friend 1280: the header brand "Tasteloom" is plain text (no link, no nav) and the page links nowhere but its skip link ({"hrefs":["#main"],"brand":"DIV","text":"Tasteloom","navs":0})
+  PASS  ask/friend 1280: nothing on the page (title, description, text, labels) mentions a gift, PayPal, a sandbox, a budget or shopping
+  PASS  ask/friend 1280: the field speaks to the friend ("Things you love", "Your favourites will show up here") ("Your favourites will show up here")
+  PASS  ask/friend 1280 empty: lang and a page title (en, "Tasteloom: what do you love lately?")
+  PASS  ask/friend 1280 empty: every control has an accessible name
+  PASS  ask/friend 1280 empty: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  ask/friend 1280 empty: touch targets at least 24x24 px (inline links excepted)
+  PASS  ask/friend 1280 empty: header, main, footer landmarks and a live region (1011)
+  PASS  ask/friend 1280: 5 keyboard stops, each with a visible focus ring
+  PASS  ask/friend 1280: no horizontal scrolling from 320 to 1440 px wide
+  PASS  ask-friend-empty-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  ask-friend-empty-1280.png: the brand and the badges do not overlap
+  PASS  ask/friend 1280: "Make my reply link" with nothing added asks for three, in the friend's words (Add at least 3 things you love, so your friend has something to go on.)
+  PASS  ask/friend 1280: the form never submits to the server (same address, no request) (http://localhost:37713/ask)
+  PASS  ask/friend 1280: Hebrew, Japanese and emoji favourites are added with their type hints ([["עומר אדם","Artist"],["千と千尋の神隠し","Movie"],["🎸 Rock",""],["Kafka on the Shore","Book"]])
+  PASS  ask/friend 1280: the reply link is http://localhost:37713/#loves=… and reads back as exactly what was typed (244 characters)
+  PASS  ask/friend 1280: focus moves to the "Your reply link" heading, and the page says who can read the link
+  PASS  ask/friend 1280: "Copy" puts the reply link on the clipboard and says Copied
+  PASS  ask/friend 1280 with the reply link: lang and a page title (en, "Tasteloom: what do you love lately?")
+  PASS  ask/friend 1280 with the reply link: every control has an accessible name
+  PASS  ask/friend 1280 with the reply link: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  ask/friend 1280 with the reply link: touch targets at least 24x24 px (inline links excepted)
+  PASS  ask/friend 1280 with the reply link: header, main, footer landmarks and a live region (1011)
+  PASS  ask-friend-reply-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  ask-friend-reply-1280.png: the brand and the badges do not overlap
+  PASS  ask/friend 1280: nothing is kept in the browser (no session or local storage, no cookie) (0,0,0)
+  PASS  ask/friend 1280: changing the list takes the old link off the page
+  PASS  ask/friend 1280: no request after the page loaded, through typing, two links and a copy (0 extra)
+  PASS  ask/reply 1280: the fragment is gone from the address bar (http://localhost:37713/)
+  PASS  ask/reply 1280: the favourites and their type hints are filled in ([["עומר אדם","Artist"],["千と千尋の神隠し","Movie"],["🎸 Rock",""],["Kafka on the Shore","Book"]])
+  PASS  ask/reply 1280: one line says "Filled from their reply" (note info|Filled from their reply)
+  PASS  ask/reply 1280 prefilled: lang and a page title (en, "Gifts that understand them · Tasteloom")
+  PASS  ask/reply 1280 prefilled: every control has an accessible name
+  PASS  ask/reply 1280 prefilled: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  ask/reply 1280 prefilled: touch targets at least 24x24 px (inline links excepted)
+  PASS  ask/reply 1280 prefilled: header, nav, main, footer landmarks and a live region (1111)
+  PASS  ask-giver-prefilled-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  ask-giver-prefilled-1280.png: the brand and the badges do not overlap
+  PASS  ask/reply 1280: the usual search runs from the filled-in list (one POST /api/ideas with exactly the friend's favourites) ({"favorites":[{"text":"עומר אדם","type":"artist"},{"text":"千と千尋の神隠し","type":"movie"},{"text":"🎸 Rock"},{"text":"Kafka on the Shore","type":"book"}],"budget_usd)
+  PASS  ask/self 1280: one small link "Make your own taste link" to /ask?for=me, outside the form (Make your own taste link|in form: false)
+  PASS  ask/self 1280: the link opens http://localhost:37713/ask?for=me from static files only, and the taste-link words (own.js) load (/ask?for=me /styles.css /ask.js /favicon.svg /dom.js /favs.js /linkrow.js /loves.js /own.js /favicon.svg)
+  PASS  ask/self 1280: heading, title and the one line of copy are the taste link's own (Name three to five things you love. Nothing is stored: your answer travels inside the link you make.)
+  PASS  ask/self 1280: the header brand "Tasteloom" is plain text (no link, no nav) and the page links nowhere but its skip link ({"hrefs":["#main"],"brand":"DIV","text":"Tasteloom","navs":0})
+  PASS  ask/self 1280 empty: lang and a page title (en, "Tasteloom: your taste link")
+  PASS  ask/self 1280 empty: every control has an accessible name
+  PASS  ask/self 1280 empty: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  ask/self 1280 empty: touch targets at least 24x24 px (inline links excepted)
+  PASS  ask/self 1280 empty: header, main, footer landmarks and a live region (1011)
+  PASS  ask/self 1280: 5 keyboard stops, each with a visible focus ring
+  PASS  ask-self-empty-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  ask-self-empty-1280.png: the brand and the badges do not overlap
+  PASS  ask/self 1280: "Make my taste link" with nothing added asks for three, in its own words (Add at least 3 things you love, so your link has something to go on.)
+  PASS  ask/self 1280: the taste link is http://localhost:37713/#loves=… (the reply format) and reads back as exactly what was typed (244 characters)
+  PASS  ask/self 1280: the result is headed "Your taste link", says the brief's sentence word for word, and focus is on the heading (Send this to whoever buys you gifts. They see what you love, not what you will get.)
+  PASS  ask/self 1280: "Copy" puts the taste link on the clipboard and says Copied
+  PASS  ask/self 1280 with the link: lang and a page title (en, "Tasteloom: your taste link")
+  PASS  ask/self 1280 with the link: every control has an accessible name
+  PASS  ask/self 1280 with the link: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  ask/self 1280 with the link: touch targets at least 24x24 px (inline links excepted)
+  PASS  ask/self 1280 with the link: header, main, footer landmarks and a live region (1011)
+  PASS  ask-self-reply-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  ask-self-reply-1280.png: the brand and the badges do not overlap
+  PASS  ask/self 1280: nothing is kept in the browser (no session or local storage, no cookie) (0,0,0)
+  PASS  ask/self 1280: no request after the page loaded, through typing, the link and a copy (0 extra)
+  PASS  ask/self 1280: whoever buys the gifts opens the taste link like any reply: favourites filled in, one line says so, fragment gone (note info|Filled from their reply http://localhost:37713/)
+  PASS  ask/giver 390: a second way to start, "Not sure what they love? Send them a link and let them tell you." with an "Ask them" button, on the favourites step, closed at first
+  PASS  ask/giver 390: the link sits in the favourites field
+  PASS  ask/giver 390: it opens a link to send, http://localhost:37713/ask, with no name, no email, no account (http://localhost:37713/ask; fields: text readonly)
+  PASS  ask/giver 390: "Copy" puts the link on the clipboard and says Copied (http://localhost:37713/ask)
+  PASS  ask/giver 390: a Share button shows exactly where the browser has Web Share (Share button false)
+  PASS  ask/giver 390 with the link open: lang and a page title (en, "Gifts that understand them · Tasteloom")
+  PASS  ask/giver 390 with the link open: every control has an accessible name
+  PASS  ask/giver 390 with the link open: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  ask/giver 390 with the link open: touch targets at least 24x24 px (inline links excepted)
+  PASS  ask/giver 390 with the link open: header, nav, main, footer landmarks and a live region (1111)
+  PASS  ask-giver-panel-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  ask-giver-panel-390.png: the brand and the badges do not overlap
+  PASS  ask/friend 390: /ask comes with the site's security headers (script-src 'self', no inline code, no referrer) (200)
+  PASS  ask/friend 390: the page loads from static files only (9 requests, none to /api) (/ask /styles.css /ask.js /favicon.svg /dom.js /favs.js /linkrow.js /loves.js /favicon.svg)
+  PASS  ask/friend 390: a friend's page never loads the taste-link words (own.js) (/ask /styles.css /ask.js /favicon.svg /dom.js /favs.js /linkrow.js /loves.js /favicon.svg)
+  PASS  ask/friend 390: the one line of copy is the brief's, word for word (A friend wants to know what you love lately. Nothing is stored: your answer travels inside the link you send back.)
+  PASS  ask/friend 390: the header brand "Tasteloom" is plain text (no link, no nav) and the page links nowhere but its skip link ({"hrefs":["#main"],"brand":"DIV","text":"Tasteloom","navs":0})
+  PASS  ask/friend 390: nothing on the page (title, description, text, labels) mentions a gift, PayPal, a sandbox, a budget or shopping
+  PASS  ask/friend 390: the field speaks to the friend ("Things you love", "Your favourites will show up here") ("Your favourites will show up here")
+  PASS  ask/friend 390 empty: lang and a page title (en, "Tasteloom: what do you love lately?")
+  PASS  ask/friend 390 empty: every control has an accessible name
+  PASS  ask/friend 390 empty: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  ask/friend 390 empty: touch targets at least 24x24 px (inline links excepted)
+  PASS  ask/friend 390 empty: header, main, footer landmarks and a live region (1011)
+  PASS  ask/friend 390: 5 keyboard stops, each with a visible focus ring
+  PASS  ask-friend-empty-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  ask-friend-empty-390.png: the brand and the badges do not overlap
+  PASS  ask/friend 390: "Make my reply link" with nothing added asks for three, in the friend's words (Add at least 3 things you love, so your friend has something to go on.)
+  PASS  ask/friend 390: the form never submits to the server (same address, no request) (http://localhost:37713/ask)
+  PASS  ask/friend 390: Hebrew, Japanese and emoji favourites are added with their type hints ([["עומר אדם","Artist"],["千と千尋の神隠し","Movie"],["🎸 Rock",""],["Kafka on the Shore","Book"]])
+  PASS  ask/friend 390: the reply link is http://localhost:37713/#loves=… and reads back as exactly what was typed (244 characters)
+  PASS  ask/friend 390: focus moves to the "Your reply link" heading, and the page says who can read the link
+  PASS  ask/friend 390: "Copy" puts the reply link on the clipboard and says Copied
+  PASS  ask/friend 390 with the reply link: lang and a page title (en, "Tasteloom: what do you love lately?")
+  PASS  ask/friend 390 with the reply link: every control has an accessible name
+  PASS  ask/friend 390 with the reply link: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  ask/friend 390 with the reply link: touch targets at least 24x24 px (inline links excepted)
+  PASS  ask/friend 390 with the reply link: header, main, footer landmarks and a live region (1011)
+  PASS  ask-friend-reply-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  ask-friend-reply-390.png: the brand and the badges do not overlap
+  PASS  ask/friend 390: nothing is kept in the browser (no session or local storage, no cookie) (0,0,0)
+  PASS  ask/friend 390: changing the list takes the old link off the page
+  PASS  ask/friend 390: no request after the page loaded, through typing, two links and a copy (0 extra)
+  PASS  ask/reply 390: the fragment is gone from the address bar (http://localhost:37713/)
+  PASS  ask/reply 390: the favourites and their type hints are filled in ([["עומר אדם","Artist"],["千と千尋の神隠し","Movie"],["🎸 Rock",""],["Kafka on the Shore","Book"]])
+  PASS  ask/reply 390: one line says "Filled from their reply" (note info|Filled from their reply)
+  PASS  ask/reply 390 prefilled: lang and a page title (en, "Gifts that understand them · Tasteloom")
+  PASS  ask/reply 390 prefilled: every control has an accessible name
+  PASS  ask/reply 390 prefilled: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  ask/reply 390 prefilled: touch targets at least 24x24 px (inline links excepted)
+  PASS  ask/reply 390 prefilled: header, nav, main, footer landmarks and a live region (1111)
+  PASS  ask-giver-prefilled-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  ask-giver-prefilled-390.png: the brand and the badges do not overlap
+  PASS  ask/reply 390: the usual search runs from the filled-in list (one POST /api/ideas with exactly the friend's favourites) ({"favorites":[{"text":"עומר אדם","type":"artist"},{"text":"千と千尋の神隠し","type":"movie"},{"text":"🎸 Rock"},{"text":"Kafka on the Shore","type":"book"}],"budget_usd)
+  PASS  ask/self 390: one small link "Make your own taste link" to /ask?for=me, outside the form (Make your own taste link|in form: false)
+  PASS  ask/self 390: the link opens http://localhost:37713/ask?for=me from static files only, and the taste-link words (own.js) load (/ask?for=me /styles.css /ask.js /favicon.svg /dom.js /favs.js /linkrow.js /loves.js /own.js /favicon.svg)
+  PASS  ask/self 390: heading, title and the one line of copy are the taste link's own (Name three to five things you love. Nothing is stored: your answer travels inside the link you make.)
+  PASS  ask/self 390: the header brand "Tasteloom" is plain text (no link, no nav) and the page links nowhere but its skip link ({"hrefs":["#main"],"brand":"DIV","text":"Tasteloom","navs":0})
+  PASS  ask/self 390 empty: lang and a page title (en, "Tasteloom: your taste link")
+  PASS  ask/self 390 empty: every control has an accessible name
+  PASS  ask/self 390 empty: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  ask/self 390 empty: touch targets at least 24x24 px (inline links excepted)
+  PASS  ask/self 390 empty: header, main, footer landmarks and a live region (1011)
+  PASS  ask/self 390: 5 keyboard stops, each with a visible focus ring
+  PASS  ask-self-empty-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  ask-self-empty-390.png: the brand and the badges do not overlap
+  PASS  ask/self 390: "Make my taste link" with nothing added asks for three, in its own words (Add at least 3 things you love, so your link has something to go on.)
+  PASS  ask/self 390: the taste link is http://localhost:37713/#loves=… (the reply format) and reads back as exactly what was typed (244 characters)
+  PASS  ask/self 390: the result is headed "Your taste link", says the brief's sentence word for word, and focus is on the heading (Send this to whoever buys you gifts. They see what you love, not what you will get.)
+  PASS  ask/self 390: "Copy" puts the taste link on the clipboard and says Copied
+  PASS  ask/self 390 with the link: lang and a page title (en, "Tasteloom: your taste link")
+  PASS  ask/self 390 with the link: every control has an accessible name
+  PASS  ask/self 390 with the link: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  ask/self 390 with the link: touch targets at least 24x24 px (inline links excepted)
+  PASS  ask/self 390 with the link: header, main, footer landmarks and a live region (1011)
+  PASS  ask-self-reply-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  ask-self-reply-390.png: the brand and the badges do not overlap
+  PASS  ask/self 390: nothing is kept in the browser (no session or local storage, no cookie) (0,0,0)
+  PASS  ask/self 390: no request after the page loaded, through typing, the link and a copy (0 extra)
+  PASS  ask/self 390: whoever buys the gifts opens the taste link like any reply: favourites filled in, one line says so, fragment gone (note info|Filled from their reply http://localhost:37713/)
+  PASS  ask/extras 1280: a reply that arrives in the open tab fills in the list, takes the fragment away, and says so (http://localhost:37713/ Filled from their reply)
+  PASS  ask/extras 1280: a reply with fewer than three is filled in, and the screen asks for the rest (2 of 5 added. Add 1 more to continue.)
+  PASS  ask/extras 1280: not base64: ignored with one plain line, own favourites untouched, fragment removed (note warn|That reply link could not be read, so nothing was filled in.)
+  PASS  ask/extras 1280: not JSON: ignored with one plain line, own favourites untouched, fragment removed (note warn|That reply link could not be read, so nothing was filled in.)
+  PASS  ask/extras 1280: an unknown type: ignored with one plain line, own favourites untouched, fragment removed (note warn|That reply link could not be read, so nothing was filled in.)
+  PASS  ask/extras 1280: six favourites: ignored with one plain line, own favourites untouched, fragment removed (note warn|That reply link could not be read, so nothing was filled in.)
+  PASS  ask/extras 1280: a favourite of 81 characters: ignored with one plain line, own favourites untouched, fragment removed (note warn|That reply link could not be read, so nothing was filled in.)
+  PASS  ask/extras 1280: a fragment far over the length cap: ignored with one plain line, own favourites untouched, fragment removed (note warn|That reply link could not be read, so nothing was filled in.)
+  PASS  ask/extras 1280: a duplicate favourite: ignored with one plain line, own favourites untouched, fragment removed (note warn|That reply link could not be read, so nothing was filled in.)
+  PASS  ask/extras 1280: a bad reply on a fresh load shows the same single line and leaves the address clean
+  PASS  ask-giver-badreply-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  ask-giver-badreply-1280.png: the brand and the badges do not overlap
+  PASS  ask/extras 1280: with Web Share present, the panel offers Share (Copy,Share)
+  PASS  ask/extras 1280: Share hands over the link to send and a short line with no hint of the gift ([{"text":"What do you love lately? Tell me here.","url":"http://localhost:37713/ask"}])
+  PASS  ask/extras 1280: closing the share sheet without sharing raises no error
+  PASS  ask/server: none of 639 requests carries a reply link, in its line, headers or body (4 real links made, 31 page loads of "/" seen)
+  PASS  ask/server: the browser made no request to any other address (no third party, no beacon)
+  PASS  ask/server: only static files, /api/status and the giver's searches were sent; the allowlist refused nothing ({"static":606,"status":31,"search":2}; refused none)
+  PASS  ask: no billed call was counted by the dev server (Qloo, model, Channel3, Tavily, orders, runs: all zero) ({"ideas":0,"qloo":0,"ai":0,"neurons":0,"tavily":0,"channel3":0,"orders":0})
+COMPARE ("Same AI, without Qloo" under the results, desktop 1280 and phone 390; the model on its stand-in, no billed service can be reached)
+  PASS  compare: the dev server runs the model on its stand-in (start it with FORCE_MOCK=ai or qloo,ai), so no click can reach Workers AI (mocks: qloo,ai)
+  PASS  desktop/compare/example: the panel appears under the ideas with its heading, one button and a lead that says what the click sends ({"shown":true,"after":true,"h2":"Same AI, without Qloo","buttons":["Compare: same AI, no Qloo"],"lead":"Ask the same AI model for gift ideas from the example’s favourites, with no Qloo data. The click sends only the favourites and the budget."})
+  PASS  desktop/compare/example: nothing is sent before the click (0 requests)
+  PASS  desktop/compare/example: the button is fully in view and not under the sticky bar when it takes focus
+  PASS  desktop/compare/example: one click sends one POST /api/plain holding the favourites and the budget and nothing else (1 requests, {"favorites":[{"text":"Hario V60"},{"text":"Kafka on the Shore"},{"text":"Nujabes"},{"text":"Stardew Valley"},{"text":"Kyoto"}],"budget_usd":120})
+  PASS  desktop/compare/example: four plain ideas with a reason each; the count line matches the two tagged ones ({"count":"2 of 4 name one of the example’s favourites.","tags":["names a favourite","names a favourite"],"gifts":["Framed poster of Hario V60","Illustrated book about Kafka on the Shore","Scented candle set","Cosy throw blanket"]})
+  PASS  desktop/compare/example: it says this is demo data, that the ideas above are a recording, and why the favourites are tagged (Demo data: no AI model is connected on this server, so this is a fixed example answer, not model output. | Same model, only the example’s favourites, no taste data. The ideas above are a saved recording; these were asked just now. Part of the difference is by design: Tasteloom does not offer the favourites themselves as ideas. How this was measured (opens in a new tab))
+  PASS  desktop/compare/example: one link to the measurement that opens safely in a new tab, and no second button once the ideas are in ({"links":[{"href":"https://github.com/Kylne700/tasteloom#compare-in-the-app","target":"_blank","rel":"noopener noreferrer"}],"buttons":[]})
+  PASS  desktop/compare/example: focus is on the panel heading, in view and not under the sticky bar, and the count line was announced ({"focus":"compare-h","clear":true,"live":"2 of 4 name one of the example’s favourites."})
+  PASS  desktop/compare/example: no word the panel must not use
+  PASS  desktop/compare/example: the answer is kept on the run (sessionStorage), so coming back costs no call
+  PASS  desktop/compare/example: lang and a page title (en, "Gift ideas · Tasteloom")
+  PASS  desktop/compare/example: every control has an accessible name
+  PASS  desktop/compare/example: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  desktop/compare/example: touch targets at least 24x24 px (inline links excepted)
+  PASS  desktop/compare/example: header, nav, main, footer landmarks and a live region (1111)
+  PASS  desktop/compare/example: no horizontal scrolling from 320 to 1440 px wide
+  PASS  desktop/compare/example: Tab from the heading reaches the panel's controls, each with a visible focus ring ([{"name":"How this was measured (o","ring":true}])
+  PASS  compare-example-1280.png: no sideways scroll (1265 px wide in a 1280 px window)
+  PASS  compare-example-1280.png: the brand and the badges do not overlap
+  PASS  desktop/compare/example: after a reload and after a trip to the first screen and back, the same ideas show with no new request and no button (1 requests, 2 of 4 name one of the example’s favourites. / 2 of 4 name one of the example’s favourites.)
+  PASS  desktop/compare/typed: the lead names the favourites you typed (Ask the same AI model for gift ideas from the favourites you typed, with no Qloo data. The click sends only the favourites and the budget.)
+  PASS  desktop/compare/typed: the request holds the typed favourites with their types and the budget 49.99, nothing else ({"favorites":[{"text":"Hayao Miyazaki","type":"person"},{"text":"Nujabes","type":"artist"},{"text":"Kyoto","type":"place"}],"budget_usd":49.99})
+  PASS  desktop/compare/typed: two of four ideas name a typed favourite and say so; no recording sentence ({"count":"2 of 4 name a favourite you typed.","tags":["names your favourite","names your favourite"],"note":"Same model, only the favourites you typed, no taste data. Part of the difference is by design: Tasteloom does not offer the favourites themselves as ideas. How this was measured (opens in a new tab)"})
+  PASS  desktop/compare/typed: no word the panel must not use
+  PASS  desktop/compare/typed: lang and a page title (en, "Gift ideas · Tasteloom")
+  PASS  desktop/compare/typed: every control has an accessible name
+  PASS  desktop/compare/typed: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  desktop/compare/typed: touch targets at least 24x24 px (inline links excepted)
+  PASS  desktop/compare/typed: header, nav, main, footer landmarks and a live region (1111)
+  PASS  desktop/compare/cap: the page says the allowance is used up in its own words, offers no retry and links to the measurement ({"problem":"The daily allowance for this comparison is used up. It starts again at 00:00 UTC.","buttons":[]})
+  PASS  desktop/compare/cap: focus is on the panel heading and the sentence was announced ({"focus":"compare-h","live":"The daily allowance for this comparison is used up. It starts again at 00:00 UTC."})
+  PASS  desktop/compare/cap: lang and a page title (en, "Gift ideas · Tasteloom")
+  PASS  desktop/compare/cap: every control has an accessible name
+  PASS  desktop/compare/cap: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  desktop/compare/cap: touch targets at least 24x24 px (inline links excepted)
+  PASS  desktop/compare/cap: header, nav, main, footer landmarks and a live region (1111)
+  PASS  desktop/compare/cap: Tab from the heading reaches the panel's controls, each with a visible focus ring ([{"name":"Read how it was measured","ring":true}])
+  PASS  desktop/compare/error: one calm sentence, a Try again button and the link; focus on the heading, sentence announced ({"problem":"The plain ideas could not be fetched. Please try again in a minute.","buttons":["Try again"],"focus":"compare-h"})
+  PASS  desktop/compare/error: lang and a page title (en, "Gift ideas · Tasteloom")
+  PASS  desktop/compare/error: every control has an accessible name
+  PASS  desktop/compare/error: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  desktop/compare/error: touch targets at least 24x24 px (inline links excepted)
+  PASS  desktop/compare/error: header, nav, main, footer landmarks and a live region (1111)
+  PASS  desktop/compare/error: Tab from the heading reaches the panel's controls, each with a visible focus ring ([{"name":"Try again","ring":true},{"name":"Read how it was measured","ring":true}])
+  PASS  desktop/compare/error: Try again asks once more and shows the ideas (1 requests, 2 of 4 name a favourite you typed.)
+  PASS  desktop/compare/wait: the wait line replaces the button, focus stays on the heading and the wait was announced ({"wait":"Asking the AI model…","buttons":[],"focus":"compare-h","live":"Asking the AI model for gift ideas without Qloo."})
+  PASS  mobile/compare/example: the panel appears under the ideas with its heading, one button and a lead that says what the click sends ({"shown":true,"after":true,"h2":"Same AI, without Qloo","buttons":["Compare: same AI, no Qloo"],"lead":"Ask the same AI model for gift ideas from the example’s favourites, with no Qloo data. The click sends only the favourites and the budget."})
+  PASS  mobile/compare/example: nothing is sent before the click (0 requests)
+  PASS  mobile/compare/example: one click sends one POST /api/plain holding the favourites and the budget and nothing else (1 requests, {"favorites":[{"text":"Hario V60"},{"text":"Kafka on the Shore"},{"text":"Nujabes"},{"text":"Stardew Valley"},{"text":"Kyoto"}],"budget_usd":120})
+  PASS  mobile/compare/example: four plain ideas with a reason each; the count line matches the two tagged ones ({"count":"2 of 4 name one of the example’s favourites.","tags":["names a favourite","names a favourite"],"gifts":["Framed poster of Hario V60","Illustrated book about Kafka on the Shore","Scented candle set","Cosy throw blanket"]})
+  PASS  mobile/compare/example: it says this is demo data, that the ideas above are a recording, and why the favourites are tagged (Demo data: no AI model is connected on this server, so this is a fixed example answer, not model output. | Same model, only the example’s favourites, no taste data. The ideas above are a saved recording; these were asked just now. Part of the difference is by design: Tasteloom does not offer the favourites themselves as ideas. How this was measured (opens in a new tab))
+  PASS  mobile/compare/example: one link to the measurement that opens safely in a new tab, and no second button once the ideas are in ({"links":[{"href":"https://github.com/Kylne700/tasteloom#compare-in-the-app","target":"_blank","rel":"noopener noreferrer"}],"buttons":[]})
+  PASS  mobile/compare/example: focus is on the panel heading, in view and not under the sticky bar, and the count line was announced ({"focus":"compare-h","clear":true,"live":"2 of 4 name one of the example’s favourites."})
+  PASS  mobile/compare/example: no word the panel must not use
+  PASS  mobile/compare/example: the answer is kept on the run (sessionStorage), so coming back costs no call
+  PASS  mobile/compare/example: lang and a page title (en, "Gift ideas · Tasteloom")
+  PASS  mobile/compare/example: every control has an accessible name
+  PASS  mobile/compare/example: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  mobile/compare/example: touch targets at least 24x24 px (inline links excepted)
+  PASS  mobile/compare/example: header, nav, main, footer landmarks and a live region (1111)
+  PASS  mobile/compare/example: Tab from the heading reaches the panel's controls, each with a visible focus ring ([{"name":"How this was measured (o","ring":true}])
+  PASS  compare-example-390.png: no sideways scroll (390 px wide in a 390 px window)
+  PASS  compare-example-390.png: the brand and the badges do not overlap
+  PASS  mobile/compare/example: after a reload and after a trip to the first screen and back, the same ideas show with no new request and no button (1 requests, 2 of 4 name one of the example’s favourites. / 2 of 4 name one of the example’s favourites.)
+  PASS  mobile/compare/typed: the lead names the favourites you typed (Ask the same AI model for gift ideas from the favourites you typed, with no Qloo data. The click sends only the favourites and the budget.)
+  PASS  mobile/compare/typed: the request holds the typed favourites with their types and the budget 49.99, nothing else ({"favorites":[{"text":"Hayao Miyazaki","type":"person"},{"text":"Nujabes","type":"artist"},{"text":"Kyoto","type":"place"}],"budget_usd":49.99})
+  PASS  mobile/compare/typed: two of four ideas name a typed favourite and say so; no recording sentence ({"count":"2 of 4 name a favourite you typed.","tags":["names your favourite","names your favourite"],"note":"Same model, only the favourites you typed, no taste data. Part of the difference is by design: Tasteloom does not offer the favourites themselves as ideas. How this was measured (opens in a new tab)"})
+  PASS  mobile/compare/typed: no word the panel must not use
+  PASS  mobile/compare/typed: lang and a page title (en, "Gift ideas · Tasteloom")
+  PASS  mobile/compare/typed: every control has an accessible name
+  PASS  mobile/compare/typed: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  mobile/compare/typed: touch targets at least 24x24 px (inline links excepted)
+  PASS  mobile/compare/typed: header, nav, main, footer landmarks and a live region (1111)
+  PASS  mobile/compare/cap: the page says the allowance is used up in its own words, offers no retry and links to the measurement ({"problem":"The daily allowance for this comparison is used up. It starts again at 00:00 UTC.","buttons":[]})
+  PASS  mobile/compare/cap: focus is on the panel heading and the sentence was announced ({"focus":"compare-h","live":"The daily allowance for this comparison is used up. It starts again at 00:00 UTC."})
+  PASS  mobile/compare/cap: lang and a page title (en, "Gift ideas · Tasteloom")
+  PASS  mobile/compare/cap: every control has an accessible name
+  PASS  mobile/compare/cap: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  mobile/compare/cap: touch targets at least 24x24 px (inline links excepted)
+  PASS  mobile/compare/cap: header, nav, main, footer landmarks and a live region (1111)
+  PASS  mobile/compare/cap: Tab from the heading reaches the panel's controls, each with a visible focus ring ([{"name":"Read how it was measured","ring":true}])
+  PASS  mobile/compare/error: one calm sentence, a Try again button and the link; focus on the heading, sentence announced ({"problem":"The plain ideas could not be fetched. Please try again in a minute.","buttons":["Try again"],"focus":"compare-h"})
+  PASS  mobile/compare/error: lang and a page title (en, "Gift ideas · Tasteloom")
+  PASS  mobile/compare/error: every control has an accessible name
+  PASS  mobile/compare/error: one visible h1, no skipped heading levels, no duplicate ids, every img has alt (h1 1, skips 0, duplicate ids , img without alt 0)
+  PASS  mobile/compare/error: touch targets at least 24x24 px (inline links excepted)
+  PASS  mobile/compare/error: header, nav, main, footer landmarks and a live region (1111)
+  PASS  mobile/compare/error: Tab from the heading reaches the panel's controls, each with a visible focus ring ([{"name":"Try again","ring":true},{"name":"Read how it was measured","ring":true}])
+  PASS  mobile/compare/error: Try again asks once more and shows the ideas (1 requests, 2 of 4 name a favourite you typed.)
+  PASS  mobile/compare/wait: the wait line replaces the button, focus stays on the heading and the wait was announced ({"wait":"Asking the AI model…","buttons":[],"focus":"compare-h","live":"Asking the AI model for gift ideas without Qloo."})
+  PASS  compare: no billed call was counted (Qloo, model, neurons, Channel3, Tavily, runs, orders: all zero) ({"ideas":0,"qloo":0,"ai":0,"neurons":0,"tavily":0,"channel3":0,"orders":0,"plain":6})
+  PASS  compare: the plain counter moved once per click that reached the server, and no other API route was used but status, sample and plain (6 clicks reached the server; counter +6; routes /api/status, /api/sample, /api/plain)
+  PASS  no console errors or uncaught exceptions from the app (all pages, all states) (0)
+  PASS  no stray "null", "undefined", "NaN" or "[object ...]" text on any of the 117 screenshotted screens
+  third-party resource failures (shop images the page drops by itself, not app errors): 0
+
+SCREENSHOTS 117 (evidence/screens/; the live ones in the capture folder outside the repo)
+RESULT PASS: 1125 checks passed, 0 failed, 288 s
