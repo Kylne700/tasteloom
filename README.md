@@ -8,7 +8,7 @@ Type three to five things a person loves (a book, a band, a shop, a place) and a
 
 Try it: https://tasteloom.kylne700.workers.dev/?images=on (free, no sign-in; **Run a live example** searches a fixed example set like any other search, within the same daily limits, and **Replay the saved example** costs no API calls; `?images=on` shows product photos, which load from the shops' own servers and are off by default for privacy).
 
-Project page: https://devpost.com/software/tasteloom. Demo video (1:45): https://youtu.be/iWgkkVTSKYI.
+Project page and demo video: https://devpost.com/software/tasteloom.
 
 Test logs: [unit tests](evidence/unit.txt), [end-to-end run](evidence/e2e.txt), [Qloo contract check](evidence/contract-qloo.txt).
 
