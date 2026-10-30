@@ -66,6 +66,24 @@ test('plain parser: the first JSON array of ideas, four at most, whatever surrou
   assert.deepEqual(parseGifts('[{"gift":"  Mug  ","reason":null}]'), [{ gift: 'Mug', reason: '' }], 'trimmed, a missing reason is empty');
 });
 
+// The answer of a live call (30 Oct 2026, the model Tasteloom writes with; favourites Hayao Miyazaki, Nujabes, Kyoto; its content as the binding returned it):
+// the second title holds quotes inside a JSON string, so the array is not valid JSON.
+const LIVE_BROKEN =
+  '\n\n' +
+  `[{"gift": "Studio Ghibli Art Book", "reason": "A beautifully illustrated book featuring the artwork of Hayao Miyazaki and Studio Ghibli, perfect for fans of his creative vision."}, {"gift": "Nujabes - "Modal Soul" Vinyl", "reason": "A classic album by Nujabes, known for his unique blend of hip-hop and jazz, ideal for music lovers who appreciate his style."}, {"gift": "Kyoto Travel Guidebook", "reason": "A comprehensive guide to exploring Kyoto, including temples, gardens, and cultural experiences that reflect the city's beauty."}, {"gift": "Miyazaki-Themed Puzzle", "reason": "A high-quality puzzle featuring artwork from Hayao Miyazaki's films, offering a fun and creative way to engage with his world."}]`;
+
+test('plain parser: JSON broken by a title in quotes is still read, and the comparison’s reader keeps deciding whenever it reads something', () => {
+  const ideas = parseGifts(LIVE_BROKEN);
+  assert.deepEqual(ideas.map((x) => x.gift), ['Studio Ghibli Art Book', 'Nujabes - "Modal Soul" Vinyl', 'Kyoto Travel Guidebook', 'Miyazaki-Themed Puzzle']);
+  assert.match(ideas[2]!.reason, /^A comprehensive guide .* reflect the city's beauty\.$/);
+  assert.deepEqual(parseGifts('[{"gift": "A "B" C", "reason": "r"},]'), [{ gift: 'A "B" C', reason: 'r' }], 'a trailing comma too');
+  assert.deepEqual(parseGifts('[{"gift": "A", "reason": "one\ntwo "q""}]'), [{ gift: 'A', reason: 'one\ntwo "q"' }], 'a raw line break inside a string');
+  assert.deepEqual(parseGifts('[{"gift": "no reason"}, {"gift": "B "x" C", "reason": "r"}]').map((x) => x.gift), ['B "x" C'], 'an object without a reason is not merged into the next one');
+  assert.deepEqual(parseGifts('<think>"gift": "t", "reason": "t"}</think>[{"gift": "A "B"", "reason": "r"}]'), [{ gift: 'A "B"', reason: 'r' }], 'thinking text is dropped here too');
+  assert.deepEqual(parseGifts('[{"gift":"A \\"B\\"","reason":null}]'), [{ gift: 'A "B"', reason: '' }], 'valid JSON is read by the first reader, as before');
+  assert.deepEqual(parseGifts('1. "gift": a mug, "reason": none'), [], 'nothing is guessed from prose');
+});
+
 // ---- the prompt ---------------------------------------------------------------------------------------------------------
 
 const PLAIN =
@@ -175,6 +193,17 @@ test('plain: an answer with no readable idea is an upstream failure, shown witho
   const text = JSON.stringify(await res.json());
   assert.match(text, /"code":"upstream"/);
   assert.doesNotMatch(text, /Miles Davis|Sorry/);
+  assert.equal(ai.runs.length, 1);
+});
+
+test('plain: the live answer whose JSON a quoted title broke is shown (it was a 502 before), one call, the ideas that name a favourite tagged', async () => {
+  const ai = fakeAi(() => chatBody({ content: LIVE_BROKEN }, 'stop', 6));
+  const h = makeHarness(env({ AI: ai }));
+  const res = await post(h, { favorites: [{ text: 'Hayao Miyazaki', type: 'person' }, { text: 'Nujabes', type: 'artist' }, { text: 'Kyoto', type: 'place' }], budget_usd: 49.99 });
+  assert.equal(res.status, 200);
+  const j = (await res.json()) as { ideas: { gift: string; named: boolean }[]; mock: boolean };
+  assert.deepEqual(j.ideas.map((x) => [x.gift, x.named]), [['Studio Ghibli Art Book', false], ['Nujabes - "Modal Soul" Vinyl', true], ['Kyoto Travel Guidebook', true], ['Miyazaki-Themed Puzzle', true]]);
+  assert.equal(j.mock, false);
   assert.equal(ai.runs.length, 1);
 });
 

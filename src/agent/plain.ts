@@ -25,9 +25,18 @@ export function plainPrompt(input: IdeasInput): string {
   return USER.replace('${budget}', () => '$' + usd).replace('{favorites}', () => favs); // budget first: a typed name cannot hold a slot that is still open
 }
 
+type Gift = { gift: string; reason: string };
+const THINK = /<think>[\s\S]*?<\/think>/g;
+
+/** Up to n ideas of a reply: the comparison's reader first, and only when it finds nothing the looser one below (a reply the comparison could read gives exactly its result). */
+export function parseGifts(text: string, n = PLAIN_ITEMS): Gift[] {
+  const strict = strictGifts(text, n);
+  return strict.length ? strict : looseGifts(text, n);
+}
+
 /** First JSON array of objects in a reply -> up to n { gift, reason }. Bad JSON or no array gives []. Port of the comparison's parseGifts. */
-export function parseGifts(text: string, n = PLAIN_ITEMS): { gift: string; reason: string }[] {
-  const t = String(text ?? '').replace(/<think>[\s\S]*?<\/think>/g, '');
+function strictGifts(text: string, n: number): Gift[] {
+  const t = String(text ?? '').replace(THINK, '');
   const m = t.match(/\[\s*\{/);
   if (!m) return [];
   let depth = 0;
@@ -54,6 +63,25 @@ export function parseGifts(text: string, n = PLAIN_ITEMS): { gift: string; reaso
   }
   return [];
 }
+
+/** For JSON the model broke, most often a title in quotes inside a string (live: "gift": "Nujabes - "Modal Soul" Vinyl"), which the reader above refuses.
+ *  Reads the two keys the prompt asks for, in that order, one object at a time (shortcut: a different key order or name is not read, a reason that holds "} ends early). */
+function looseGifts(text: string, n: number): Gift[] {
+  const out: Gift[] = [];
+  for (const chunk of String(text ?? '').replace(THINK, '').split(/"gift"\s*:\s*"/).slice(1)) {
+    const m = chunk.match(/^([\s\S]*?)"\s*,\s*"reason"\s*:\s*"([\s\S]*?)"\s*\}/);
+    if (m && m[1]!.trim()) out.push({ gift: unquote(m[1]!), reason: unquote(m[2]!) });
+  }
+  return out.slice(0, n);
+}
+/** A JSON string body read as text: inner quotes allowed, escapes (\n, é) honoured when the rest is valid, else the text as it is. */
+const unquote = (s: string): string => {
+  try {
+    return (JSON.parse('"' + s.replace(/\\?"/g, '\\"') + '"') as string).trim();
+  } catch {
+    return s.trim();
+  }
+};
 
 // ---- M1: "the gift names a favourite" ------------------------------------------------------------------------------------
 // Port of the comparison's frozen rule. Text and names are normalised (accents off, lower case, apostrophes dropped, & = and, other symbols = space);
