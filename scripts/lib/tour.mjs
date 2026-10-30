@@ -335,6 +335,9 @@ function states(fx) {
     // a reload while a run is in progress cannot resume it: back to the first screen with the favourites still there
   });
 
+  // gifts before experiences (addIdea in public/ideas.js): the first idea's first card has an Add button, and the ideas read gifts then experiences (an article with no data-kind fails)
+  const giftsFirst = (page) => page.$$eval('.ideas-list article.idea:not(.skeleton)', (l) => l.length > 0 && /^Add to gift/.test(l[0].querySelector('li.card button.pick')?.getAttribute('aria-label') || '') && /^(product,)+(experience,)*$/.test(l.map((e) => e.dataset.kind + ',').join('')));
+
   add('ideas-example', true, async (c) => {
     const { page } = c;
     await fresh(page);
@@ -350,6 +353,7 @@ function states(fx) {
     check(`${c.name}/ideas: example run finished with ideas, product cards and the saved-example note`, c.done.run.ideas.length >= 3 && buyable >= 4 && (await shown(page, '.example-note')), `${c.done.run.ideas.length} ideas, ${buyable} buyable cards`);
     check(`${c.name}/ideas: each idea says why ("Because they love ..." or the overall-taste line)`, await page.$$eval('.ideas-list article.idea:not(.skeleton) .because', (l) => l.length > 0 && l.every((e) => /Because they love|overall taste/.test(e.textContent))));
     check(`${c.name}/ideas: each product card shows a price, a shop and a link that opens safely`, await page.$$eval('ul.cards li.card[data-kind=product]', (l) => l.length > 0 && l.every((e) => /\$\d/.test(e.querySelector('.price')?.textContent || '') && e.querySelector('.shop')?.textContent && /^https:/.test(e.querySelector('a.shop-link')?.href || '') && /noopener/.test(e.querySelector('a.shop-link')?.rel || ''))));
+    check(`${c.name}/ideas: gifts come first: the first card has an "Add to gift" button and no gift idea comes after an experience`, await giftsFirst(page));
     const shift = await cls(page);
     if (!FIREFOX) check(`${c.name}/ideas: layout shift while the example loads is at most 0.1`, shift <= 0.1, `CLS ${shift}`); // Firefox has no layout-shift entries: not measured there
     await c.audit('ideas');
@@ -361,6 +365,7 @@ function states(fx) {
   add('ideas-selected', true, async (c) => {
     const { page } = c;
     await open(c, '#/ideas', { st: c.done });
+    check(`${c.name}/ideas: a restored run has the same order: gifts first, the first card has an "Add to gift" button`, await giftsFirst(page));
     check(`${c.name}/ideas: "Review and pay" is disabled until something is picked`, await page.$eval('.bar .btn.primary', (e) => e.disabled || e.getAttribute('aria-disabled') === 'true'));
     const k = await pickCards(page, 2);
     await sleep(200);
