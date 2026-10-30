@@ -43,6 +43,9 @@ test('ideas: a full run streams its steps, ties each idea to the favourites and 
   assert.ok(ideas.some((i) => i.idea.kind === 'product'));
   const reasons = ev.find((e) => e.t === 'reasons').reasons;
   for (const { idea } of ideas) assert.ok(groundedReason(reasons[idea.id], idea), reasons[idea.id]);
+  const withTags = ideas.filter((e) => e.idea.shared?.length && e.idea.because[0]);
+  assert.ok(withTags.length > 0, 'the run has an idea with a tag Qloo gives both');
+  for (const { idea } of withTags) assert.notEqual(reasons[idea.id], templateReason(idea), 'the mock model still writes the reason (12 words or more); it is not the template');
   const stored = JSON.parse(h.kv._m.get(`s:${ev[0].session}`)!);
   assert.equal(stored.budget_cents, 12000);
   assert.deepEqual(stored.cards.map((c: any) => c.id).sort(), ideas.flatMap((i) => i.cards.map((c: any) => c.id)).sort());
@@ -97,7 +100,7 @@ test('ideas: a hostile model cannot invent ids, lift the price cap or plant pric
           reasons: (_n, body) => {
             const ideas = JSON.parse(body.messages[1].content).ideas as { id: string; because: string[]; in_common: string[] }[];
             asked = ideas;
-            const out = Object.fromEntries(ideas.map((i, k) => [i.id, k === 0 ? `Because they love ${i.because[0]}, this is a thoughtful ${i.in_common[0]} pick.` : k % 2 ? 'Only $5 at https://evil.example/buy now, hurry!' : 'A wonderful present that anybody would adore.']));
+            const out = Object.fromEntries(ideas.map((i, k) => [i.id, k === 0 ? `Because they love ${i.because[0]}, this is a thoughtful ${i.in_common[0]} pick that feels personal.` : k % 2 ? 'Only $5 at https://evil.example/buy now, hurry!' : 'A wonderful present that anybody would adore.']));
             return chatReply({ content: JSON.stringify({ reasons: out }) });
           },
         }),
@@ -121,7 +124,7 @@ test('ideas: a hostile model cannot invent ids, lift the price cap or plant pric
   }
   assert.ok(asked.length > 0 && asked.every((i) => i.in_common.length > 0), 'the model is put only ideas that have a tag in common');
   const first = ideas.find((i) => i.idea.id === asked[0]!.id)!.idea;
-  assert.equal(reasons[first.id], `Because they love ${first.because[0]}, this is a thoughtful ${asked[0]!.in_common[0]} pick.`, 'a grounded model sentence that names a shared tag is kept');
+  assert.equal(reasons[first.id], `Because they love ${first.because[0]}, this is a thoughtful ${asked[0]!.in_common[0]} pick that feels personal.`, 'a grounded model sentence that names a shared tag is kept');
   for (const { idea } of ideas.filter((i) => !asked.some((a) => a.id === i.idea.id))) assert.equal(reasons[idea.id], templateReason(idea), 'an idea with nothing in common gets the plain line');
 });
 

@@ -533,8 +533,8 @@ class Run {
         let kept = 0;
         for (const i of asked) {
           const text = asString(map?.[i.id], 260)?.replace(/\s+/g, ' ').trim();
-          // a kept reason names Qloo's strongest link (so the reasons differ as the ideas do) and uses a tag Qloo gives both, so it says what they share
-          if (text && groundedReason(text, i) && has(text, i.because[0]!) && i.shared!.some((t) => has(text, t))) {
+          // a kept reason has at least the 12 words the prompt asks for (a stub falls back to the shared-tag sentence), names Qloo's strongest link (so the reasons differ as the ideas do) and uses a tag Qloo gives both, so it says what they share
+          if (text && text.split(' ').length >= 12 && groundedReason(text, i) && has(text, i.because[0]!) && i.shared!.some((t) => has(text, t))) {
             reasons[i.id] = text;
             kept++;
           }
