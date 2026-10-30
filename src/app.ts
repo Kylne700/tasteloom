@@ -9,6 +9,7 @@ import { cancelOrder, loadOrder, loadSession, ORDER_MESSAGES, OrderError, public
 import { validOrderId } from './adapters/paypal.ts';
 import { InputError, parseIdeasInput, qlooCallsNeeded, runIdeas } from './agent/ideas.ts';
 import { agentCheckout, agentReturn } from './agent/orders.ts';
+import { runPlain } from './agent/plain.ts';
 import { aiBindingFetch } from './adapters/ai.ts';
 import { makeAiFake } from './mocks/ai-fake.ts';
 import { makeQlooFake, qlooFake } from './mocks/qloo-fake.ts';
@@ -101,6 +102,19 @@ export function createApp(deps: Deps = {}) {
       return fail(c, e);
     }
     return ndjson(c, (emit) => runIdeas(svc, parsed.value, emit));
+  });
+
+  // "Compare: same AI, no Qloo": one model call with only the typed favourites and the budget, nothing from Qloo or the shops. Counted like a run, before the call.
+  app.post('/api/plain', async (c) => {
+    const svc = c.get('svc');
+    const parsed = parseIdeasInput(await readJson(c), svc.cfg.limits);
+    if (!parsed.ok) return c.json({ error: { code: 'bad_input', message: parsed.message } }, 400);
+    try {
+      await svc.meter.take({ plain: 1 });
+      return c.json(await runPlain(svc, parsed.value));
+    } catch (e) {
+      return fail(c, e);
+    }
   });
 
   app.post('/api/checkout', async (c) => {

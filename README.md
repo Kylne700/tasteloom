@@ -169,6 +169,12 @@ No accounts, no cookies. What you type is sent to the server to build your ideas
 
 Plain HTML, CSS and ES modules in `public/` (no framework, no build step). One warm palette with a single accent, three screens with a step indicator, every state designed (loading, empty, errors, limits, cancelled, failed capture, receipt), visible focus rings, keyboard use end to end, responsive from 320 px phones to desktop (every state is screenshot at 1280 and 390 px, the key screens also at 768 and 320 px), and a stylesheet whose colours are tested for WCAG contrast. `npm run e2e` checks accessibility basics, focus rings, layout shift and horizontal overflow in a real browser.
 
+## Compare in the app
+
+Under the results, **Compare: same AI, no Qloo** asks the model Tasteloom writes with for four gift ideas from the favourites alone: no Qloo, shop or web lookup, only the favourites and the budget are sent to Workers AI, and the favourites are not stored. Ideas whose text names a favourite are tagged by a whole-word name match (full name; last name too for a favourite typed as a person); albums or characters are not detected, so the count is a hint.
+It also works on the saved example (the plain ideas are asked live, the example is a recording). Each click is counted once by `LIMIT_IP_PLAIN` (8 a day per visitor) and `LIMIT_GLOBAL_PLAIN` (40 a day for everyone) on top of the model's own limits; at a limit the panel says so, and with no model connected it shows a fixed demo answer.
+Part of the difference is by design: Tasteloom does not offer the favourites themselves as ideas. The prompt follows the template of the project's measured comparison (a type it did not use gets its own label); the name rule is a port of its rule with the same test cases (`test/plain.test.ts`).
+
 ## Known limits
 
 - Qloo's quota for this key is not known to this project; the Qloo caps above are our own, sized from measured use. The live API was checked on 2026-10-22 (`npm run contract:qloo`).

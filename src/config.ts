@@ -50,6 +50,7 @@ export function loadConfig(env: Env): Config {
       channel3: L('IP_CHANNEL3', 24),
       orders: L('IP_ORDERS', 8),
       returns: L('IP_RETURNS', 20),
+      plain: L('IP_PLAIN', 8), // the "Compare: same AI, no Qloo" button: one model call each
     },
     // global: Channel3 and Tavily had about 800 free credits left on Oct 23 (not re-read since) and the demo has to work until judging ends on Nov 5 (14 days from Oct 23): 25 a day uses 350 and keeps more than half back, and a deploy can raise it with --var LIMIT_GLOBAL_CHANNEL3:<n>; a visitor gets about 4 ordinary runs (4 to 6 shop and 4 to 5 web searches each, as measured; a run that tries more suggestions uses more). The neurons stay under Workers AI's free 10,000 a day
     global: {
@@ -61,6 +62,7 @@ export function loadConfig(env: Env): Config {
       channel3: L('GLOBAL_CHANNEL3', 25),
       orders: L('GLOBAL_ORDERS', 100),
       returns: L('GLOBAL_RETURNS', 150),
+      plain: L('GLOBAL_PLAIN', 40),
     },
     dailyCapCents: Math.round(L('DAILY_CAP_USD', 2000) * 100),
     maxItems: L('MAX_ITEMS', 6),

@@ -33,7 +33,7 @@ export interface Env {
 }
 
 /** Daily counters. `ai` counts model calls and `neurons` the Workers AI neurons they use (reserved from an estimate, settled by the answer); `returns` counts returns from PayPal that still had work to do; `cents` is the sum of sandbox order totals. */
-export type CounterName = 'ideas' | 'qloo' | 'ai' | 'neurons' | 'tavily' | 'channel3' | 'orders' | 'returns' | 'cents';
+export type CounterName = 'ideas' | 'qloo' | 'ai' | 'neurons' | 'tavily' | 'channel3' | 'orders' | 'returns' | 'plain' | 'cents';
 
 export interface Limits {
   ip: Record<Exclude<CounterName, 'cents'>, number>;

@@ -32,7 +32,7 @@ test('index.html: no inline script or style, no inline handlers, nothing loaded 
 
 test('public scripts: no HTML-injection or dynamic-code sinks, and no URLs except the ones the page needs', () => {
   assert.ok(jsFiles.length >= 7, jsFiles.join(','));
-  const allowedUrls = ['https://www.sandbox.paypal.com/', 'http://www.w3.org/2000/svg'];
+  const allowedUrls = ['https://www.sandbox.paypal.com/', 'http://www.w3.org/2000/svg', 'https://github.com/Kylne700/tasteloom#compare-in-the-app']; // the last: public/compare.js links the README section
   for (const f of jsFiles) {
     const src = read('public/' + f);
     assert.doesNotMatch(src, /\binnerHTML\b|\bouterHTML\b|insertAdjacentHTML|document\.write|\beval\s*\(|new Function\b|setTimeout\(\s*['"`]|setInterval\(\s*['"`]/, f);
