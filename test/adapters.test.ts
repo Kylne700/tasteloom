@@ -54,6 +54,17 @@ test('channel3: at most two cards per shop and the limit is respected', () => {
   assert.equal(parseChannel3({ products: varied }, 'i', 0, 3).length, 3);
 });
 
+test('channel3: a look-alike (same title, price and shop under another id) is skipped before it uses one of the shop\'s two slots', () => {
+  const at = (id: string, title: string, price = 10) => product(id, title, [offer(price)]); // all from the one default shop
+  const titles = (products: unknown[]) => parseChannel3({ products }, 'i', 0).map((c) => c.title);
+  assert.deepEqual(titles([at('a', 'Acme Kettle'), at('b', 'Acme Kettle'), at('c', 'Acme Teapot')]), ['Acme Kettle', 'Acme Teapot'], 'the repeat takes no slot, so the third product is kept');
+  const long = 'Acme Kettle ' + 'big '.repeat(40);
+  assert.equal(titles([at('d', long + 'A'), at('e', long + 'B')]).length, 1, 'titles that differ only past the 140-character cut look the same on the card');
+  assert.equal(titles([at('f', 'Acme Kettle', 10), at('g', 'Acme Kettle', 11)]).length, 2, 'another price is another card');
+  const elsewhere = product('h', 'Acme Kettle', [offer(10, { domain: 'other.example', url: 'https://other.example/k' })]);
+  assert.equal(titles([at('i', 'Acme Kettle'), elsewhere]).length, 2, 'another shop is another card');
+});
+
 test('channel3: the relevance gate needs every distinctive word of the entity name, as whole words (plural allowed)', () => {
   const at = (id: string, title: string) => product(id, title, [offer(9, { domain: `${id}.example`, url: `https://${id}.example/p` })], { brands: [] });
   const list = { products: [at('a', 'Norwegian Wood Paperback'), at('b', 'Firewood Bundle Norwegian'), at('c', 'Norwegian Rug'), at('d', 'Wood Norwegians Poster'), at('e', 'Norwegian-Wood Vinyl')] };

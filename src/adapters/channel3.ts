@@ -57,6 +57,9 @@ export function parseChannel3(json: unknown, ideaId: string, maxPriceCents: numb
       if (!best || cents < best.cents) best = { cents, url, shop };
     }
     if (!best) continue;
+    const { cents, shop } = best;
+    const title = clip(p.title as string, 140);
+    if (cards.some((c) => c.title === title && c.price_cents === cents && c.shop === shop)) continue; // a look-alike of a kept card (another catalog id): skipped before it uses one of the shop's two slots
     if ((perShop.get(best.shop) ?? 0) >= 2) continue; // keep shops varied
     perShop.set(best.shop, (perShop.get(best.shop) ?? 0) + 1);
     const images = Array.isArray(p.images) ? p.images.map(asObject).filter(Boolean) : [];
@@ -66,7 +69,7 @@ export function parseChannel3(json: unknown, ideaId: string, maxPriceCents: numb
     cards.push({
       id,
       ideaId,
-      title: clip(p.title as string, 140),
+      title,
       price_cents: best.cents,
       currency: 'USD',
       shop: best.shop,
