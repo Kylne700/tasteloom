@@ -253,8 +253,8 @@ function states(fx) {
       const f = window.fetch;
       window.fetch = (i, init) => { if (init && init.body) window.__posted.push(String(init.body)); return f(i, init); };
     });
-    const ways = await page.$$eval('#ask-btn, form .actions button, .hint button', (l) => l.map((b) => b.textContent.trim()));
-    check(`${c.name}/home: the ways in are all named: Ask them, Find gift ideas, Run a live example and Replay the saved example`, ways.join('|') === 'Ask them|Find gift ideas|Run a live example|Replay the saved example', ways.join('|'));
+    const ways = await page.$$eval('.live-example button, #ask-btn, form .actions button, .hint button', (l) => l.map((b) => b.textContent.trim()));
+    check(`${c.name}/home: the ways in are all named: Ask them, Find gift ideas, Run a live example and Replay the saved example`, ways.join('|') === 'Run a live example|Ask them|Find gift ideas|Replay the saved example', ways.join('|'));
     check(`${c.name}/home: the lead names both ways to start`, /three to five things they love, or send them a link and let them tell you/.test((await text(page, '.taste .lead')) || ''));
     await tapText(page, /^Run a live example$/);
     await release(page, key, 2);
