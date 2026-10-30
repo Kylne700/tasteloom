@@ -173,6 +173,11 @@ Plain HTML, CSS and ES modules in `public/` (no framework, no build step). One w
 
 ## Compare in the app
 
+The measured comparison behind this panel used 20 made-up people, 4 gift ideas each and one run per condition. Method, every count, the limits and what is not verified are in [docs/proof.md](docs/proof.md).
+Ideas that are merch of a favourite the person already loves: 73 of 76 from the model on its own, 66 of 80 from a bigger model on its own, 3 of 80 from Tasteloom (partly by design: it drops what you typed).
+Ideas with identical text to another person's idea: 17 of 80 for Tasteloom, 0 of 76 and 0 of 80 for the models on their own (a count made after we saw the data). That is mixed, not a win for Tasteloom; the proof page shows the other similarity checks.
+After a change designed after we saw those repeats on the same 20 people, one re-run gave 4 of 80 repeated ideas. It cost 42% more model compute per person (20 people, one run), was slower, and does not show the same result for other people.
+
 Under the results, **Compare: same AI, no Qloo** asks the model Tasteloom writes with for four gift ideas from the favourites alone: no Qloo, shop or web lookup, only the favourites and the budget are sent to Workers AI, and the favourites are not stored. Ideas whose text names a favourite are tagged by a whole-word name match (full name; last name too for a favourite typed as a person); albums or characters are not detected, so the count is a hint.
 It also works on the saved example (the plain ideas are asked live, the example is a recording). Each click is counted once by `LIMIT_IP_PLAIN` (8 a day per visitor) and `LIMIT_GLOBAL_PLAIN` (40 a day for everyone) on top of the model's own limits; at a limit the panel says so, and with no model connected it shows a fixed demo answer.
 Part of the difference is by design: Tasteloom does not offer the favourites themselves as ideas. The prompt follows the template of the project's measured comparison (a type it did not use gets its own label); the name rule is a port of its rule with the same test cases (`test/plain.test.ts`).
