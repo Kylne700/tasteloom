@@ -110,8 +110,8 @@ export function makeAiFake(opts: { delayMs?: number } = {}) {
         reasons[String(i.id)] = !a
           ? `${name} matches the overall taste in what they love.`
           : [
-              `Since they love ${loved}, ${name} is a safe bet${prod ? `: ${prod} is a good place to start` : ''}.${both}`,
-              `${name} sits close to ${loved} in taste${prod ? `, and ${prod} shows why` : ', so it should land well'}.${both}`,
+              `Since they love ${loved}, ${name} is a safe bet${prod ? `: ${prod} is a good place to start` : ', and it should suit them'}.${both}`,
+              `${name} sits close to ${loved} in taste${prod ? `, and ${prod} shows why it fits` : ', so it should land well'}.${both}`,
               `A gift in the spirit of ${loved}: ${prod ?? name} feels chosen, not generic.${both}`,
               `Fans of ${loved} tend to like ${name}${prod ? `, and ${prod} makes an easy first pick` : ', so start with the first product'}.${both}`,
             ][n % 4]!;

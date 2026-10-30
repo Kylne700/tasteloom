@@ -354,6 +354,25 @@ test('evidence: no split when Qloo names one favourite, and no shared tags when 
   assert.ok(taste.seeds.every((s: any) => Object.keys(s).sort().join() === 'id,name,type'), 'the tags stay off the seeds the page receives');
 });
 
+test('spread: a model reason of fewer than 12 words falls back to the shared-tag sentence, even when it names the favourite and uses a shared tag', async () => {
+  const h = setup(
+    qloo(),
+    model({
+      reasons: (_n, body) => {
+        const ideas = JSON.parse(body.messages[1].content).ideas as { id: string; because: string[]; in_common: string[] }[];
+        const short = (i: { because: string[]; in_common: string[] }) => `Because they love ${i.because[0]}, this ${i.in_common[0]} pick fits.`; // 8 words for a one-word favourite and tag
+        for (const i of ideas) assert.ok(short(i).split(' ').length < 12, short(i));
+        return chatReply({ content: JSON.stringify({ reasons: Object.fromEntries(ideas.map((i) => [i.id, short(i)])) }) });
+      },
+    }),
+  );
+  const ev = await go(h);
+  const reasons = ev.find((e) => e.t === 'reasons').reasons;
+  const ideas = ideasOf(ev);
+  assert.ok(ideas.length >= 4 && ideas.every((i) => i.shared?.length), 'every idea has a shared tag, so the fallback is the shared-tag sentence');
+  for (const i of ideas) assert.equal(reasons[i.id], templateReason(i), i.title);
+});
+
 test('evidence: when Qloo’s data gives a favourite and an idea nothing in common, the reason says only that Qloo links them, whatever a model writes', async () => {
   const noCommon = (rows: Row[]) => rows.map((r) => ({ ...r, tags: ['Unrelated Thing'] }));
   const rows = { brand: noCommon(ROWS.brand!), book: noCommon(ROWS.book!), artist: noCommon(ROWS.artist!), place: noCommon(ROWS.place!) };
@@ -387,7 +406,7 @@ test('evidence: an idea with nothing in common keeps the plain line even when th
         assert.ok(ideas.every((i) => i.in_common?.length), 'only ideas with shared tags are put to the model');
         // it also answers for ideas it was not asked about, naming the strongest favourite and inventing a shared quality
         const all = Object.fromEntries(['i1', 'i2', 'i3', 'i4', 'i5', 'i6'].map((id) => [id, `Because they love ${ideas[0]?.because[0] ?? 'Nujabes'}, both share a hushed, dreamlike mood.`]));
-        for (const i of ideas) all[i.id] = `Because they love ${i.because[0]}, ${i.entity} has the same ${i.in_common![0]} feel.`;
+        for (const i of ideas) all[i.id] = `Because they love ${i.because[0]}, ${i.entity} has the same ${i.in_common![0]} feel, so it should suit them well.`;
         return chatReply({ content: JSON.stringify({ reasons: all }) });
       },
     }),
@@ -398,7 +417,7 @@ test('evidence: an idea with nothing in common keeps the plain line even when th
   const aurel = ideas.find((i) => i.entity.name === 'Aurel');
   assert.ok(aurel, 'the idea without tags in common is in the run');
   assert.equal(reasons[aurel.id], 'Qloo links Nujabes to Aurel.');
-  for (const i of ideas.filter((x) => x !== aurel)) assert.equal(reasons[i.id], `Because they love ${i.because[0]}, ${i.entity.name} has the same ${i.shared[0]} feel.`, i.title);
+  for (const i of ideas.filter((x) => x !== aurel)) assert.equal(reasons[i.id], `Because they love ${i.because[0]}, ${i.entity.name} has the same ${i.shared[0]} feel, so it should suit them well.`, i.title);
 });
 
 // ---- very popular names ----------------------------------------------------------------------------------------------------

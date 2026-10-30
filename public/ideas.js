@@ -342,14 +342,15 @@ export function mountIdeas(root) {
     const reason = h('div', { class: 'reason', 'data-state': reasonText ? 'ready' : 'pending' }, reasonText ? reasonText : [h('span', { class: 'sk-line w100' }), h('span', { class: 'sk-line w60' })]);
     const section = h(
       'article',
-      { class: 'idea', 'aria-labelledby': `idea-${idea.id}` },
+      { class: 'idea', 'data-kind': idea.kind, 'aria-labelledby': `idea-${idea.id}` },
       h('header', { class: 'idea-head' }, h('p', { class: 'kind' }, idea.kind === 'experience' ? 'Experience' : 'Gift'), h('h2', { id: `idea-${idea.id}` }, idea.title), because, reason, evidenceRows(idea), noteRow(idea)),
       idea.paused ? h('p', { class: 'note info paused', role: 'status' }, icon('info', 18), h('span', {}, PAUSED_NOTE[idea.paused])) : h('ul', { class: 'cards' }, cards.map((c) => cardEl(c, idea))),
     );
     ideaEls.set(idea.id, { reason, section });
     const sk = list.querySelector('.idea.skeleton');
-    if (sk) list.insertBefore(section, sk);
-    else list.append(section);
+    // Gifts before experiences, so the first card is one with an Add button; the replay calls this in the same order and gets the same layout. insertBefore(x, null) appends.
+    const trip = idea.kind === 'experience' ? null : list.querySelector('.idea[data-kind="experience"]');
+    list.insertBefore(section, trip || sk);
     if (sk) sk.remove();
   }
 
