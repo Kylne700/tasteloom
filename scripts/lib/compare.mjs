@@ -124,7 +124,7 @@ async function round(browser, vp, name) {
 
   // 1. the saved example (the path of a run that has just finished)
   await fresh(page);
-  await tapText(page, /^Try an example$/);
+  await tapText(page, /^Replay the saved example$/);
   await page.waitForFunction(() => /Done in/.test(document.querySelector('.agent-status')?.textContent || ''), { timeout: 60000 });
   await sleep(400);
   const done = await json(page);
