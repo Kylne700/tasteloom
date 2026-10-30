@@ -106,3 +106,20 @@ test('README: the taste-link note sits in the Ask them section, and nothing in i
   assert.ok(section.includes('/ask?for=me'));
   assert.doesNotMatch(readme, /hidden gems?|beats chatgpt|chatbot (?:can(?:not|'t)|could not) reach|no rival/i);
 });
+
+test('the first screen: "Run a live example" sits once, directly after the lead and above the form, with a hint that keeps the demo label; the saved replay stays in the form', () => {
+  const taste = read('public/taste.js');
+  assert.equal(taste.match(/'Run a live example'/g)?.length, 1, 'one button of that name: the old one in the form is gone');
+  const at = (s: string) => {
+    const i = taste.indexOf(s);
+    assert.ok(i >= 0, s);
+    return i;
+  };
+  const lead = at("h('p', { class: 'lead' }");
+  const example = at("h('div', { class: 'live-example' }");
+  assert.ok(lead < example && example < at('        form,\n'), 'lead, then the example block, then the form');
+  assert.ok(example < at("'Run a live example'") && at("'Run a live example'") < at("'Fills in favourites and a budget picked for this demo, then searches within the daily limits.'"), 'button, then its hint');
+  const form = taste.slice(at('const form = h('), at('budget.addEventListener'));
+  assert.ok(form.includes("'Replay the saved example'") && !form.includes('Run a live example'), 'the form keeps the replay and no longer holds the live example');
+  assert.match(read('public/styles.css'), /\.live-example \{[^}]*flex-wrap: wrap/, 'the block wraps, so the hint drops under the button on a phone');
+});

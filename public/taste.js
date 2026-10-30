@@ -103,9 +103,7 @@ export function mountTaste(root, { reply } = {}) {
       'div',
       { class: 'actions' },
       h('button', { type: 'submit', class: 'btn primary big' }, 'Find gift ideas', icon('arrow', 18)),
-      h('button', { type: 'button', class: 'btn big', onclick: runExample }, 'Run a live example'),
     ),
-    h('p', { class: 'hint tight' }, 'Run a live example fills in favourites and a budget picked for this demo and searches like any other search, within the same daily limits.'),
     h('p', { class: 'hint tight replay' },
       h('button', { type: 'button', class: 'link-btn', onclick: () => { state.pending = { mode: 'example' }; location.hash = '#/ideas'; } }, 'Replay the saved example'),
       'plays back a recorded run and needs no lookups.'),
@@ -136,6 +134,11 @@ export function mountTaste(root, { reply } = {}) {
         h('h1', { tabindex: '-1' }, 'Gifts that understand them'),
         h('p', { class: 'principle' }, 'No age, no gender, no account: only what they love.'), // true of the form: favourites (with an optional type) and the giver's budget, nothing else about the person
         h('p', { class: 'lead' }, 'Tell us three to five things they love, or send them a link and let them tell you. We read their taste, find real products that fit your budget, and you pay in the PayPal sandbox.'),
+        // the fastest way to see a result sits above the form, so it is on the first screen at 1280x720 and 390x844
+        h('div', { class: 'live-example' },
+          h('button', { type: 'button', class: 'btn primary big', onclick: runExample }, 'Run a live example', icon('arrow', 18)),
+          h('p', { class: 'hint' }, 'Fills in favourites and a budget picked for this demo, then searches within the daily limits.'),
+        ),
         form,
         h('p', { class: 'own-link' }, h('a', { class: 'link-btn', href: '/ask?for=me' }, 'Make your own taste link')), // the same page a friend gets, set up for sending to whoever buys you gifts
       ),
