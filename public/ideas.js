@@ -45,6 +45,19 @@ function noteRow(idea) {
   return h('div', { class: 'note-row' }, copy, status, box);
 }
 
+// What Qloo's data says behind the reason, as text from the idea event: Qloo's split of its link by favourite (zero shares are left out, and
+// nothing shows unless two remain, so it never reads as a single "match") and the tags it gives both the strongest favourite and the idea.
+const evidenceRow = (label, value) => h('p', { class: 'evidence' }, h('span', { class: 'ev-lbl' }, label), h('span', { class: 'ev-val' }, value));
+function evidenceRows(idea) {
+  const names = idea.because ?? [];
+  const parts = (Array.isArray(idea.shares) ? idea.shares : []).map((share, i) => [share, names[i]]).filter(([share, name]) => share > 0 && name);
+  const tags = Array.isArray(idea.shared) ? idea.shared : [];
+  return [
+    parts.length > 1 && evidenceRow('How Qloo splits its link to this idea (adds up to 100%): ', parts.map(([share, name]) => `${share}% ${name}`).join(' · ')),
+    tags.length > 0 && names[0] && evidenceRow(`Tags Qloo gives to both ${names[0]} and ${idea.entity.name}: `, tags.join(' · ')),
+  ];
+}
+
 // A link card whose page gave no blurb shows where the link goes, built only from its own address (path words, no query or fragment).
 // It never describes the product: the page itself is the only source for that.
 function addressWords(url) {
@@ -328,7 +341,7 @@ export function mountIdeas(root) {
     const section = h(
       'article',
       { class: 'idea', 'aria-labelledby': `idea-${idea.id}` },
-      h('header', { class: 'idea-head' }, h('p', { class: 'kind' }, idea.kind === 'experience' ? 'Experience' : 'Gift'), h('h2', { id: `idea-${idea.id}` }, idea.title), because, reason, noteRow(idea)),
+      h('header', { class: 'idea-head' }, h('p', { class: 'kind' }, idea.kind === 'experience' ? 'Experience' : 'Gift'), h('h2', { id: `idea-${idea.id}` }, idea.title), because, reason, evidenceRows(idea), noteRow(idea)),
       idea.paused ? h('p', { class: 'note info paused', role: 'status' }, icon('info', 18), h('span', {}, PAUSED_NOTE[idea.paused])) : h('ul', { class: 'cards' }, cards.map((c) => cardEl(c, idea))),
     );
     ideaEls.set(idea.id, { reason, section });
@@ -385,7 +398,7 @@ export function mountIdeas(root) {
     const actions = [];
     if (code === 'bad_input') actions.push(h('a', { class: 'btn', href: '#/' }, icon('back', 16), 'Change favourites'));
     if (live) actions.push(h('button', { type: 'button', class: 'btn', onclick: () => restart('live') }, 'Try again'));
-    actions.push(h('button', { type: 'button', class: 'btn', onclick: () => restart('example') }, 'Try an example'));
+    actions.push(h('button', { type: 'button', class: 'btn', onclick: () => restart('example') }, 'Replay the saved example'));
     if (code === 'upstream') actions.reverse(); // a service is down (or a contest key has ended): the saved example is the sure way on
     if (!partial) actions[0].classList.add('primary'); // one filled button; with ideas on screen the "Review and pay" bar is the main action
     const text = partial ? 'Some ideas arrived before it stopped.' : err.message + (code === 'upstream' ? ' The saved example always works.' : '');
@@ -400,7 +413,7 @@ export function mountIdeas(root) {
   }
 
   function restart(mode) {
-    state.pending = { mode };
+    state.pending = mode === 'live' && run.liveExample ? { mode, example: true } : { mode };
     window.dispatchEvent(new Event('tasteloom:reroute'));
   }
 
@@ -489,7 +502,7 @@ export function mountIdeas(root) {
 
   function showEmpty() {
     notices.append(
-      h('section', { class: 'panel', role: 'status' }, h('div', { class: 'panel-body' }, h('h2', {}, 'No ideas to show'), h('p', {}, 'Try a higher budget or different favourites, or look at the example.'), h('div', { class: 'panel-actions' }, h('a', { class: 'btn primary', href: '#/' }, 'Change favourites'), h('button', { type: 'button', class: 'btn', onclick: () => restart('example') }, 'Try an example')))),
+      h('section', { class: 'panel', role: 'status' }, h('div', { class: 'panel-body' }, h('h2', {}, 'No ideas to show'), h('p', {}, 'Try a higher budget or different favourites, or look at the saved example.'), h('div', { class: 'panel-actions' }, h('a', { class: 'btn primary', href: '#/' }, 'Change favourites'), h('button', { type: 'button', class: 'btn', onclick: () => restart('example') }, 'Replay the saved example')))),
     );
   }
 
@@ -530,6 +543,9 @@ export function mountIdeas(root) {
     if (run.example) {
       notices.prepend(h('p', { class: 'note info example-note' }, icon('info', 18), h('span', {}, `Saved example${run.asOf ? `, recorded ${run.asOf}` : ''}. Its products and prices were live that day; its taste matches and reasons are stand-ins, not live Qloo or model output. The checkout is a live PayPal sandbox order.`)));
     }
+    if (run.liveExample) {
+      notices.prepend(h('p', { class: 'note info example-note' }, icon('info', 18), h('span', {}, 'Example set. The favourites and the budget above were picked for this demo, not typed by you. The search is a normal one, within the same daily limits as any other.')));
+    }
     if (run.mocks.length) {
       demoNote.hidden = false;
       demoNote.textContent = mockNote(run.mocks, run.example ? null : state.status && state.status.modes); // the saved example's products were recorded, so no "live" claim there
@@ -568,10 +584,10 @@ export function mountIdeas(root) {
   }
 
   if (state.pending) {
-    const mode = state.pending.mode;
+    const { mode, example: fixedSet } = state.pending;
     state.pending = null;
     state.selected = [];
-    run = newRun(mode === 'example' ? { favorites: [], budget_cents: 0, example: true } : { favorites: state.favorites, budget_cents: Math.round(state.budget * 100), example: false });
+    run = newRun(mode === 'example' ? { favorites: [], budget_cents: 0, example: true } : { favorites: state.favorites, budget_cents: Math.round(state.budget * 100), example: false, liveExample: !!fixedSet });
     state.run = run;
     buildPhases();
     showHeader();

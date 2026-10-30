@@ -107,11 +107,15 @@ test('groundedReason: a model reason must name a linked favourite and may not qu
   assert.ok(groundedReason('This fits their overall taste in quiet things.', { because: [] }));
 });
 
-test('templateReason: names the loved things, or says it fits the overall taste', () => {
+test('templateReason: the tags Qloo gives both, or only that Qloo links them, or that it fits the overall taste', () => {
   const e = { id: 'E', name: 'Hario', type: 'brand' };
-  assert.equal(templateReason({ because: ['Muji'], entity: e }), 'Because they love Muji, Hario is a natural pick.');
-  assert.equal(templateReason({ because: ['Muji', 'Nujabes'], entity: e }), 'Because they love Muji and Nujabes, Hario is a natural pick.');
+  assert.equal(templateReason({ because: ['Muji'], entity: e }), 'Qloo links Muji to Hario.');
+  assert.equal(templateReason({ because: ['Muji', 'Nujabes'], entity: e }), 'Qloo links Muji to Hario.', 'only the strongest favourite is named');
+  assert.equal(templateReason({ because: ['Muji', 'Nujabes'], entity: e, shared: ['Japan'] }), 'Qloo tags both Muji and Hario as Japan.');
+  assert.equal(templateReason({ because: ['Muji'], entity: e, shared: ['Japan', 'Calm', 'Design'] }), 'Qloo tags both Muji and Hario as Japan, Calm and Design.');
+  assert.equal(templateReason({ because: ['Muji'], entity: e, shared: [] }), 'Qloo links Muji to Hario.');
   assert.match(templateReason({ because: [], entity: e }), /overall taste/);
+  assert.match(templateReason({ because: [], entity: e, shared: ['Japan'] }), /overall taste/, 'no strongest favourite, so nothing to share with');
 });
 
 test('diversePicks: mixes types, strongest Qloo link first, no duplicates', () => {

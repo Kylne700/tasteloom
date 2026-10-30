@@ -3,8 +3,9 @@
 // /search -> { results: [ { name, entity_id, types, properties, popularity, disambiguation, tags } ] } and /v2/insights ->
 // { success, results: { entities: [ { type: 'urn:entity', subtype, query: { affinity, measurements, explainability: { 'signal.interests.entities':
 // [ { entity_id, score } ] } } } ] }, query: { explainability: { 'signal.interests.entities': { effect_on_top3_recs, ... } } } }.
-// The data is invented demo data, not Qloo output: well-known works and places, each with a few theme tags. Entities that share tags with the
-// favourites rank higher and the explainability weights follow the shared tags, so "because they love X" reads plausibly.
+// The data is invented demo data, not Qloo output: well-known works and places, each with a few theme tags (sent as Qloo-shaped tag objects).
+// Entities that share tags with the favourites rank higher and the explainability weights follow the shared tags, so "because they love X"
+// reads plausibly; the top favourite shares a tag with the entity except when no favourite shares any (then Qloo's link stands alone).
 import { fnv, sleep, titleCase } from '../lib/util.ts';
 
 const CATALOG: Record<string, [name: string, tags: string][]> = {
@@ -49,6 +50,8 @@ const idOf = (name: string, type: string) => 'MOCK' + fnv(name.toLowerCase() + t
 const KNOWN = new Map<string, Set<string>>();
 for (const [type, list] of Object.entries(CATALOG)) for (const [name, tags] of list) KNOWN.set(idOf(name, type), new Set(tags.split(' ')));
 const tagsOfId = (id: string) => KNOWN.get(id) ?? new Set([VOCAB[fnv(id) % VOCAB.length]!, VOCAB[fnv(id + 'b') % VOCAB.length]!]);
+/** invented tags in the shape Qloo uses: { id, name, type: 'urn:tag:<kind>:qloo' } (the real ones come in many kinds; the fake sends one kind that the parser keeps) */
+const tagObjects = (words: Iterable<string>) => [...words].map((w) => ({ id: 'MOCKTAG' + fnv(w).toString(16).toUpperCase(), name: titleCase(w), type: 'urn:tag:theme:qloo' }));
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 const shortType = (u: string | null) => (u ?? '').replace(/^urn:entity:/, '').split(',')[0] ?? '';
@@ -75,7 +78,7 @@ function answer(input: string): Response {
     const type = known?.t ?? (asked || 'brand');
     const name = known?.n ?? titleCase(query);
     return json({
-      results: [{ name, entity_id: idOf(name, type), types: [`urn:entity:${type}`], properties: { short_description: 'demo data' }, popularity: 0.5, disambiguation: 'demo data', tags: [] }],
+      results: [{ name, entity_id: idOf(name, type), types: [`urn:entity:${type}`], properties: { short_description: 'demo data' }, popularity: 0.5, disambiguation: 'demo data', tags: tagObjects(tagsOfId(idOf(name, type))) }],
     });
   }
   if (url.pathname === '/v2/insights') {
@@ -106,7 +109,7 @@ function answer(input: string): Response {
         subtype: `urn:entity:${type}`,
         properties: { short_description: 'demo data' },
         popularity: 0.5,
-        tags: [],
+        tags: tagObjects(tagsOfId(id)),
         query: { affinity: Math.min(0.97, Math.round((0.5 + 0.06 * total) * 100) / 100), measurements: { audience_growth: 0 }, explainability: { 'signal.interests.entities': links } },
         disambiguation: 'demo data',
         external: {},

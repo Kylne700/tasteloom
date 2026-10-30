@@ -30,7 +30,7 @@ export const ORDER_MESSAGES: Record<OrderErrorCode, string> = {
   unknown_item: 'One of those items is no longer available. Go back and pick again.',
   not_purchasable: 'That item is a link to another site and cannot be bought here.',
   over_budget: 'The server counts more than your budget allows. Remove an item or pick cheaper ones.',
-  session_expired: 'The saved prices are gone, so this gift cannot be ordered. Start over, or try the example.',
+  session_expired: 'The saved prices are gone, so this gift cannot be ordered. Start over, or replay the saved example.',
 };
 
 export const newSession = (budget_cents: number, cards: Card[], example = false): Session => ({

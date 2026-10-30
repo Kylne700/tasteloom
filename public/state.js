@@ -10,7 +10,7 @@ export const state = {
   run: null,
   /** card ids picked for the gift */
   selected: [],
-  /** set by the first screen, consumed by the ideas screen: { mode: 'live' | 'example' } */
+  /** set by the first screen, consumed by the ideas screen: { mode: 'live' | 'example', example?: true } (example: the fixed set of example.js was filled in) */
   pending: null,
   /** /api/status */
   status: null,
@@ -26,10 +26,11 @@ export const PHASES = [
 /** Qloo, shop and web lookups of a run: `calls` also holds the model's own steps, which are not lookups. */
 export const lookupCount = (calls) => calls.filter((c) => c.tool !== 'model').length;
 
-export function newRun({ favorites, budget_cents, example }) {
+export function newRun({ favorites, budget_cents, example, liveExample }) {
   return {
     status: 'running',
-    example: !!example,
+    example: !!example, // the saved replay
+    liveExample: !!liveExample, // a live run of the fixed example set (example.js), not typed by the visitor
     favorites,
     budget_cents,
     sessionId: '',

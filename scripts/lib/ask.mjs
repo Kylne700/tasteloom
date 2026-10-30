@@ -92,11 +92,11 @@ async function giverPanel(ctx, vp, proxy) {
   const L = `ask/giver ${vp.width}`;
   const page = await tracked(ctx, vp, L, proxy);
   await fresh(page, proxy.origin);
-  const closed = (await page.$$('button.link-btn')).length === 1 && (await text(page, 'button.link-btn')) === 'Not sure what they love? Ask them' && (await page.$eval('button.link-btn', (e) => e.getAttribute('aria-expanded'))) === 'false' && (await page.$eval('#ask-panel', (e) => e.hidden));
-  check(`${L}: one short link "Not sure what they love? Ask them" on the favourites step, closed at first`, closed);
+  const closed = (await page.$$('#ask-btn')).length === 1 && (await text(page, '#ask-btn')) === 'Ask them' && (await text(page, '.ask-text')) === 'Not sure what they love? Send them a link and let them tell you.' && (await page.$eval('#ask-btn', (e) => e.getAttribute('aria-expanded'))) === 'false' && (await page.$eval('#ask-panel', (e) => e.hidden));
+  check(`${L}: a second way to start, "Not sure what they love? Send them a link and let them tell you." with an "Ask them" button, on the favourites step, closed at first`, closed);
   check(`${L}: the link sits in the favourites field`, await page.$eval('#ask-panel', (e) => !!e.closest('.field')?.querySelector('#fav-input')));
-  await page.click('button.link-btn');
-  const open = (await page.$eval('button.link-btn', (e) => e.getAttribute('aria-expanded'))) === 'true' && (await page.$eval('#ask-panel', (e) => !e.hidden));
+  await page.click('#ask-btn');
+  const open = (await page.$eval('#ask-btn', (e) => e.getAttribute('aria-expanded'))) === 'true' && (await page.$eval('#ask-panel', (e) => !e.hidden));
   const link = await page.$eval('#ask-panel .link-box', (e) => e.value);
   const inputs = await page.$$eval('#ask-panel input, #ask-panel textarea, #ask-panel select', (l) => l.map((e) => `${e.type}${e.readOnly ? ' readonly' : ''}`));
   check(`${L}: it opens a link to send, ${proxy.origin}/ask, with no name, no email, no account`, open && link === `${proxy.origin}/ask` && inputs.join() === 'text readonly', `${link}; fields: ${inputs.join()}`);
@@ -310,7 +310,7 @@ async function extras(ctx, proxy) {
     };
   });
   await fresh(sp, proxy.origin);
-  await sp.click('button.link-btn');
+  await sp.click('#ask-btn');
   const shareBtn = await sp.$$('#ask-panel .linkrow button');
   const labels = await Promise.all(shareBtn.map((b) => b.evaluate((e) => e.textContent.trim())));
   check(`${L}: with Web Share present, the panel offers Share`, labels.includes('Share'), labels.join());

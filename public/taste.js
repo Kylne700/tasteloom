@@ -1,5 +1,6 @@
-// Screen 1: what do they love, and what is the budget? Also the "Try an example" entry.
+// Screen 1: what do they love, and what is the budget? Two ways to start (type it, or ask them) and two examples (live, saved).
 import { announce, h, icon } from './dom.js';
+import { EXAMPLE } from './example.js';
 import { favouritesField } from './favs.js';
 import { linkRow } from './linkrow.js';
 import { MIN } from './loves.js';
@@ -8,17 +9,28 @@ import { mockNote, save, state } from './state.js';
 const PRESETS = [25, 50, 100, 200];
 const TOO_FEW = `Add at least ${MIN} things they love, so the taste reading has something to work with.`;
 
-// "Not sure what they love?": a link to send. Their answer comes back inside the reply link (loves.js), so no server holds it.
+// "Run a live example": the fixed set of example.js is filled in and searched like any other (same daily limits); the ideas screen labels it as the example set.
+function runExample() {
+  state.favorites = EXAMPLE.favorites.map((f) => ({ ...f }));
+  state.budget = EXAMPLE.budget;
+  state.pending = { mode: 'live', example: true };
+  save();
+  location.hash = '#/ideas';
+}
+
+// "Not sure what they love?": the second way to start. A link to send; their answer comes back inside the reply link (loves.js), so no server holds it.
 function askLink() {
   const panel = h('div', { id: 'ask-panel', class: 'ask-panel', hidden: true },
     h('p', {}, 'Send them this link. They name what they love and send you a reply link. When you open it here, their answer fills in below.'),
     linkRow({ url: `${location.origin}/ask`, label: 'Link to send', text: 'What do you love lately? Tell me here.' }),
   );
-  const btn = h('button', { type: 'button', class: 'link-btn', 'aria-expanded': 'false', 'aria-controls': 'ask-panel', onclick: () => {
+  const btn = h('button', { type: 'button', id: 'ask-btn', class: 'btn small', 'aria-expanded': 'false', 'aria-controls': 'ask-panel', onclick: () => {
     panel.hidden = !panel.hidden;
     btn.setAttribute('aria-expanded', String(!panel.hidden));
-  } }, 'Not sure what they love? Ask them');
-  return h('div', { class: 'ask-link' }, btn, panel);
+  } }, 'Ask them');
+  return h('div', { class: 'ask-link' },
+    h('div', { class: 'ask-row' }, h('p', { class: 'ask-text' }, h('strong', {}, 'Not sure what they love?'), ' Send them a link and let them tell you.'), btn),
+    panel);
 }
 
 export function mountTaste(root, { reply } = {}) {
@@ -91,9 +103,12 @@ export function mountTaste(root, { reply } = {}) {
       'div',
       { class: 'actions' },
       h('button', { type: 'submit', class: 'btn primary big' }, 'Find gift ideas', icon('arrow', 18)),
-      h('button', { type: 'button', class: 'btn big', onclick: () => { state.pending = { mode: 'example' }; location.hash = '#/ideas'; } }, 'Try an example'),
+      h('button', { type: 'button', class: 'btn big', onclick: runExample }, 'Run a live example'),
     ),
-    h('p', { class: 'hint tight' }, 'The example replays a saved run, so you can see the whole flow without typing.'),
+    h('p', { class: 'hint tight' }, 'Run a live example fills in favourites and a budget picked for this demo and searches like any other search, within the same daily limits.'),
+    h('p', { class: 'hint tight replay' },
+      h('button', { type: 'button', class: 'link-btn', onclick: () => { state.pending = { mode: 'example' }; location.hash = '#/ideas'; } }, 'Replay the saved example'),
+      'plays back a recorded run and needs no lookups.'),
   );
 
   budget.addEventListener('input', () => {
@@ -120,7 +135,7 @@ export function mountTaste(root, { reply } = {}) {
         h('p', { class: 'eyebrow' }, 'Gift agent'),
         h('h1', { tabindex: '-1' }, 'Gifts that understand them'),
         h('p', { class: 'principle' }, 'No age, no gender, no account: only what they love.'), // true of the form: favourites (with an optional type) and the giver's budget, nothing else about the person
-        h('p', { class: 'lead' }, 'Tell us three to five things they love. We read their taste, find real products that fit your budget, and you pay in the PayPal sandbox.'),
+        h('p', { class: 'lead' }, 'Tell us three to five things they love, or send them a link and let them tell you. We read their taste, find real products that fit your budget, and you pay in the PayPal sandbox.'),
         form,
         h('p', { class: 'own-link' }, h('a', { class: 'link-btn', href: '/ask?for=me' }, 'Make your own taste link')), // the same page a friend gets, set up for sending to whoever buys you gifts
       ),
@@ -135,7 +150,7 @@ export function mountTaste(root, { reply } = {}) {
           h('li', {}, h('strong', {}, 'An agent finds real products.'), h('span', {}, 'An AI model on Cloudflare Workers AI calls tools: Qloo for taste, Channel3 for products and prices, Tavily for experiences and price checks.')),
           h('li', {}, h('strong', {}, 'You pay in the PayPal sandbox.'), h('span', {}, 'The server prices the order from its own saved cards. You approve as a guest on PayPal’s page, and the agent captures it. No real money moves.')),
         ),
-        h('p', { class: 'sent' }, h('strong', {}, 'What is sent where. '), 'What you type goes to Qloo (to read taste) and to the AI model on Cloudflare Workers AI. Searches built from it go to Channel3 (products) and Tavily (experiences and price checks). PayPal gets only the order, in its sandbox. Tasteloom does not store the favourites you type. It keeps the product cards of a run and your budget for 2 hours, so the server can price your order, and sandbox orders for 7 days. The other services keep what they receive under their own terms.'),
+        h('p', { class: 'sent' }, h('strong', {}, 'What is sent where. '), 'What you type goes to Qloo (to read taste) and to the AI model on Cloudflare Workers AI, which also gets what Qloo answers: the names it suggests and the tags it gives both a suggestion and the favourite it links most strongly. Searches built from it go to Channel3 (products) and Tavily (experiences and price checks); their answers are kept for 12 hours under a hash of the search, so a repeated search is answered without asking the shop or the web again. PayPal gets only the order, in its sandbox. Tasteloom does not store the favourites you type. It keeps the product cards of a run and your budget for 2 hours, so the server can price your order, and sandbox orders for 7 days. The other services keep what they receive under their own terms.'),
         h('p', { class: 'sent' }, h('strong', {}, 'Daily limits. '), 'The demo is free, with daily caps on live lookups, on shop and web search, and on the AI model. When shop search is used up, ideas still come from Qloo but without buy buttons; when web search is, prices are not checked and place links are missing; without the model the steps are fixed. The page says so each time, and the saved example always works.'),
         demo,
       ),

@@ -110,7 +110,7 @@ export function mountCheckout(root, { cancelled }) {
     const actions = [];
     if (code === 'session_expired') {
       actions.push(h('button', { type: 'button', class: 'btn primary', onclick: () => { startOver(); location.hash = '#/'; } }, 'Start over'));
-      actions.push(h('button', { type: 'button', class: 'btn', onclick: () => { startOver(); state.pending = { mode: 'example' }; location.hash = '#/ideas'; } }, 'Try an example'));
+      actions.push(h('button', { type: 'button', class: 'btn', onclick: () => { startOver(); state.pending = { mode: 'example' }; location.hash = '#/ideas'; } }, 'Replay the saved example'));
     } else {
       // one main action per state: the Pay button itself when trying again can work, otherwise the way back
       if (retry) actions.push(h('button', { type: 'button', class: 'btn', onclick: pay }, 'Try again'));

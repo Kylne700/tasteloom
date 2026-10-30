@@ -70,6 +70,10 @@ export interface Idea {
   entity: { id: string; name: string; type: string };
   /** names of the favourites that Qloo explainability links to this entity */
   because: string[];
+  /** Qloo's share of the link for each name in `because` (whole percents adding up to 100, same order); only when Qloo names two or more */
+  shares?: number[];
+  /** tags Qloo gives both `because[0]` and this entity (at most 4); only when there are any */
+  shared?: string[];
   reason: string;
   cardIds: string[];
   /** set when the search that fills this idea's cards (shops: channel3, place links: tavily) was over its daily cap: the idea comes without cards */

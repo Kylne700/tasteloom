@@ -28,8 +28,8 @@ type AppEnv = { Bindings: Env; Variables: { svc: Svc } };
 const SUB_BUDGET = 40; // Workers Free: 50 subrequests per invocation
 
 export const LIMIT_MESSAGE = {
-  ip: 'You have reached today’s allowance for live lookups. The example still works, or come back tomorrow.',
-  global: 'The demo has reached its daily budget for live data. The example still works, or come back tomorrow.',
+  ip: 'You have reached today’s allowance for live lookups. The saved example still works, or come back tomorrow.',
+  global: 'The demo has reached its daily budget for live data. The saved example still works, or come back tomorrow.',
 } as const;
 /** Same limits, seen from the checkout screen (sandbox orders and the daily spend cap). */
 export const ORDER_LIMIT_MESSAGE = {

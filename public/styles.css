@@ -113,6 +113,7 @@ select {
 .label { display: block; margin-bottom: 4px; font-weight: 700; }
 .hint { margin: 0 0 12px; color: var(--ink-2); font-size: 0.9375rem; }
 .hint.tight { margin: 14px 0 0; font-size: 0.875rem; }
+.hint.replay { display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px; margin-top: 2px; } /* the button is its own tap target, not a word in a sentence */
 .error { min-height: 1.4em; margin: 4px 0 0; color: var(--bad); font-size: 0.9375rem; font-weight: 600; }
 
 .switch { display: inline-flex; align-items: center; gap: 10px; min-height: 40px; padding: 0; font: 500 0.9375rem var(--sans); color: var(--ink); background: none; border: 0; cursor: pointer; border-radius: 999px; }
@@ -250,6 +251,9 @@ select {
 .because.named { gap: 8px 12px; margin: 10px 0 12px; }
 .because.named .because-lbl { color: var(--ink); font-size: 1.375rem; font-weight: 600; line-height: 1.3; }
 .because.named .pill-soft { padding: 4px 16px; font-size: 1.375rem; font-weight: 700; line-height: 1.3; }
+/* Qloo's evidence under the reason: its split of the link by favourite and the tags it gives both; quiet, so the reason stays the hero */
+.evidence { margin: 8px 0 0; color: var(--ink-2); font-size: 0.9375rem; }
+.ev-val { color: var(--ink); font-weight: 600; }
 /* copy note: the sentence to send along with an idea; the memory line shows after the press, and a box to copy by hand if the clipboard refuses */
 .note-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 12px; }
 .note-status { flex: 1 1 14rem; margin: 0; color: var(--ink-2); font-size: 0.9375rem; }
@@ -461,7 +465,7 @@ html[data-images='off'] .media img, html[data-images='off'] .thumb img { display
 
 /* long unbroken words (an 80-character favourite, a long shop domain) must wrap instead of widening the page at 375 px */
 .ideas-list { grid-template-columns: minmax(0, 1fr); }
-.idea h2, .because, .reason, .pill-soft, .chip-text, .line-shop { overflow-wrap: anywhere; }
+.idea h2, .because, .reason, .evidence, .pill-soft, .chip-text, .line-shop { overflow-wrap: anywhere; }
 .chip { max-width: 100%; }
 .chip-text { min-width: 0; }
 /* the copy button sits in its own dd so the test card list is valid; the look is unchanged */
@@ -469,13 +473,16 @@ html[data-images='off'] .media img, html[data-images='off'] .thumb img { display
 @media (max-width: 360px) { .tc-row dd.tc-act { grid-row: 1; } }
 
 /* ---- ask them: the link to send on the first screen, and the page a friend opens ---------------------------------- */
-.ask-link { margin: 0 0 14px; }
+.ask-link { margin: 0 0 14px; padding: 12px 16px; background: var(--sand); border: 1px solid var(--line); border-radius: var(--r-sm); }
+.ask-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
+.ask-text { margin: 0; color: var(--ink-2); font-size: 0.9375rem; }
+.ask-text strong { color: var(--ink); }
 .link-btn { display: inline-flex; align-items: center; min-height: 32px; padding: 0; font: inherit; font-weight: 600; color: var(--accent); background: none; border: 0; border-radius: var(--r-sm); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .link-btn:hover { color: var(--accent-hover); }
-.ask-panel { margin-top: 8px; padding: 14px 16px; background: var(--sand); border: 1px solid var(--line); border-radius: var(--r-sm); }
+.ask-panel { margin-top: 12px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-sm); }
 .ask-panel p { margin: 0 0 12px; color: var(--ink-2); font-size: 0.9375rem; }
 .linkrow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.linkrow .link-box { flex: 1 1 240px; width: auto; min-width: 0; font: 0.875rem var(--mono); text-overflow: ellipsis; }
+.linkrow .link-box { flex: 1 1 240px; width: 100%; min-width: 0; font: 0.875rem var(--mono); text-overflow: ellipsis; }
 .linkrow .btn { min-width: 6.25rem; } /* as wide as "Copied", so the label change moves nothing */
 .ask-main { max-width: 760px; }
 .ask-main .lead { margin-bottom: 30px; }

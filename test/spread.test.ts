@@ -2,8 +2,8 @@
 // The Qloo answers are invented, in the shape of the docs (src/adapters/qloo.ts); real Qloo output is never committed.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { MEGA, templateReason } from '../src/agent/ideas.ts';
-import type { FetchFn } from '../src/types.ts';
+import { MEGA, spreadPicks, templateReason } from '../src/agent/ideas.ts';
+import type { Candidate, FetchFn } from '../src/types.ts';
 import { chatReply, FAVS, json, makeHarness, readEvents, taskOf, toolCall } from './helpers.ts';
 
 const DONE = () => chatReply({ content: 'DONE' });
@@ -31,7 +31,11 @@ interface Row {
   lead: string; // the favourite Qloo links the result to most strongly
   pop?: number; // Qloo's popularity percentile, when the answer carries one
   plain?: boolean; // no explainability in the answer: no usable link to any favourite
+  tags?: string[]; // the tags Qloo gives the result; by default those of its lead favourite, so the two have something in common
 }
+/** Invented tags in the shape Qloo uses ({ id, name, type: 'urn:tag:<kind>:qloo' }). */
+const tagObj = (name: string) => ({ id: `T-${name}`, name, type: 'urn:tag:style:qloo' });
+const SEED_TAGS: Record<string, string[]> = { [NUJ]: ['Jazz Hop', 'Mellow'], [MUJI]: ['Minimalist', 'Mellow'], [KAFKA]: ['Dreamlike'] };
 /** What insights returns per type. As the live API does, every result is linked to every favourite sent; the first of each type is led by Nujabes, the run that showed the problem. */
 const ROWS: Record<string, Row[]> = {
   brand: [{ id: 'B-AUREL', name: 'Aurel', lead: NUJ }, { id: 'B-BRISK', name: 'Brisk', lead: NUJ }, { id: 'B-CORVO', name: 'Corvo', lead: MUJI }, { id: 'B-DUNMORE', name: 'Dunmore', lead: KAFKA }],
@@ -53,7 +57,7 @@ function qloo(rows = ROWS) {
     const u = new URL(input);
     if (u.pathname === '/search') {
       const hit = SEEDS[u.searchParams.get('query')!.toLowerCase()];
-      return json({ results: hit ? [{ name: hit.name, entity_id: hit.id, types: [`urn:entity:${hit.type}`] }] : [] });
+      return json({ results: hit ? [{ name: hit.name, entity_id: hit.id, types: [`urn:entity:${hit.type}`], tags: (SEED_TAGS[hit.id] ?? []).map(tagObj) }] : [] });
     }
     asked.push(u);
     const sent = u.searchParams.get('signal.interests.entities')!.split(',');
@@ -64,6 +68,7 @@ function qloo(rows = ROWS) {
       type: 'urn:entity',
       subtype: `urn:entity:${type}`,
       ...(r.pop === undefined ? {} : { popularity: r.pop }),
+      tags: (r.tags ?? SEED_TAGS[r.lead] ?? []).map(tagObj),
       ...(r.plain ? {} : { query: { explainability: { 'signal.interests.entities': sent.map((id) => ({ entity_id: id, score: id === r.lead ? 0.5 : 0.1 })) } } }),
     }));
     return json({ success: true, results: { entities } });
@@ -203,6 +208,13 @@ for (const [tier, ai] of [
     assert.ok(leads(ideas).size >= 2, [...leads(ideas)].join());
     assert.ok(most(ideas) <= 2, ideas.map((i) => i.entity.type).join());
   });
+
+  test(`spread: ${tier}: a favourite that leads a usable candidate leads an idea, so all three typed favourites are cited first by some idea`, async () => {
+    const ideas = ideasOf(await go(setup(qloo(), ai)));
+    assert.ok(ideas.length >= 4, `${ideas.length} ideas`);
+    assert.deepEqual([...leads(ideas)].sort(), ['Kafka on the Shore', 'Muji', 'Nujabes']);
+    assert.ok(most(ideas) <= 2, ideas.map((i) => i.entity.type).join());
+  });
 }
 
 test('spread: the tools tier refuses a second find_products led by the same favourite while other favourites lead other candidates', async () => {
@@ -221,6 +233,55 @@ test('spread: the tools tier refuses a second find_products led by the same favo
   const ideas = ideasOf(await go(h));
   assert.match(refused?.error ?? JSON.stringify(refused), /too alike/);
   assert.ok(ideas.length >= 4 && leads(ideas).size >= 2, [...leads(ideas)].join());
+});
+
+test('spread: the tools tier does not refuse a repeated lead once two favourites lead ideas, even while Kafka on the Shore leads none (only the server’s own picks look for coverage)', async () => {
+  let accepted: any;
+  const h = setup(
+    qloo(),
+    model({
+      ideas: turns(
+        LOOK_ALL,
+        () => ['brand', 'book', 'artist', 'place'].map((t) => toolCall('qloo_insights', { target_type: t }, `i-${t}`)),
+        () => [find('B-AUREL', 'Aurel'), find('B-CORVO', 'Corvo'), find('K-FABLE', 'Fable Hill')], // led by Nujabes, Muji, then Nujabes again
+        (a) => ((accepted = a['f-K-FABLE']), []),
+      ),
+    }),
+  );
+  const ideas = ideasOf(await go(h));
+  assert.equal(accepted?.error, undefined, JSON.stringify(accepted)?.slice(0, 200));
+  assert.ok(ideas.some((i) => i.entity.name === 'Fable Hill'), ideas.map((i) => i.entity.name).join());
+});
+
+const cand = (id: string, type: string, lead: string): Candidate => ({ id, name: id, type, because: [{ seedId: lead, score: 0.5 }], explained: true });
+
+test('spread: picks cover as many favourites as the candidates allow, strongest first within that', () => {
+  const pool = [cand('a0', 'brand', 'S0'), cand('a1', 'book', 'S0'), cand('a2', 'artist', 'S0'), cand('a3', 'podcast', 'S0'), cand('b', 'brand', 'S1'), cand('c', 'book', 'S2'), cand('d', 'artist', 'S3')];
+  assert.deepEqual(spreadPicks(pool, [], 4).map((c) => c.id), ['a0', 'b', 'c', 'd']);
+  assert.deepEqual(spreadPicks(pool, [], 5).map((c) => c.id), ['a0', 'b', 'c', 'd', 'a1'], 'once every favourite leads an idea, the order of the list decides again');
+  const noD = pool.filter((c) => c.id !== 'd');
+  assert.deepEqual(spreadPicks(noD, [], 4).map((c) => c.id), ['a0', 'b', 'c', 'a1'], 'a favourite with no candidate is not waited for');
+});
+
+test('spread: a favourite whose only candidates break the type or trip rules gets no forced pick', () => {
+  const pool = [cand('a0', 'brand', 'S0'), cand('b0', 'brand', 'S1'), cand('a1', 'book', 'S0'), cand('a2', 'artist', 'S0'), cand('c0', 'brand', 'S2'), cand('p', 'place', 'S0'), cand('q', 'destination', 'S3')];
+  const got = spreadPicks(pool, [], 5).map((c) => c.id);
+  assert.deepEqual(got, ['a0', 'b0', 'q', 'a1', 'a2'], 'S3 gets the trip before a second S0 idea; S2 has only a third brand, so nothing waits for it, and the other trip is out');
+});
+
+test('spread: the favourite rule never costs a pick: random pools give as many picks as they hold, none twice', () => {
+  let seed = 11;
+  const next = (n: number) => (seed = (seed * 48271) % 2147483647) % n;
+  const types = ['brand', 'book', 'artist', 'place', 'destination'];
+  for (let round = 0; round < 400; round++) {
+    const pool = Array.from({ length: 1 + next(14) }, (_, i) => cand(`c${i}`, types[next(types.length)]!, `S${next(4)}`));
+    const taken = pool.slice(0, next(3)).splice(0);
+    const rest = pool.filter((c) => !taken.includes(c));
+    const n = 1 + next(8);
+    const got = spreadPicks(rest, taken, n);
+    assert.equal(got.length, Math.min(n, rest.length), `${rest.length} candidates, ${n} wanted`);
+    assert.equal(new Set(got).size, got.length);
+  }
 });
 
 // ---- the queries and the reasons -------------------------------------------------------------------------------------------
@@ -242,21 +303,102 @@ test('spread: a catalog search that finds one matching item still makes an idea'
   assert.ok(products.every((i) => i.cardIds.length === 1));
 });
 
-test('spread: a model reason is kept only if it names the favourite Qloo links most strongly', async () => {
+test('spread: a model reason is kept only if it names the favourite Qloo links most strongly and uses a tag Qloo gives both', async () => {
   const h = setup(
     qloo(),
     model({
       reasons: (_n, body) => {
-        const ideas = JSON.parse(body.messages[1].content).ideas as { id: string; because: string[] }[];
-        return chatReply({ content: JSON.stringify({ reasons: Object.fromEntries(ideas.map((i, k) => [i.id, `A lovely present, because they love ${i.because[k % 2]} so much.`])) }) }); // odd ones name only the second favourite
+        const ideas = JSON.parse(body.messages[1].content).ideas as { id: string; because: string[]; in_common: string[] }[];
+        const write = (i: { because: string[]; in_common: string[] }, k: number) =>
+          [
+            `A lovely present, because they love ${i.because[0]} and share a ${i.in_common[0]} spirit.`, // names the strongest favourite and a shared tag: kept
+            `A lovely present, because they love ${i.because[0]} so much.`, // no shared tag
+            `A lovely present, because they love ${i.because[1]} and share a ${i.in_common[0]} spirit.`, // names only the second favourite
+          ][k % 3]!;
+        return chatReply({ content: JSON.stringify({ reasons: Object.fromEntries(ideas.map((i, k) => [i.id, write(i, k)])) }) });
       },
     }),
   );
   const ev = await go(h);
   const reasons = ev.find((e) => e.t === 'reasons').reasons;
   const ideas = ideasOf(ev);
-  assert.ok(ideas.length >= 4 && ideas.every((i) => i.because.length >= 2));
-  ideas.forEach((i, k) => assert.equal(reasons[i.id], k % 2 ? templateReason(i) : `A lovely present, because they love ${i.because[0]} so much.`));
+  assert.ok(ideas.length >= 4 && ideas.every((i) => i.because.length >= 2 && i.shared?.length), 'every idea has two favourites and a shared tag');
+  ideas.forEach((i, k) => assert.equal(reasons[i.id], k % 3 ? templateReason(i) : `A lovely present, because they love ${i.because[0]} and share a ${i.shared[0]} spirit.`, i.title));
+  assert.ok(ideas.some((_, k) => k % 3 === 0) && ideas.some((_, k) => k % 3 === 1), 'both a kept and a replaced reason were tested');
+});
+
+// ---- what Qloo's data says on the card -------------------------------------------------------------------------------------
+
+test('evidence: each idea carries Qloo’s split of the link and the tags both it and its strongest favourite have', async () => {
+  const h = setup(qloo(), modelDown);
+  const ideas = ideasOf(await go(h));
+  assert.ok(ideas.length >= 4);
+  for (const i of ideas) {
+    // the fixture gives every favourite 0.1 and the lead 0.5: 71.4%, 14.3%, 14.3%; the odd percent goes to the largest remainder
+    assert.deepEqual(i.shares, [72, 14, 14], `${i.title}: Qloo's split of the link, adding up to 100`);
+    assert.equal(i.shares.length, i.because.length);
+    const lead = i.because[0] === 'Nujabes' ? NUJ : i.because[0] === 'Muji' ? MUJI : KAFKA;
+    assert.deepEqual(i.shared, SEED_TAGS[lead], `${i.title}: the tags both ${i.because[0]} and ${i.entity.name} have`);
+  }
+});
+
+test('evidence: no split when Qloo names one favourite, and no shared tags when the two have none; the page gets no other tag', async () => {
+  const h = setup(qloo(), modelDown);
+  // a one-favourite answer: ask Qloo about a single search result by typing one favourite plus two that Qloo cannot find
+  const ev = await go(h, [FAVS[1]!, { text: 'Zzyzx' }, { text: 'Qqq' }]);
+  const ideas = ideasOf(ev);
+  assert.ok(ideas.length >= 3 && ideas.every((i) => i.because.length === 1 && i.because[0] === 'Nujabes'));
+  assert.ok(ideas.every((i) => i.shares === undefined), 'a split of one favourite is not shown');
+  assert.ok(ideas.every((i) => i.shared?.every((t: string) => SEED_TAGS[NUJ]!.includes(t))));
+  const taste = ev.filter((e) => e.t === 'taste').at(-1);
+  assert.ok(taste.seeds.every((s: any) => Object.keys(s).sort().join() === 'id,name,type'), 'the tags stay off the seeds the page receives');
+});
+
+test('evidence: when Qloo’s data gives a favourite and an idea nothing in common, the reason says only that Qloo links them, whatever a model writes', async () => {
+  const noCommon = (rows: Row[]) => rows.map((r) => ({ ...r, tags: ['Unrelated Thing'] }));
+  const rows = { brand: noCommon(ROWS.brand!), book: noCommon(ROWS.book!), artist: noCommon(ROWS.artist!), place: noCommon(ROWS.place!) };
+  let calls = 0;
+  const h = setup(
+    qloo(rows),
+    model({
+      // the old behaviour: a model asked for every idea names the strongest favourite and invents what they share; this reason would have been kept
+      reasons: (_n, body) => {
+        calls++;
+        const ideas = JSON.parse(body.messages[1].content).ideas as { id: string; because: string[] }[];
+        return chatReply({ content: JSON.stringify({ reasons: Object.fromEntries(ideas.map((i) => [i.id, `Because they love ${i.because[0]}, both share the same quiet, dreamlike mood.`])) }) });
+      },
+    }),
+  );
+  const ev = await go(h);
+  const reasons = ev.find((e) => e.t === 'reasons').reasons;
+  const ideas = ideasOf(ev);
+  assert.ok(ideas.length >= 4 && ideas.every((i) => i.because.length >= 2 && !i.shared));
+  for (const i of ideas) assert.equal(reasons[i.id], `Qloo links ${i.because[0]} to ${i.entity.name}.`, i.title);
+  assert.equal(calls, 0, 'with nothing in common anywhere, the reasons model is not even asked');
+});
+
+test('evidence: an idea with nothing in common keeps the plain line even when the model answers for it; the ones with tags are written as before', async () => {
+  const rows = { ...ROWS, brand: [{ ...ROWS.brand![0]!, tags: ['Unrelated Thing'] }, ...ROWS.brand!.slice(1)] }; // Aurel (led by Nujabes) has no tag in common
+  const h = setup(
+    qloo(rows),
+    model({
+      reasons: (_n, body) => {
+        const ideas = JSON.parse(body.messages[1].content).ideas as { id: string; entity: string; because: string[]; in_common?: string[] }[];
+        assert.ok(ideas.every((i) => i.in_common?.length), 'only ideas with shared tags are put to the model');
+        // it also answers for ideas it was not asked about, naming the strongest favourite and inventing a shared quality
+        const all = Object.fromEntries(['i1', 'i2', 'i3', 'i4', 'i5', 'i6'].map((id) => [id, `Because they love ${ideas[0]?.because[0] ?? 'Nujabes'}, both share a hushed, dreamlike mood.`]));
+        for (const i of ideas) all[i.id] = `Because they love ${i.because[0]}, ${i.entity} has the same ${i.in_common![0]} feel.`;
+        return chatReply({ content: JSON.stringify({ reasons: all }) });
+      },
+    }),
+  );
+  const ev = await go(h);
+  const reasons = ev.find((e) => e.t === 'reasons').reasons;
+  const ideas = ideasOf(ev);
+  const aurel = ideas.find((i) => i.entity.name === 'Aurel');
+  assert.ok(aurel, 'the idea without tags in common is in the run');
+  assert.equal(reasons[aurel.id], 'Qloo links Nujabes to Aurel.');
+  for (const i of ideas.filter((x) => x !== aurel)) assert.equal(reasons[i.id], `Because they love ${i.because[0]}, ${i.entity.name} has the same ${i.shared[0]} feel.`, i.title);
 });
 
 // ---- very popular names ----------------------------------------------------------------------------------------------------
