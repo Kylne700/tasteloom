@@ -192,6 +192,8 @@ select {
 .how li span { color: var(--ink-2); font-size: 0.9375rem; }
 .how .sent { margin: 20px 0 0; padding-top: 16px; border-top: 1px solid var(--line); color: var(--ink-2); font-size: 0.9375rem; }
 .how .sent + .sent { margin-top: 12px; padding-top: 0; border-top: 0; }
+.how summary { cursor: pointer; }
+.how .sent p { margin: 12px 0 0; }
 .how .demo-note { margin-top: 20px; }
 
 /* ---- screen 2: gift ideas ----------------------------------------------------------------------------------------------- */

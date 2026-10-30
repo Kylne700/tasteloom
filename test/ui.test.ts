@@ -123,3 +123,22 @@ test('the first screen: "Run a live example" sits once, directly after the lead 
   assert.ok(form.includes("'Replay the saved example'") && !form.includes('Run a live example'), 'the form keeps the replay and no longer holds the live example');
   assert.match(read('public/styles.css'), /\.live-example \{[^}]*flex-wrap: wrap/, 'the block wraps, so the hint drops under the button on a phone');
 });
+
+test('"What is sent where" is a closed <details>: the summary gives the gist in plain words and the paragraph inside stays whole', () => {
+  const taste = read('public/taste.js');
+  const at = (s: string) => {
+    const i = taste.indexOf(s);
+    assert.ok(i >= 0, s);
+    return i;
+  };
+  const details = at("h('details', { class: 'sent' }");
+  const summary = at("h('summary', {}");
+  assert.ok(details < summary && summary < at("h('p', {}, h('strong', {}, 'What is sent where. ')"), 'details, then its summary, then the paragraph');
+  assert.doesNotMatch(taste.slice(details, summary), /open/, 'closed until the visitor opens it');
+  const lines = taste.split('\n');
+  const summaryLine = lines.find((l) => l.includes("h('summary', {}"))!;
+  assert.match(summaryLine, /'What is sent where: '\), 'what you type goes to Qloo and an AI model, and searches built from it go to a shop and a web search\. Tasteloom does not store your favourites; those services keep what they receive under their own terms\.'/);
+  const para = lines.filter((l) => l.includes('What is sent where. '));
+  assert.equal(para.length, 1, 'the paragraph is there once');
+  for (const s of ['Tasteloom does not store the favourites you type.', 'PayPal gets only the order, in its sandbox.', 'The other services keep what they receive under their own terms.']) assert.ok(para[0]!.includes(s), s);
+});
